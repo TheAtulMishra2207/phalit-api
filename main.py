@@ -239,7 +239,7 @@ def get_dignity(planet: str, sign_index: int, degree_in_sign: float) -> str:
 
 def calc_planet_data(jd: float, planet: str, lagna_sign_index: int) -> dict:
     """Calculate full data for one planet."""
-    flags = swe.FLG_SWIEPH | swe.FLG_SIDEREAL
+    flags = swe.FLG_SWIEPH | swe.FLG_SIDEREAL | swe.FLG_SPEED
 
     if planet == 'Ketu':
         # Ketu = Rahu + 180°
