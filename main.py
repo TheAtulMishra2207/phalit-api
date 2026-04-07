@@ -79,11 +79,6 @@ EXALTATION_SIGN = {
     'Sun': 0, 'Moon': 1, 'Mars': 9, 'Mercury': 5,
     'Jupiter': 3, 'Venus': 11, 'Saturn': 6
 }
-# Exact degree of deepest exaltation (not used for detection, informational)
-EXALTATION_DEG = {
-    'Sun': 10, 'Moon': 3, 'Mars': 28, 'Mercury': 15,
-    'Jupiter': 5, 'Venus': 27, 'Saturn': 20
-}
 
 # Sign index where planet is debilitated (opposite of exaltation)
 DEBILITATION_SIGN = {
@@ -93,13 +88,13 @@ DEBILITATION_SIGN = {
 
 # Own signs per planet
 OWN_SIGNS = {
-    'Sun': [4],        # Leo
-    'Moon': [3],       # Cancer
-    'Mars': [0, 7],    # Aries, Scorpio
-    'Mercury': [2, 5], # Gemini, Virgo
-    'Jupiter': [8, 11],# Sagittarius, Pisces
-    'Venus': [1, 6],   # Taurus, Libra
-    'Saturn': [9, 10]  # Capricorn, Aquarius
+    'Sun': [4],         # Leo
+    'Moon': [3],        # Cancer
+    'Mars': [0, 7],     # Aries, Scorpio
+    'Mercury': [2, 5],  # Gemini, Virgo
+    'Jupiter': [8, 11], # Sagittarius, Pisces
+    'Venus': [1, 6],    # Taurus, Libra
+    'Saturn': [9, 10]   # Capricorn, Aquarius
 }
 
 # Moolatrikona sign and maximum degree within that sign
@@ -160,14 +155,10 @@ def calc_lagna(jd: float, lat: float, lon: float) -> dict:
     Calculate sidereal Ascendant using Lahiri ayanamsha.
     Returns sign index, degree within sign, full longitude, and sign name.
     """
-    # Get tropical Ascendant (using Placidus — we only need the ASC, not cusps)
     cusps, ascmc = swe.houses(jd, lat, lon, b'P')
     asc_tropical = ascmc[0]
-
-    # Apply Lahiri ayanamsha to get sidereal
     ayanamsha = swe.get_ayanamsa_ut(jd)
     asc_sidereal = (asc_tropical - ayanamsha) % 360.0
-
     sign_index = int(asc_sidereal / 30)
     degree_in_sign = asc_sidereal % 30
 
@@ -198,23 +189,28 @@ def get_nakshatra_info(lon: float) -> dict:
 def get_dignity(planet: str, sign_index: int, degree_in_sign: float) -> str:
     """
     Determine planetary dignity using classical Parashari rules.
+    Per BPHS Ch.47: Rahu exalted in Taurus, debilitated in Scorpio.
+                    Ketu exalted in Scorpio, debilitated in Taurus.
     Priority: Exalted > Moolatrikona > Own Sign > Friendly > Enemy > Debilitated > Neutral
     """
-if planet == 'Rahu':
-    if sign_index == 1:   # Taurus
-        return 'Exalted (Uccha)'
-    elif sign_index == 7:  # Scorpio
-        return 'Debilitated (Neecha)'
-    return 'Node'
+    # ── Rahu & Ketu (BPHS Chapter 47) ───────────────────────────────────────
+    if planet == 'Rahu':
+        if sign_index == 1:    # Taurus — exalted
+            return 'Exalted (Uccha)'
+        elif sign_index == 7:  # Scorpio — debilitated
+            return 'Debilitated (Neecha)'
+        return 'Node'
 
-if planet == 'Ketu':
-    if sign_index == 7:   # Scorpio
-        return 'Exalted (Uccha)'
-    elif sign_index == 1:  # Taurus
-        return 'Debilitated (Neecha)'
-    return 'Node'
+    if planet == 'Ketu':
+        if sign_index == 7:    # Scorpio — exalted
+            return 'Exalted (Uccha)'
+        elif sign_index == 1:  # Taurus — debilitated
+            return 'Debilitated (Neecha)'
+        return 'Node'
 
-    # Debilitation (check first to avoid MT/own sign overlap at boundary)
+    # ── Seven classical planets ──────────────────────────────────────────────
+
+    # Debilitation (check before MT/own to avoid boundary overlap)
     if DEBILITATION_SIGN.get(planet) == sign_index:
         return 'Debilitated (Neecha)'
 
@@ -222,7 +218,7 @@ if planet == 'Ketu':
     if EXALTATION_SIGN.get(planet) == sign_index:
         return 'Exalted (Uccha)'
 
-    # Moolatrikona (must check before Own Sign as Moolatrikona is within own sign)
+    # Moolatrikona (must check before Own Sign)
     if planet in MOOLATRIKONA:
         mt_sign, mt_max_deg = MOOLATRIKONA[planet]
         if mt_sign == sign_index and degree_in_sign <= mt_max_deg:
@@ -253,11 +249,10 @@ def calc_planet_data(jd: float, planet: str, lagna_sign_index: int) -> dict:
     flags = swe.FLG_SWIEPH | swe.FLG_SIDEREAL | swe.FLG_SPEED
 
     if planet == 'Ketu':
-        # Ketu = Rahu + 180°
         rahu_result, _ = swe.calc_ut(jd, swe.MEAN_NODE, flags)
         lon = (rahu_result[0] + 180.0) % 360.0
-        speed = -rahu_result[3]  # Ketu moves opposite
-        retrograde = True  # Nodes are always retrograde (mean)
+        speed = -rahu_result[3]
+        retrograde = True
     else:
         result, _ = swe.calc_ut(jd, SWE_ID[planet], flags)
         lon = result[0]
@@ -266,10 +261,7 @@ def calc_planet_data(jd: float, planet: str, lagna_sign_index: int) -> dict:
 
     sign_index = int(lon / 30)
     degree_in_sign = lon % 30
-
-    # Whole Sign house
     house = ((sign_index - lagna_sign_index) % 12) + 1
-
     nakshatra = get_nakshatra_info(lon)
     dignity = get_dignity(planet, sign_index, degree_in_sign)
 
@@ -298,10 +290,7 @@ def calc_all_planets(jd: float, lagna_sign_index: int) -> dict:
 
 
 def calc_houses(lagna_sign_index: int) -> dict:
-    """
-    Whole Sign house system.
-    Lagna sign = H1, each subsequent sign = next house.
-    """
+    """Whole Sign house system."""
     houses = {}
     for h in range(1, 13):
         sign_idx = (lagna_sign_index + h - 1) % 12
@@ -321,11 +310,9 @@ def calc_vimshottari_dasha(moon_lon: float, birth_date_str: str) -> dict:
     """
     nak_index = int(moon_lon / NAKSHATRA_SPAN) % 27
     pos_in_nak = moon_lon % NAKSHATRA_SPAN
-
     nak_lord = NAKSHATRA_LORDS[nak_index]
     nak_dasha_years = DASHA_YEARS[nak_lord]
 
-    # How much of this dasha is already consumed at birth
     fraction_elapsed = pos_in_nak / NAKSHATRA_SPAN
     fraction_remaining = 1.0 - fraction_elapsed
     years_remaining_at_birth = nak_dasha_years * fraction_remaining
@@ -333,7 +320,6 @@ def calc_vimshottari_dasha(moon_lon: float, birth_date_str: str) -> dict:
     birth_date = datetime.strptime(birth_date_str, "%Y-%m-%d")
     today = datetime.now()
 
-    # Build full dasha sequence
     lord_start_index = DASHA_ORDER.index(nak_lord)
     sequence = []
     current_start = birth_date
@@ -373,7 +359,7 @@ def calc_vimshottari_dasha(moon_lon: float, birth_date_str: str) -> dict:
     if not current_maha:
         current_maha = sequence[-1]
 
-    # Calculate Antardashas within current Mahadasha
+    # Antardashas within current Mahadasha
     maha_lord = current_maha["planet"]
     maha_lord_idx = DASHA_ORDER.index(maha_lord)
     maha_total_years = DASHA_YEARS[maha_lord]
@@ -384,7 +370,6 @@ def calc_vimshottari_dasha(moon_lon: float, birth_date_str: str) -> dict:
 
     for i in range(9):
         antar_lord = DASHA_ORDER[(maha_lord_idx + i) % 9]
-        # Antardasha duration = (Maha years × Antar years) / 120
         antar_years = (maha_total_years * DASHA_YEARS[antar_lord]) / 120.0
         antar_end = antar_start + timedelta(days=antar_years * 365.25)
         antar_sequence.append({
@@ -427,6 +412,7 @@ class ChartRequest(BaseModel):
     lon: float          # Longitude (positive = East)
     utc_offset: float   # e.g. 5.5 for IST, -5.0 for EST
 
+
 # ─────────────────────────────────────────────────────────────────────────────
 # ENDPOINTS
 # ─────────────────────────────────────────────────────────────────────────────
@@ -439,10 +425,7 @@ def health_check():
 
 @app.get("/geocode")
 def geocode_place(place: str):
-    """
-    Convert a place name to latitude/longitude using OpenStreetMap Nominatim.
-    Example: /geocode?place=Patna, India
-    """
+    """Convert a place name to lat/lon using OpenStreetMap Nominatim."""
     try:
         response = requests.get(
             "https://nominatim.openstreetmap.org/search",
@@ -470,23 +453,14 @@ def calculate_chart(req: ChartRequest):
     """
     Main chart calculation endpoint.
     Input: birth date, time, latitude, longitude, UTC offset.
-    Output: Lagna, all 9 planets (with house, sign, dignity, nakshatra), 
+    Output: Lagna, all 9 planets (with house, sign, dignity, nakshatra),
             house lords, and Vimshottari Dasha data.
     """
     try:
-        # 1. Julian Day
         jd = to_julian_day(req.date, req.time, req.utc_offset)
-
-        # 2. Ascendant (Lagna)
         lagna = calc_lagna(jd, req.lat, req.lon)
-
-        # 3. All 9 planets
         planets = calc_all_planets(jd, lagna["sign_index"])
-
-        # 4. Whole Sign Houses with lords
         houses = calc_houses(lagna["sign_index"])
-
-        # 5. Vimshottari Dasha
         moon_lon = planets["Moon"]["longitude"]
         dasha = calc_vimshottari_dasha(moon_lon, req.date)
 
