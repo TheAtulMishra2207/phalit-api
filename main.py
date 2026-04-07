@@ -200,8 +200,19 @@ def get_dignity(planet: str, sign_index: int, degree_in_sign: float) -> str:
     Determine planetary dignity using classical Parashari rules.
     Priority: Exalted > Moolatrikona > Own Sign > Friendly > Enemy > Debilitated > Neutral
     """
-    if planet in ['Rahu', 'Ketu']:
-        return 'Node'
+if planet == 'Rahu':
+    if sign_index == 1:   # Taurus
+        return 'Exalted (Uccha)'
+    elif sign_index == 7:  # Scorpio
+        return 'Debilitated (Neecha)'
+    return 'Node'
+
+if planet == 'Ketu':
+    if sign_index == 7:   # Scorpio
+        return 'Exalted (Uccha)'
+    elif sign_index == 1:  # Taurus
+        return 'Debilitated (Neecha)'
+    return 'Node'
 
     # Debilitation (check first to avoid MT/own sign overlap at boundary)
     if DEBILITATION_SIGN.get(planet) == sign_index:
