@@ -318,7 +318,7 @@ def calc_vimshottari_dasha(moon_lon: float, birth_date_str: str) -> dict:
     years_remaining_at_birth = nak_dasha_years * fraction_remaining
 
     birth_date = datetime.strptime(birth_date_str, "%Y-%m-%d")
-    today = datetime.utcnow()
+    today = datetime.now()
 
     lord_start_index = DASHA_ORDER.index(nak_lord)
     sequence = []
