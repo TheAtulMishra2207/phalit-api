@@ -20,7 +20,7 @@ app.add_middleware(
 )
 
 # Lahiri Ayanamsha — classical Vedic standard
-swe.set_sid_mode(swe.SIDM_LAHIRI)
+swe.set_sid_mode(swe.SIDM_LAHIRI, 0, 0)
 
 # ─────────────────────────────────────────────────────────────────────────────
 # CONSTANTS
