@@ -20,7 +20,7 @@ app.add_middleware(
 )
 
 # Lahiri Ayanamsha — classical Vedic standard
-swe.set_sid_mode(swe.SIDM_LAHIRI, 0, 0)
+swe.set_sid_mode(swe.SIDM_LAHIRI)
 
 # ─────────────────────────────────────────────────────────────────────────────
 # CONSTANTS
@@ -134,7 +134,11 @@ NATURAL_ENEMIES = {
 }
 
 NAKSHATRA_SPAN = 360.0 / 27  # 13.3333...°
-
+def get_lahiri_ayanamsha(jd: float) -> float:
+    T0 = 2433282.42345905  # JD Jan 1.0, 1950 TT
+    AYAN_T0 = 23.16608333  # 23°9'57.9" at T0
+    RATE = 50.2388475 / 3600  # degrees per year
+    return AYAN_T0 + ((jd - T0) / 365.25) * RATE
 # ─────────────────────────────────────────────────────────────────────────────
 # CALCULATION FUNCTIONS
 # ─────────────────────────────────────────────────────────────────────────────
@@ -157,7 +161,7 @@ def calc_lagna(jd: float, lat: float, lon: float) -> dict:
     """
     cusps, ascmc = swe.houses(jd, lat, lon, b'P')
     asc_tropical = ascmc[0]
-    ayanamsha = swe.get_ayanamsa_ut(jd)
+    ayanamsha = get_lahiri_ayanamsha(jd)
     asc_sidereal = (asc_tropical - ayanamsha) % 360.0
     sign_index = int(asc_sidereal / 30)
     degree_in_sign = asc_sidereal % 30
@@ -246,16 +250,17 @@ def get_dignity(planet: str, sign_index: int, degree_in_sign: float) -> str:
 
 def calc_planet_data(jd: float, planet: str, lagna_sign_index: int) -> dict:
     """Calculate full data for one planet."""
-    flags = swe.FLG_SWIEPH | swe.FLG_SIDEREAL | swe.FLG_SPEED
+    flags = swe.FLG_SWIEPH | swe.FLG_SPEED
+ayanamsha = get_lahiri_ayanamsha(jd)
 
     if planet == 'Ketu':
         rahu_result, _ = swe.calc_ut(jd, swe.MEAN_NODE, flags)
-        lon = (rahu_result[0] + 180.0) % 360.0
+        lon = (rahu_result[0] + 180.0 - ayanamsha) % 360.0
         speed = -rahu_result[3]
         retrograde = True
     else:
         result, _ = swe.calc_ut(jd, SWE_ID[planet], flags)
-        lon = result[0]
+        lon = (result[0] - ayanamsha) % 360.0
         speed = result[3]
         retrograde = speed < 0
 
