@@ -19,9 +19,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Lahiri Ayanamsha — classical Vedic standard
-swe.set_sid_mode(swe.SIDM_LAHIRI)
-
 # ─────────────────────────────────────────────────────────────────────────────
 # CONSTANTS
 # ─────────────────────────────────────────────────────────────────────────────
@@ -33,7 +30,6 @@ SIGNS = [
 
 SIGN_ABBR = ['Ari', 'Tau', 'Gem', 'Can', 'Leo', 'Vir', 'Lib', 'Sco', 'Sag', 'Cap', 'Aqu', 'Pis']
 
-# Ruler of each sign (index matches sign index)
 SIGN_LORDS = [
     'Mars', 'Venus', 'Mercury', 'Moon', 'Sun', 'Mercury',
     'Venus', 'Mars', 'Jupiter', 'Saturn', 'Saturn', 'Jupiter'
@@ -41,15 +37,13 @@ SIGN_LORDS = [
 
 PLANETS = ['Sun', 'Moon', 'Mars', 'Mercury', 'Jupiter', 'Venus', 'Saturn', 'Rahu', 'Ketu']
 
-# Swiss Ephemeris planet IDs
 SWE_ID = {
     'Sun': swe.SUN, 'Moon': swe.MOON, 'Mars': swe.MARS,
     'Mercury': swe.MERCURY, 'Jupiter': swe.JUPITER,
     'Venus': swe.VENUS, 'Saturn': swe.SATURN,
-    'Rahu': swe.MEAN_NODE  # Ketu = Rahu + 180°
+    'Rahu': swe.MEAN_NODE
 }
 
-# 27 Nakshatras
 NAKSHATRAS = [
     'Ashwini', 'Bharani', 'Krittika', 'Rohini', 'Mrigashira', 'Ardra',
     'Punarvasu', 'Pushya', 'Ashlesha', 'Magha', 'Purva Phalguni', 'Uttara Phalguni',
@@ -58,57 +52,50 @@ NAKSHATRAS = [
     'Shatabhisha', 'Purva Bhadrapada', 'Uttara Bhadrapada', 'Revati'
 ]
 
-# Nakshatra lords — repeating Ketu→Venus→Sun→Moon→Mars→Rahu→Jup→Sat→Mer cycle × 3
 NAKSHATRA_LORDS = [
     'Ketu', 'Venus', 'Sun', 'Moon', 'Mars', 'Rahu', 'Jupiter', 'Saturn', 'Mercury',
     'Ketu', 'Venus', 'Sun', 'Moon', 'Mars', 'Rahu', 'Jupiter', 'Saturn', 'Mercury',
     'Ketu', 'Venus', 'Sun', 'Moon', 'Mars', 'Rahu', 'Jupiter', 'Saturn', 'Mercury'
 ]
 
-# Vimshottari Dasha sequence and years
 DASHA_ORDER = ['Ketu', 'Venus', 'Sun', 'Moon', 'Mars', 'Rahu', 'Jupiter', 'Saturn', 'Mercury']
 DASHA_YEARS = {
     'Ketu': 7, 'Venus': 20, 'Sun': 6, 'Moon': 10, 'Mars': 7,
     'Rahu': 18, 'Jupiter': 16, 'Saturn': 19, 'Mercury': 17
-}  # Total = 120 years
+}
 
 # ─── Dignity Tables ───────────────────────────────────────────────────────────
 
-# Sign index (0=Aries) where planet is exalted
 EXALTATION_SIGN = {
     'Sun': 0, 'Moon': 1, 'Mars': 9, 'Mercury': 5,
     'Jupiter': 3, 'Venus': 11, 'Saturn': 6
 }
 
-# Sign index where planet is debilitated (opposite of exaltation)
 DEBILITATION_SIGN = {
     'Sun': 6, 'Moon': 7, 'Mars': 3, 'Mercury': 11,
     'Jupiter': 9, 'Venus': 5, 'Saturn': 0
 }
 
-# Own signs per planet
 OWN_SIGNS = {
-    'Sun': [4],         # Leo
-    'Moon': [3],        # Cancer
-    'Mars': [0, 7],     # Aries, Scorpio
-    'Mercury': [2, 5],  # Gemini, Virgo
-    'Jupiter': [8, 11], # Sagittarius, Pisces
-    'Venus': [1, 6],    # Taurus, Libra
-    'Saturn': [9, 10]   # Capricorn, Aquarius
+    'Sun': [4],
+    'Moon': [3],
+    'Mars': [0, 7],
+    'Mercury': [2, 5],
+    'Jupiter': [8, 11],
+    'Venus': [1, 6],
+    'Saturn': [9, 10]
 }
 
-# Moolatrikona sign and maximum degree within that sign
 MOOLATRIKONA = {
-    'Sun':     (4, 20),  # Leo, 0°–20°
-    'Moon':    (1, 30),  # Taurus, 0°–30° (full sign)
-    'Mars':    (0, 12),  # Aries, 0°–12°
-    'Mercury': (5, 20),  # Virgo, 0°–20°
-    'Jupiter': (8, 10),  # Sagittarius, 0°–10°
-    'Venus':   (6, 15),  # Libra, 0°–15°
-    'Saturn':  (9, 20),  # Capricorn, 0°–20°
+    'Sun':     (4, 20),
+    'Moon':    (1, 30),
+    'Mars':    (0, 12),
+    'Mercury': (5, 20),
+    'Jupiter': (8, 10),
+    'Venus':   (6, 15),
+    'Saturn':  (9, 20),
 }
 
-# Natural friendships (Naisargika Maitri)
 NATURAL_FRIENDS = {
     'Sun':     ['Moon', 'Mars', 'Jupiter'],
     'Moon':    ['Sun', 'Mercury'],
@@ -133,12 +120,25 @@ NATURAL_ENEMIES = {
     'Ketu':    ['Venus', 'Saturn']
 }
 
-NAKSHATRA_SPAN = 360.0 / 27  # 13.3333...°
+NAKSHATRA_SPAN = 360.0 / 27
+
+# ─────────────────────────────────────────────────────────────────────────────
+# AYANAMSHA — Manual Lahiri (IAE standard)
+# Avoids pyswisseph version discrepancies on hosted environments
+# ─────────────────────────────────────────────────────────────────────────────
+
 def get_lahiri_ayanamsha(jd: float) -> float:
-    T0 = 2433282.42345905  # JD Jan 1.0, 1950 TT
-    AYAN_T0 = 23.16608333  # 23°9'57.9" at T0
-    RATE = 50.2388475 / 3600  # degrees per year
+    """
+    Compute Lahiri ayanamsha using the IAE reference formula.
+    Reference epoch: Jan 1.0, 1950 TT = JD 2433282.42345905
+    Value at epoch:  23°9'57.9" = 23.16608333°
+    Annual rate:     50.2388475" per year
+    """
+    T0 = 2433282.42345905
+    AYAN_T0 = 23.16608333
+    RATE = 50.2388475 / 3600.0
     return AYAN_T0 + ((jd - T0) / 365.25) * RATE
+
 # ─────────────────────────────────────────────────────────────────────────────
 # CALCULATION FUNCTIONS
 # ─────────────────────────────────────────────────────────────────────────────
@@ -155,17 +155,13 @@ def to_julian_day(date_str: str, time_str: str, utc_offset: float) -> float:
 
 
 def calc_lagna(jd: float, lat: float, lon: float) -> dict:
-    """
-    Calculate sidereal Ascendant using Lahiri ayanamsha.
-    Returns sign index, degree within sign, full longitude, and sign name.
-    """
+    """Calculate sidereal Ascendant using manual Lahiri ayanamsha."""
     cusps, ascmc = swe.houses(jd, lat, lon, b'P')
     asc_tropical = ascmc[0]
     ayanamsha = get_lahiri_ayanamsha(jd)
     asc_sidereal = (asc_tropical - ayanamsha) % 360.0
     sign_index = int(asc_sidereal / 30)
     degree_in_sign = asc_sidereal % 30
-
     return {
         "sign": SIGNS[sign_index],
         "sign_abbr": SIGN_ABBR[sign_index],
@@ -178,7 +174,7 @@ def calc_lagna(jd: float, lat: float, lon: float) -> dict:
 
 
 def get_nakshatra_info(lon: float) -> dict:
-    """Return nakshatra name, lord, pada, and degree within nakshatra."""
+    """Return nakshatra name, lord, pada."""
     nak_index = int(lon / NAKSHATRA_SPAN) % 27
     pos_in_nak = lon % NAKSHATRA_SPAN
     pada = int(pos_in_nak / (NAKSHATRA_SPAN / 4)) + 1
@@ -191,51 +187,40 @@ def get_nakshatra_info(lon: float) -> dict:
 
 
 def get_dignity(planet: str, sign_index: int, degree_in_sign: float) -> str:
-    """
-    Determine planetary dignity using classical Parashari rules.
-    Per BPHS Ch.47: Rahu exalted in Taurus, debilitated in Scorpio.
-                    Ketu exalted in Scorpio, debilitated in Taurus.
-    Priority: Exalted > Moolatrikona > Own Sign > Friendly > Enemy > Debilitated > Neutral
-    """
-    # ── Rahu & Ketu (BPHS Chapter 47) ───────────────────────────────────────
+    """Determine planetary dignity using classical Parashari rules."""
+    # Rahu & Ketu — BPHS Chapter 47
     if planet == 'Rahu':
-        if sign_index == 1:    # Taurus — exalted
+        if sign_index == 1:
             return 'Exalted (Uccha)'
-        elif sign_index == 7:  # Scorpio — debilitated
+        elif sign_index == 7:
             return 'Debilitated (Neecha)'
         return 'Node'
 
     if planet == 'Ketu':
-        if sign_index == 7:    # Scorpio — exalted
+        if sign_index == 7:
             return 'Exalted (Uccha)'
-        elif sign_index == 1:  # Taurus — debilitated
+        elif sign_index == 1:
             return 'Debilitated (Neecha)'
         return 'Node'
 
-    # ── Seven classical planets ──────────────────────────────────────────────
-
-    # Debilitation (check before MT/own to avoid boundary overlap)
+    # Seven classical planets
     if DEBILITATION_SIGN.get(planet) == sign_index:
         return 'Debilitated (Neecha)'
 
-    # Exaltation
     if EXALTATION_SIGN.get(planet) == sign_index:
         return 'Exalted (Uccha)'
 
-    # Moolatrikona (must check before Own Sign)
     if planet in MOOLATRIKONA:
         mt_sign, mt_max_deg = MOOLATRIKONA[planet]
         if mt_sign == sign_index and degree_in_sign <= mt_max_deg:
             return 'Moolatrikona'
 
-    # Own Sign
     if sign_index in OWN_SIGNS.get(planet, []):
         return 'Own Sign (Swa)'
 
-    # Friendly / Enemy based on sign lord
     sign_lord = SIGN_LORDS[sign_index]
     if sign_lord == planet:
-        return 'Own Sign (Swa)'  # Redundant safety
+        return 'Own Sign (Swa)'
 
     friends = NATURAL_FRIENDS.get(planet, [])
     enemies = NATURAL_ENEMIES.get(planet, [])
@@ -249,18 +234,20 @@ def get_dignity(planet: str, sign_index: int, degree_in_sign: float) -> str:
 
 
 def calc_planet_data(jd: float, planet: str, lagna_sign_index: int) -> dict:
-    """Calculate full data for one planet."""
+    """Calculate full data for one planet using manual ayanamsha."""
     flags = swe.FLG_SWIEPH | swe.FLG_SPEED
-ayanamsha = get_lahiri_ayanamsha(jd)
+    ayanamsha = get_lahiri_ayanamsha(jd)
 
     if planet == 'Ketu':
         rahu_result, _ = swe.calc_ut(jd, swe.MEAN_NODE, flags)
-        lon = (rahu_result[0] + 180.0 - ayanamsha) % 360.0
+        lon_tropical = (rahu_result[0] + 180.0) % 360.0
+        lon = (lon_tropical - ayanamsha) % 360.0
         speed = -rahu_result[3]
         retrograde = True
     else:
         result, _ = swe.calc_ut(jd, SWE_ID[planet], flags)
-        lon = (result[0] - ayanamsha) % 360.0
+        lon_tropical = result[0]
+        lon = (lon_tropical - ayanamsha) % 360.0
         speed = result[3]
         retrograde = speed < 0
 
@@ -287,7 +274,6 @@ ayanamsha = get_lahiri_ayanamsha(jd)
 
 
 def calc_all_planets(jd: float, lagna_sign_index: int) -> dict:
-    """Calculate positions for all 9 grahas."""
     result = {}
     for planet in PLANETS:
         result[planet] = calc_planet_data(jd, planet, lagna_sign_index)
@@ -295,7 +281,6 @@ def calc_all_planets(jd: float, lagna_sign_index: int) -> dict:
 
 
 def calc_houses(lagna_sign_index: int) -> dict:
-    """Whole Sign house system."""
     houses = {}
     for h in range(1, 13):
         sign_idx = (lagna_sign_index + h - 1) % 12
@@ -309,10 +294,7 @@ def calc_houses(lagna_sign_index: int) -> dict:
 
 
 def calc_vimshottari_dasha(moon_lon: float, birth_date_str: str) -> dict:
-    """
-    Calculate Vimshottari Dasha sequence from birth.
-    Returns current Mahadasha, current Antardasha, and full 9-dasha sequence.
-    """
+    """Calculate Vimshottari Dasha sequence from birth."""
     nak_index = int(moon_lon / NAKSHATRA_SPAN) % 27
     pos_in_nak = moon_lon % NAKSHATRA_SPAN
     nak_lord = NAKSHATRA_LORDS[nak_index]
@@ -405,18 +387,16 @@ def calc_vimshottari_dasha(moon_lon: float, birth_date_str: str) -> dict:
         "antardasha_sequence": antar_sequence
     }
 
-
 # ─────────────────────────────────────────────────────────────────────────────
-# REQUEST / RESPONSE MODELS
+# REQUEST MODEL
 # ─────────────────────────────────────────────────────────────────────────────
 
 class ChartRequest(BaseModel):
-    date: str           # Format: YYYY-MM-DD
-    time: str           # Format: HH:MM (24-hour)
-    lat: float          # Latitude (positive = North)
-    lon: float          # Longitude (positive = East)
-    utc_offset: float   # e.g. 5.5 for IST, -5.0 for EST
-
+    date: str
+    time: str
+    lat: float
+    lon: float
+    utc_offset: float
 
 # ─────────────────────────────────────────────────────────────────────────────
 # ENDPOINTS
@@ -424,13 +404,11 @@ class ChartRequest(BaseModel):
 
 @app.get("/health")
 def health_check():
-    """Simple health check — confirms server is running."""
     return {"status": "ok", "service": "Phalit.ai Chart Engine", "version": "1.0.0"}
 
 
 @app.get("/geocode")
 def geocode_place(place: str):
-    """Convert a place name to lat/lon using OpenStreetMap Nominatim."""
     try:
         response = requests.get(
             "https://nominatim.openstreetmap.org/search",
@@ -455,12 +433,6 @@ def geocode_place(place: str):
 
 @app.post("/chart")
 def calculate_chart(req: ChartRequest):
-    """
-    Main chart calculation endpoint.
-    Input: birth date, time, latitude, longitude, UTC offset.
-    Output: Lagna, all 9 planets (with house, sign, dignity, nakshatra),
-            house lords, and Vimshottari Dasha data.
-    """
     try:
         jd = to_julian_day(req.date, req.time, req.utc_offset)
         lagna = calc_lagna(jd, req.lat, req.lon)
