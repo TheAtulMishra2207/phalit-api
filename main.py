@@ -123,26 +123,22 @@ NATURAL_ENEMIES = {
 NAKSHATRA_SPAN = 360.0 / 27
 
 # ─────────────────────────────────────────────────────────────────────────────
-# D9 NAVAMSHA CALCULATION — Classical Parashari Formula (BPHS)
-# Starting Navamsha sign depends on the sign's nature:
-#   Movable (Aries, Cancer, Libra, Capricorn)   → starts from Aries (0)
-#   Fixed   (Taurus, Leo, Scorpio, Aquarius)    → starts from Capricorn (9)
-#   Dual    (Gemini, Virgo, Sagittarius, Pisces) → starts from Cancer (3)
-# The sequential formula (lon*9)%360 is WRONG and does not implement this rule.
+# D9 NAVAMSHA CALCULATION — Elemental Triplicity System
+# Starting sign based on D1 sign's element:
+#   Fire (Aries, Leo, Sagittarius)       → start from Aries (0)
+#   Earth (Taurus, Virgo, Capricorn)     → start from Capricorn (9)
+#   Air (Gemini, Libra, Aquarius)        → start from Libra (6)
+#   Water (Cancer, Scorpio, Pisces)      → start from Cancer (3)
+# Mathematically equivalent to: floor((lon × 9 % 360) / 30)
 # ─────────────────────────────────────────────────────────────────────────────
 
 def calc_d9_sign(lon: float) -> dict:
     sign_index = int(lon / 30)
     degree_in_sign = lon % 30
     pada = int(degree_in_sign * 9 / 30)   # 0-indexed pada (0-8)
-    sign_mod = sign_index % 3
-    if sign_mod == 0:     # Movable
-        start = 0
-    elif sign_mod == 1:   # Fixed
-        start = 9
-    else:                 # Dual
-        start = 3
-    d9_sign_index = (start + pada) % 12
+    element = sign_index % 4
+    starts = {0: 0, 1: 9, 2: 6, 3: 3}    # Fire, Earth, Air, Water
+    d9_sign_index = (starts[element] + pada) % 12
     return {
         "d9_sign": SIGNS[d9_sign_index],
         "d9_sign_abbr": SIGN_ABBR[d9_sign_index],
