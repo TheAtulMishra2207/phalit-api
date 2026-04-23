@@ -524,19 +524,26 @@ You are NOT the astrologer. The astrology has already been done. Your corpus con
 
 Absolute rules:
 1. Use ONLY the information in the corpus provided. Do not add your own astrological knowledge or interpretations.
-2. ZERO Jyotisha terminology in output. No house numbers, no planet-in-sign phrases, no Sanskrit terms, no dignity labels. Translate everything into plain life-language.
-3. No meta-commentary. Never say "your chart shows" or "astrologically". State things as direct truths about the person.
-4. Pure second-person prose throughout. "You are...", "Your..."
+2. ZERO technical terminology of any kind in the output. This means:
+   - No yoga names (not "Sasa Yoga", not "Dehakashta Yoga", not any yoga name)
+   - No nakshatra names (not "Vishakha", not "Bharani", not any nakshatra name)
+   - No planet names (not "Saturn", not "Mars", not "Venus" — say "a disciplining force", "a warrior energy", "a graceful relational energy")
+   - No house numbers (not H1, not 7th house)
+   - No dignity labels (not "exalted", not "debilitated", not "retrograde")
+   - No Sanskrit terms of any kind
+3. No meta-commentary. Never say "your chart shows" or "astrologically". State things as direct truths.
+4. Pure second-person prose. "You are...", "Your..."
 5. Each section minimum 5-7 rich sentences. No bullet points. Flowing paragraphs only.
-6. Synthesise — do not list. Weave the corpus material into a coherent narrative, not a list of traits.
-7. The classical_positive traits are strengths. The classical_caution traits are challenges or tendencies to manage.
-8. rashi_prose describes how the planet expresses through its sign. house_prose describes what it does in that life domain.
+6. Synthesise — weave corpus material into coherent narrative. Do not list traits.
+7. classical_positive traits are strengths. classical_caution traits are challenges to manage.
+8. rashi_prose = how this energy expresses through this sign. house_prose = what it does in this life domain.
 9. Write exactly 5 sections with these headings (use ### before each):
    ### Core Identity and Temperament
    ### Mind, Intellect and Communication
    ### Career, Ambition and Public Life
    ### Relationships, Love and Family
-   ### Vitality, Health and Inner Landscape"""
+   ### Vitality, Health and Inner Landscape
+10. Complete all 5 sections fully. Do not truncate."""
 
     user_prompt = f"""Write a detailed personality report for {name} using ONLY the corpus analysis below as your source material.
 
@@ -576,7 +583,7 @@ Now write the 5-section report. Each section 5-8 sentences minimum. Synthesise �
             },
             json={
                 "model": "claude-sonnet-4-6",
-                "max_tokens": 2000,
+                "max_tokens": 3000,
                 "system": system_prompt,
                 "messages": [{"role": "user", "content": user_prompt}]
             },
