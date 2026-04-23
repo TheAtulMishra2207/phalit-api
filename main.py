@@ -518,38 +518,53 @@ def generate_personality_report(req: PersonalityRequest):
     brief = req.chart_brief
     name  = req.name or "the native"
 
-    system_prompt = """You are a master Vedic astrologer writing a detailed, consumer-facing personality report.
-Your output must read like a premium life coaching report — rich, specific, insightful, and written entirely in second person ("You are...", "Your...").
+    system_prompt = """You are a prose writer producing a premium consumer personality report for a Vedic astrology platform.
+Your job is ONLY to rewrite the provided classical corpus analysis into flowing, beautiful second-person prose.
+You are NOT the astrologer. The astrology has already been done. Your corpus contains the analysis.
+
 Absolute rules:
-1. ZERO Jyotisha terminology. No house numbers (H1, H7 etc.), no planet-in-sign phrases ("Moon in Cancer"), no Sanskrit terms, no dignity labels (exalted, debilitated), no yoga names. The user has already seen their chart details.
-2. No meta-commentary. Do not say "your chart shows" or "astrologically speaking". Just state the truth directly.
-3. Each section must be a minimum of 5-7 rich sentences. No bullet points. Pure flowing prose paragraphs.
-4. Ground every claim in the chart data provided — but translate it into pure life-language.
-5. Be specific and detailed. Avoid platitudes. The report should feel like it was written by someone who knows this person deeply.
-6. Write exactly 5 sections with these headings (use ### before each):
+1. Use ONLY the information in the corpus provided. Do not add your own astrological knowledge or interpretations.
+2. ZERO Jyotisha terminology in output. No house numbers, no planet-in-sign phrases, no Sanskrit terms, no dignity labels. Translate everything into plain life-language.
+3. No meta-commentary. Never say "your chart shows" or "astrologically". State things as direct truths about the person.
+4. Pure second-person prose throughout. "You are...", "Your..."
+5. Each section minimum 5-7 rich sentences. No bullet points. Flowing paragraphs only.
+6. Synthesise — do not list. Weave the corpus material into a coherent narrative, not a list of traits.
+7. The classical_positive traits are strengths. The classical_caution traits are challenges or tendencies to manage.
+8. rashi_prose describes how the planet expresses through its sign. house_prose describes what it does in that life domain.
+9. Write exactly 5 sections with these headings (use ### before each):
    ### Core Identity and Temperament
    ### Mind, Intellect and Communication
    ### Career, Ambition and Public Life
    ### Relationships, Love and Family
    ### Vitality, Health and Inner Landscape"""
 
-    user_prompt = f"""Write a detailed personality report for {name} based on this Vedic birth chart data:
+    user_prompt = f"""Write a detailed personality report for {name} using ONLY the corpus analysis below as your source material.
 
-{req.chart_brief}
+PHYSICAL BASELINE:
+- Build: {brief.get('physical', {}).get('height_prose', '')}
+- Complexion: {brief.get('physical', {}).get('complexion_prose', '')}
 
-Important context:
-- Lagna lord dignity and house position define the core identity orientation
-- Planets in the lagna sign directly colour the personality and physical presence
-- Moon placement defines emotional nature and relational needs
-- Mercury defines intelligence and communication style
-- 10th house planets and 10th lord define career destiny
-- 7th house and Venus define relationship patterns
-- Physical: height {brief.get('physical', {}).get('height', '')}, complexion {brief.get('physical', {}).get('complexion', '')}
-- Any Param-Uccha planets operate at their absolute maximum potency
-- Benefic yogas present: {', '.join(brief.get('benefic_yogas', [])) or 'none detected'}
-- Challenging patterns: {', '.join(brief.get('malefic_yogas', [])) or 'none detected'}
+LAGNA LORD (the planet governing core identity):
+Domain: {brief.get('lagna', {}).get('lagna_lord', {}).get('domain', '')}
+Classical result: {brief.get('lagna', {}).get('lagna_lord', {}).get('lv_classical', '')}
+Retrograde: {brief.get('lagna', {}).get('lagna_lord', {}).get('retrograde', False)}
 
-Write the full 5-section report now. Each section must be a standalone paragraph of 5-8 sentences. Make it rich, specific, and deeply personal."""
+LAGNA NAKSHATRA (soul signature):
+{brief.get('lagna_nakshatra', {})}
+
+MOON NAKSHATRA (emotional/mind signature):
+{brief.get('moon_nakshatra', {})}
+
+PLANETARY CORPUS (use rashi_prose, house_prose, classical_positive, classical_caution for each planet):
+{brief.get('planets', [])}
+
+CLASSICAL COMBINATIONS PRESENT:
+Benefic: {brief.get('benefic_yogas', [])}
+Challenging: {brief.get('malefic_yogas', [])}
+
+PLANETS AT PEAK POTENCY: {brief.get('param_uccha', [])}
+
+Now write the 5-section report. Each section 5-8 sentences minimum. Synthesise — do not list traits. Make it feel deeply personal."""
 
     try:
         response = requests.post(
