@@ -560,7 +560,7 @@ Write the full 5-section report now. Each section must be a standalone paragraph
                 "content-type": "application/json"
             },
             json={
-                "model": "claude-sonnet-4-20250514",
+                "model": "claude-sonnet-4-6",
                 "max_tokens": 2000,
                 "system": system_prompt,
                 "messages": [{"role": "user", "content": user_prompt}]
@@ -569,8 +569,8 @@ Write the full 5-section report now. Each section must be a standalone paragraph
         )
         if response.status_code != 200:
             raise HTTPException(
-                status_code=response.status_code,
-                detail=f"Anthropic API error: {response.text[:300]}"
+                status_code=500,
+                detail=f"Anthropic API error {response.status_code}: {response.text[:600]}"
             )
         data = response.json()
         text = "".join(b["text"] for b in data.get("content", []) if b.get("type") == "text")
