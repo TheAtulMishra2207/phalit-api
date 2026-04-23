@@ -4,6 +4,8 @@ from pydantic import BaseModel
 import swisseph as swe
 from datetime import datetime, timedelta
 import requests
+import os
+from typing import Any, Dict
 
 # ─────────────────────────────────────────────────────────────────────────────
 # APP SETUP
@@ -436,6 +438,10 @@ class ChartRequest(BaseModel):
     lon: float
     utc_offset: float
 
+class PersonalityRequest(BaseModel):
+    name: str
+    chart_brief: Dict[str, Any]
+
 # ─────────────────────────────────────────────────────────────────────────────
 # ENDPOINTS
 # ─────────────────────────────────────────────────────────────────────────────
@@ -495,3 +501,82 @@ def calculate_chart(req: ChartRequest):
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Chart calculation error: {str(e)}")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PERSONALITY REPORT ENDPOINT
+# Proxies to Anthropic API server-side to avoid CORS restrictions
+# Requires ANTHROPIC_API_KEY environment variable set on Render
+# ─────────────────────────────────────────────────────────────────────────────
+
+@app.post("/personality")
+def generate_personality_report(req: PersonalityRequest):
+    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+    if not api_key:
+        raise HTTPException(status_code=500, detail="ANTHROPIC_API_KEY not configured on server.")
+
+    brief = req.chart_brief
+    name  = req.name or "the native"
+
+    system_prompt = """You are a master Vedic astrologer writing a detailed, consumer-facing personality report.
+Your output must read like a premium life coaching report — rich, specific, insightful, and written entirely in second person ("You are...", "Your...").
+Absolute rules:
+1. ZERO Jyotisha terminology. No house numbers (H1, H7 etc.), no planet-in-sign phrases ("Moon in Cancer"), no Sanskrit terms, no dignity labels (exalted, debilitated), no yoga names. The user has already seen their chart details.
+2. No meta-commentary. Do not say "your chart shows" or "astrologically speaking". Just state the truth directly.
+3. Each section must be a minimum of 5-7 rich sentences. No bullet points. Pure flowing prose paragraphs.
+4. Ground every claim in the chart data provided — but translate it into pure life-language.
+5. Be specific and detailed. Avoid platitudes. The report should feel like it was written by someone who knows this person deeply.
+6. Write exactly 5 sections with these headings (use ### before each):
+   ### Core Identity and Temperament
+   ### Mind, Intellect and Communication
+   ### Career, Ambition and Public Life
+   ### Relationships, Love and Family
+   ### Vitality, Health and Inner Landscape"""
+
+    user_prompt = f"""Write a detailed personality report for {name} based on this Vedic birth chart data:
+
+{req.chart_brief}
+
+Important context:
+- Lagna lord dignity and house position define the core identity orientation
+- Planets in the lagna sign directly colour the personality and physical presence
+- Moon placement defines emotional nature and relational needs
+- Mercury defines intelligence and communication style
+- 10th house planets and 10th lord define career destiny
+- 7th house and Venus define relationship patterns
+- Physical: height {brief.get('physical', {}).get('height', '')}, complexion {brief.get('physical', {}).get('complexion', '')}
+- Any Param-Uccha planets operate at their absolute maximum potency
+- Benefic yogas present: {', '.join(brief.get('benefic_yogas', [])) or 'none detected'}
+- Challenging patterns: {', '.join(brief.get('malefic_yogas', [])) or 'none detected'}
+
+Write the full 5-section report now. Each section must be a standalone paragraph of 5-8 sentences. Make it rich, specific, and deeply personal."""
+
+    try:
+        response = requests.post(
+            "https://api.anthropic.com/v1/messages",
+            headers={
+                "x-api-key": api_key,
+                "anthropic-version": "2023-06-01",
+                "content-type": "application/json"
+            },
+            json={
+                "model": "claude-sonnet-4-20250514",
+                "max_tokens": 2000,
+                "system": system_prompt,
+                "messages": [{"role": "user", "content": user_prompt}]
+            },
+            timeout=60
+        )
+        if response.status_code != 200:
+            raise HTTPException(
+                status_code=response.status_code,
+                detail=f"Anthropic API error: {response.text[:300]}"
+            )
+        data = response.json()
+        text = "".join(b["text"] for b in data.get("content", []) if b.get("type") == "text")
+        return {"report": text}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Report generation error: {str(e)}")
