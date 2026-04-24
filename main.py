@@ -442,6 +442,10 @@ class PersonalityRequest(BaseModel):
     name: str
     chart_brief: Dict[str, Any]
 
+class D2ReportRequest(BaseModel):
+    name: str
+    chart_brief: Dict[str, Any]
+
 # ─────────────────────────────────────────────────────────────────────────────
 # ENDPOINTS
 # ─────────────────────────────────────────────────────────────────────────────
@@ -602,3 +606,81 @@ Now write the 5-section report. Each section 5-8 sentences minimum. Synthesise �
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Report generation error: {str(e)}")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# D2 HORA WEALTH REPORT ENDPOINT
+# ─────────────────────────────────────────────────────────────────────────────
+
+@app.post("/d2report")
+def generate_d2_report(req: D2ReportRequest):
+    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+    if not api_key:
+        raise HTTPException(status_code=500, detail="ANTHROPIC_API_KEY not configured on server.")
+
+    brief = req.chart_brief
+    name  = req.name or "the native"
+
+    system_prompt = """You are a prose writer producing a premium consumer wealth report for a Vedic astrology platform.
+Your job is ONLY to rewrite the provided Hora (D2) chart analysis into flowing, beautiful second-person prose.
+You are NOT the astrologer. The astrology has already been done. The corpus below contains all the analysis.
+
+Absolute rules:
+1. Use ONLY the information in the corpus provided. Do not add your own astrological knowledge.
+2. ZERO technical terminology. No planet names, no sign names, no house numbers, no yoga names, no Sanskrit terms.
+   Translate everything into pure life-language.
+3. No meta-commentary. Never say "your chart shows" or "astrologically". State truths directly.
+4. Pure second-person prose. "You are...", "Your..."
+5. Each section minimum 5-7 rich sentences. No bullet points. Flowing paragraphs only.
+6. Synthesise — weave the corpus into coherent narrative, not a list.
+7. Write exactly 4 sections with these headings (use ### before each):
+   ### Your Wealth Nature and Financial Temperament
+   ### Your Wealth Potential and Prosperity Patterns
+   ### Your Financial Challenges and Blind Spots
+   ### Your Path to Financial Fulfilment
+8. Complete all 4 sections fully. Do not truncate."""
+
+    user_prompt = f"""Write a detailed wealth report for {name} using ONLY the D2 Hora corpus below.
+
+HORA CHART ANALYSIS:
+{brief.get('parashara', {})}
+
+KASHINATHA HORA:
+{brief.get('kashinatha', {})}
+
+DHANA YOGA RESULTS:
+- Wealth category: {brief.get('dhana', {}).get('wealth_verdict', '')}
+- Verdict: {brief.get('dhana', {}).get('verdict_detail', '')}
+- Dhani Yogas active: {brief.get('dhana', {}).get('dhani_count', 0)}
+- Daridra Yogas active: {brief.get('dhana', {}).get('daridra_count', 0)}
+- Strong (conjunctional) Dhani: {brief.get('dhana', {}).get('strong_dhani', 0)}
+- Dhani details: {brief.get('dhana', {}).get('dhani_yogas', [])}
+- Daridra details: {brief.get('dhana', {}).get('daridra_yogas', [])}
+
+Write the full 4-section wealth report now. Each section 5-8 sentences. Synthesise — make it feel deeply personal and specific."""
+
+    try:
+        response = requests.post(
+            "https://api.anthropic.com/v1/messages",
+            headers={
+                "x-api-key": api_key,
+                "anthropic-version": "2023-06-01",
+                "content-type": "application/json"
+            },
+            json={
+                "model": "claude-sonnet-4-6",
+                "max_tokens": 2000,
+                "system": system_prompt,
+                "messages": [{"role": "user", "content": user_prompt}]
+            },
+            timeout=60
+        )
+        if response.status_code != 200:
+            raise HTTPException(status_code=500, detail=f"Anthropic API error {response.status_code}: {response.text[:600]}")
+        data = response.json()
+        text = "".join(b["text"] for b in data.get("content", []) if b.get("type") == "text")
+        return {"report": text}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"D2 report error: {str(e)}")
