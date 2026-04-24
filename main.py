@@ -763,3 +763,75 @@ Write the full 4-section report now. Each section 5-8 sentences. Deeply personal
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"D3 report error: {str(e)}")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# D4 CHATURTHAMSHA REPORT ENDPOINT
+# ─────────────────────────────────────────────────────────────────────────────
+
+class D4ReportRequest(BaseModel):
+    name: str
+    chart_brief: Dict[str, Any]
+
+@app.post("/d4report")
+def generate_d4_report(req: D4ReportRequest):
+    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+    if not api_key:
+        raise HTTPException(status_code=500, detail="ANTHROPIC_API_KEY not configured on server.")
+
+    brief = req.chart_brief
+    name  = req.name or "the native"
+
+    system_prompt = """You are writing a focused property and domestic life report for a Vedic astrology platform.
+This is NOT a personality report. Stay strictly on topic: house/property, vehicles, domestic comfort, and the mother.
+
+Absolute rules:
+1. Use ONLY the corpus provided. No external knowledge.
+2. ZERO technical terminology — no planet names, sign names, house numbers, Sanskrit terms, yoga names.
+3. Second person throughout. "You will...", "Your home...", "Your mother..."
+4. Each section 4-6 sentences. No bullet points. Direct, factual, specific prose.
+5. NO philosophical meandering. NO personality observations. NO career or relationship references.
+6. Write exactly 4 sections with these headings (use ### before each):
+   ### Your Home and Property
+   ### The Character and Type of Your Properties
+   ### Vehicles and Comfort
+   ### Your Mother
+7. Complete all 4 sections. Be specific about number of properties where indicated."""
+
+    user_prompt = f"""Write a focused property and domestic life report for {name}.
+
+RESIDENTIAL PATTERN: {brief.get('residential_nature', '')}
+
+PROPERTY TYPE INDICATORS:
+{brief.get('property_characteristics', [])}
+
+4TH LORD CLASSICAL RESULT: {brief.get('fourth_lord_classical_result', '')}
+
+PROPERTY COUNT INDICATED: approximately {brief.get('property_count_indicated', '?')} properties over a lifetime
+(Based on {brief.get('property_count_planets', [])} in auspicious positions)
+
+SPECIAL CONDITIONS:
+{brief.get('special_conditions', [])}
+
+HOME & HAPPINESS PATTERNS:
+{brief.get('chaturtha_yogas', [])}
+
+Write 4 focused sections on home/property, property type, vehicles/comfort, and mother. No fluff. Be specific."""
+
+    try:
+        response = requests.post(
+            "https://api.anthropic.com/v1/messages",
+            headers={"x-api-key": api_key, "anthropic-version": "2023-06-01", "content-type": "application/json"},
+            json={"model": "claude-sonnet-4-6", "max_tokens": 2500, "system": system_prompt,
+                  "messages": [{"role": "user", "content": user_prompt}]},
+            timeout=60
+        )
+        if response.status_code != 200:
+            raise HTTPException(status_code=500, detail=f"Anthropic API error {response.status_code}: {response.text[:600]}")
+        data = response.json()
+        text = "".join(b["text"] for b in data.get("content", []) if b.get("type") == "text")
+        return {"report": text}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"D4 report error: {str(e)}")
