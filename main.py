@@ -684,3 +684,79 @@ Write the full 4-section wealth report now. Each section 5-8 sentences. Synthesi
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"D2 report error: {str(e)}")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# D3 DREKKANA REPORT ENDPOINT
+# ─────────────────────────────────────────────────────────────────────────────
+
+class D3ReportRequest(BaseModel):
+    name: str
+    chart_brief: Dict[str, Any]
+
+@app.post("/d3report")
+def generate_d3_report(req: D3ReportRequest):
+    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+    if not api_key:
+        raise HTTPException(status_code=500, detail="ANTHROPIC_API_KEY not configured on server.")
+
+    brief = req.chart_brief
+    name  = req.name or "the native"
+
+    system_prompt = """You are a prose writer producing a premium consumer Drekkana (D3) report for a Vedic astrology platform.
+Rewrite the provided D3 corpus analysis into flowing, beautiful second-person prose.
+You are NOT the astrologer — all the analysis is provided. Your job is to write.
+
+Absolute rules:
+1. Use ONLY the information provided. Do not add your own astrological knowledge.
+2. ZERO technical terminology — no planet names, house numbers, sign names, Sanskrit terms, yoga names.
+   Translate everything into pure life-language.
+3. No meta-commentary. State truths directly in second person.
+4. Each section minimum 5-7 rich sentences. No bullet points. Flowing paragraphs only.
+5. Synthesise — weave corpus into coherent narrative.
+6. Write exactly 4 sections with these headings (use ### before each):
+   ### Your Primal Drive and Inner Motivation
+   ### Siblings, Allies and the Bonds of Courage
+   ### Your Karmic Timeline — Past, Present and Future
+   ### Transformations, Blockages and the Path Forward
+7. Complete all 4 sections. Do not truncate."""
+
+    user_prompt = f"""Write a detailed D3 Drekkana report for {name} using ONLY the corpus below.
+
+LAGNA ARCHETYPE (Swarupa):
+{brief.get('lagna_archetype', {})}
+
+CORE VARIABLES:
+{brief.get('core_variables', {})}
+
+KARMIC TIMELINE (Tri-janma):
+{brief.get('tri_janma', [])}
+
+KHARESH (8th House Diagnostic):
+{brief.get('kharesh', {})}
+
+SPECIAL COMBINATIONS:
+{brief.get('special_combinations', [])}
+
+D3 PLANET PLACEMENTS:
+{brief.get('d3_planets', [])}
+
+Write the full 4-section report now. Each section 5-8 sentences. Deeply personal and specific."""
+
+    try:
+        response = requests.post(
+            "https://api.anthropic.com/v1/messages",
+            headers={"x-api-key": api_key, "anthropic-version": "2023-06-01", "content-type": "application/json"},
+            json={"model": "claude-sonnet-4-6", "max_tokens": 2500, "system": system_prompt,
+                  "messages": [{"role": "user", "content": user_prompt}]},
+            timeout=60
+        )
+        if response.status_code != 200:
+            raise HTTPException(status_code=500, detail=f"Anthropic API error {response.status_code}: {response.text[:600]}")
+        data = response.json()
+        text = "".join(b["text"] for b in data.get("content", []) if b.get("type") == "text")
+        return {"report": text}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"D3 report error: {str(e)}")
