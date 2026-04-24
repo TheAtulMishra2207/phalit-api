@@ -703,48 +703,40 @@ def generate_d3_report(req: D3ReportRequest):
     brief = req.chart_brief
     name  = req.name or "the native"
 
-    system_prompt = """You are a prose writer producing a premium consumer Drekkana (D3) report for a Vedic astrology platform.
-Rewrite the provided D3 corpus analysis into flowing, beautiful second-person prose.
-You are NOT the astrologer — all the analysis is provided. Your job is to write.
+    system_prompt = """You are writing a focused siblings, courage and initiative report for a Vedic astrology platform.
+Stay strictly on topic. Cover only: siblings, courage, communication, mental agility, short-distance travel, willpower, and friends.
 
 Absolute rules:
-1. Use ONLY the information provided. Do not add your own astrological knowledge.
-2. ZERO technical terminology — no planet names, house numbers, sign names, Sanskrit terms, yoga names.
-   Translate everything into pure life-language.
-3. No meta-commentary. State truths directly in second person.
-4. Each section minimum 5-7 rich sentences. No bullet points. Flowing paragraphs only.
-5. Synthesise — weave corpus into coherent narrative.
+1. Use ONLY the corpus provided. No external knowledge.
+2. ZERO technical terminology — no planet names, sign names, house numbers, Sanskrit terms, yoga names.
+3. Second person throughout. "You are...", "Your siblings...", "Your courage..."
+4. Each section 4-6 sentences. No bullet points. Direct, factual, specific prose.
+5. NO personality observations. NO career analysis. NO spiritual commentary. NO karmic philosophy.
 6. Write exactly 4 sections with these headings (use ### before each):
-   ### Your Primal Drive and Inner Motivation
-   ### Siblings, Allies and the Bonds of Courage
-   ### Your Karmic Timeline — Past, Present and Future
-   ### Transformations, Blockages and the Path Forward
-7. Complete all 4 sections. Do not truncate."""
+   ### Your Siblings
+   ### Courage, Willpower and Initiative
+   ### Communication, Mental Agility and Short Travel
+   ### Friends, Allies and Your Social Network
+7. Complete all 4 sections. Be specific."""
 
-    user_prompt = f"""Write a detailed D3 Drekkana report for {name} using ONLY the corpus below.
+    user_prompt = f"""Write a focused siblings and courage report for {name}.
 
-LAGNA ARCHETYPE (Swarupa):
+LAGNA ARCHETYPE (primal drive quality):
 {brief.get('lagna_archetype', {})}
 
-CORE VARIABLES:
+CORE VARIABLES (3rd house lord position and condition):
 {brief.get('core_variables', {})}
 
-KARMIC TIMELINE (Tri-janma) with interpretive prose:
-{brief.get('tri_janma', [])}
+KARMIC TIMELINE — use only the present birth section for this report:
+{[t for t in brief.get('tri_janma', []) if t.get('phase') == 'Present Birth']}
 
-SIBLING & COURAGE PATTERNS (Tritiya Yogas):
+SIBLING & COURAGE PATTERNS:
 {brief.get('tritiya_yogas', [])}
-
-KHARESH (8th House Diagnostic):
-{brief.get('kharesh', {})}
 
 SPECIAL COMBINATIONS:
 {brief.get('special_combinations', [])}
 
-D3 PLANET PLACEMENTS:
-{brief.get('d3_planets', [])}
-
-Write the full 4-section report now. Each section 5-8 sentences. Deeply personal and specific."""
+Write 4 focused sections. No fluff. Be specific about siblings, courage, communication, travel, willpower and friends."""
 
     try:
         response = requests.post(
