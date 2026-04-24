@@ -729,8 +729,11 @@ LAGNA ARCHETYPE (Swarupa):
 CORE VARIABLES:
 {brief.get('core_variables', {})}
 
-KARMIC TIMELINE (Tri-janma):
+KARMIC TIMELINE (Tri-janma) with interpretive prose:
 {brief.get('tri_janma', [])}
+
+SIBLING & COURAGE PATTERNS (Tritiya Yogas):
+{brief.get('tritiya_yogas', [])}
 
 KHARESH (8th House Diagnostic):
 {brief.get('kharesh', {})}
