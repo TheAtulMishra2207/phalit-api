@@ -1011,3 +1011,88 @@ Write 5 focused sections on soul nature, gifts, karmic patterns, and spiritual p
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"D9 report error: {str(e)}")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# D10 DASHAMSHA CAREER REPORT ENDPOINT
+# ─────────────────────────────────────────────────────────────────────────────
+
+class D10ReportRequest(BaseModel):
+    name: str
+    chart_brief: Dict[str, Any]
+
+@app.post("/d10report")
+def generate_d10_report(req: D10ReportRequest):
+    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+    if not api_key:
+        raise HTTPException(status_code=500, detail="ANTHROPIC_API_KEY not configured on server.")
+
+    brief = req.chart_brief
+    name  = req.name or "the native"
+
+    system_prompt = """You are writing a focused career and professional destiny report for a Vedic astrology platform.
+Cover only: career identity, professional path, work environment, financial earning, and timing.
+
+Absolute rules:
+1. Use ONLY the corpus provided. No external knowledge.
+2. ZERO technical terminology — no planet names, house numbers, sign names, Sanskrit terms, deity names.
+3. Second person throughout. "You are...", "Your career..."
+4. Each section 5-7 sentences. No bullet points. Flowing, specific prose.
+5. NO personality analysis. NO relationship commentary. NO spiritual meandering.
+6. Write exactly 4 sections with these headings (use ### before each):
+   ### Your Professional Identity and Status
+   ### Your Career Path and Working Style
+   ### Financial Earning and Professional Environment
+   ### Career Timing and Key Pivots
+7. Complete all 4 sections. Be specific about professional tendencies, strengths, and challenges."""
+
+    user_prompt = f"""Write a focused career report for {name}.
+
+PROFESSIONAL IDENTITY:
+- D10 Lagna: {brief.get('d10_lagna', '—')} — {brief.get('lagna_title', '')}
+- Lagna description: {brief.get('lagna_desc', '')}
+- Lagna deity quality: {brief.get('lagna_deity', {}).get('quality', '')}
+- Lagna lord placement: House {brief.get('lagna_lord', {}).get('house', '?')} — Self-employed path: {brief.get('lagna_lord', {}).get('self_employed', False)}
+- Sun (status): House {brief.get('sun', {}).get('house', '?')} — {brief.get('sun', {}).get('dignity', '')} — Ketu conflict: {brief.get('sun', {}).get('ketu_conflict', False)}
+
+SOUL'S CAREER DESTINATION (AK):
+{brief.get('ak', {})}
+
+CAREER VEHICLE (AmK):
+{brief.get('amk', {})}
+
+AK/AmK INTERACTION: {brief.get('ak_amk_interaction', '')}
+
+DEITY PROFILES (professional flavour per planetary force):
+{brief.get('deity_profiles', [])}
+
+HOUSE BREAKDOWN:
+{brief.get('house_breakdown', [])}
+
+MOOLTRIKONA (peak-drive planets): {brief.get('mooltrikona_planets', [])}
+SUN/KETU CONFLICT: {brief.get('ketu_sun_conflict', False)}
+10TH LORD PLACEMENT: House {brief.get('d1_10th_lord_d10_house', '?')} — Travel career: {brief.get('travel_career', False)}
+
+FINANCIALS:
+2nd house: {brief.get('h2', {})}
+11th house: {brief.get('h11', {})}
+
+Write 4 focused sections on career identity, path, financials, and timing. No fluff. Be specific."""
+
+    try:
+        response = requests.post(
+            "https://api.anthropic.com/v1/messages",
+            headers={"x-api-key": api_key, "anthropic-version": "2023-06-01", "content-type": "application/json"},
+            json={"model": "claude-sonnet-4-6", "max_tokens": 2500, "system": system_prompt,
+                  "messages": [{"role": "user", "content": user_prompt}]},
+            timeout=60
+        )
+        if response.status_code != 200:
+            raise HTTPException(status_code=500, detail=f"Anthropic API error {response.status_code}: {response.text[:600]}")
+        data = response.json()
+        text = "".join(b["text"] for b in data.get("content", []) if b.get("type") == "text")
+        return {"report": text}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"D10 report error: {str(e)}")
