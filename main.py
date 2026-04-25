@@ -911,3 +911,94 @@ Write 4 focused sections on children, their nature, karmic challenges, and legac
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"D7 report error: {str(e)}")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# D9 NAVAMSHA SOUL REPORT ENDPOINT
+# ─────────────────────────────────────────────────────────────────────────────
+
+class D9ReportRequest(BaseModel):
+    name: str
+    chart_brief: Dict[str, Any]
+
+@app.post("/d9report")
+def generate_d9_report(req: D9ReportRequest):
+    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+    if not api_key:
+        raise HTTPException(status_code=500, detail="ANTHROPIC_API_KEY not configured on server.")
+
+    brief = req.chart_brief
+    name  = req.name or "the native"
+
+    system_prompt = """You are writing a focused Navamsha (D9) soul and dharma report for a Vedic astrology platform.
+Cover only: soul nature, dharmic purpose, spiritual gifts, karmic patterns, and inner life.
+
+Absolute rules:
+1. Use ONLY the corpus provided. No external knowledge.
+2. ZERO technical terminology — no planet names, sign names, house numbers, Sanskrit terms, yoga names.
+3. Second person throughout. "You are...", "Your soul..."
+4. Each section 5-7 sentences. No bullet points. Flowing, specific prose.
+5. This is NOT a personality report. Focus on the soul, dharma, inner life, and spiritual destiny.
+6. Write exactly 4 sections with these headings (use ### before each):
+   ### Your Soul's Signature and Dharmic Purpose
+   ### Your Innate Gifts and Spiritual Talents
+   ### Karmic Patterns and Shadow Work
+   ### Your Spiritual Path and Divine Alignment
+7. Complete all 4 sections. Do not truncate."""
+
+    user_prompt = f"""Write a focused D9 Navamsha soul report for {name}.
+
+SOUL DASHBOARD:
+- Atmakaraka (King of Chart): {brief.get('ak', '—')}
+- Swamsa (Soul Sign): {brief.get('swamsa_sign', '—')}
+- Navamsha Lagna: {brief.get('d9_lagna', '—')}
+- Ishta Devata (Guiding Deity): {brief.get('ishta_devata', '—')}
+- Vargottama (Integrated) Planets: {brief.get('vargottama_planets', [])}
+- Karmic Friction Score: {brief.get('karmic_friction', '—')}
+
+SOUL NATURE (Swamsa Analysis):
+{brief.get('swamsa_soul', [])}
+
+INNATE TALENTS:
+{brief.get('swamsa_talents', [])}
+
+SPIRITUAL HOME ENVIRONMENT:
+{brief.get('swamsa_residence', '')}
+
+DHARMIC ORIENTATION:
+{brief.get('swamsa_dharma', '')}
+
+PLANETARY VITALS (nature and house):
+{brief.get('vitals', [])}
+
+KARMIC WARNINGS:
+{brief.get('warnings', [])}
+
+LIFE AREA NOTES:
+Marriage: {brief.get('marriage_note', '')}
+Career/Soul Work: {brief.get('career_note', '')}
+Shadow Work: {brief.get('shadow_note', '')}
+
+NOURISHED PLANETS (Pushkara): {brief.get('pushkara_planets', [])}
+PLANETS REQUIRING PURIFICATION (Dusthana D9): {brief.get('dusthana_planets', [])}
+ISHTA DEVATA for spiritual alignment: {brief.get('ishta_devata', '—')}
+
+Write 4 focused sections on soul nature, gifts, karmic patterns, and spiritual path. Deep, specific, no fluff."""
+
+    try:
+        response = requests.post(
+            "https://api.anthropic.com/v1/messages",
+            headers={"x-api-key": api_key, "anthropic-version": "2023-06-01", "content-type": "application/json"},
+            json={"model": "claude-sonnet-4-6", "max_tokens": 2500, "system": system_prompt,
+                  "messages": [{"role": "user", "content": user_prompt}]},
+            timeout=60
+        )
+        if response.status_code != 200:
+            raise HTTPException(status_code=500, detail=f"Anthropic API error {response.status_code}: {response.text[:600]}")
+        data = response.json()
+        text = "".join(b["text"] for b in data.get("content", []) if b.get("type") == "text")
+        return {"report": text}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"D9 report error: {str(e)}")
