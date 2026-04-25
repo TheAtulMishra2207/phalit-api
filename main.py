@@ -621,43 +621,37 @@ def generate_d2_report(req: D2ReportRequest):
     brief = req.chart_brief
     name  = req.name or "the native"
 
-    system_prompt = """You are a prose writer producing a premium consumer wealth report for a Vedic astrology platform.
-Your job is ONLY to rewrite the provided Hora (D2) chart analysis into flowing, beautiful second-person prose.
-You are NOT the astrologer. The astrology has already been done. The corpus below contains all the analysis.
+    system_prompt = """You are writing a focused wealth and family life report for a Vedic astrology platform.
+Stay strictly on topic. Cover only: wealth and financial prospects, types/sources of wealth, family life, and speech.
 
 Absolute rules:
-1. Use ONLY the information in the corpus provided. Do not add your own astrological knowledge.
-2. ZERO technical terminology. No planet names, no sign names, no house numbers, no yoga names, no Sanskrit terms.
-   Translate everything into pure life-language.
-3. No meta-commentary. Never say "your chart shows" or "astrologically". State truths directly.
-4. Pure second-person prose. "You are...", "Your..."
-5. Each section minimum 5-7 rich sentences. No bullet points. Flowing paragraphs only.
-6. Synthesise — weave the corpus into coherent narrative, not a list.
-7. Write exactly 4 sections with these headings (use ### before each):
-   ### Your Wealth Nature and Financial Temperament
-   ### Your Wealth Potential and Prosperity Patterns
-   ### Your Financial Challenges and Blind Spots
-   ### Your Path to Financial Fulfilment
-8. Complete all 4 sections fully. Do not truncate."""
+1. Use ONLY the corpus provided. No external knowledge.
+2. ZERO technical terminology — no planet names, sign names, house numbers, Sanskrit terms, yoga names.
+3. Second person throughout. "You will...", "Your wealth...", "Your family..."
+4. Each section 4-6 sentences. No bullet points. Direct, factual, specific prose.
+5. NO personality observations. NO career analysis. NO spiritual commentary. NO philosophical meandering.
+6. Write exactly 4 sections with these headings (use ### before each):
+   ### Your Wealth and Financial Prospects
+   ### The Nature and Sources of Your Wealth
+   ### Family Life and Domestic Harmony
+   ### Your Speech and Power of Communication
+7. Complete all 4 sections. Be specific."""
 
-    user_prompt = f"""Write a detailed wealth report for {name} using ONLY the D2 Hora corpus below.
+    user_prompt = f"""Write a focused wealth and family report for {name}.
 
-HORA CHART ANALYSIS:
+HORA CHART ANALYSIS (wealth temperament):
 {brief.get('parashara', {})}
-
-KASHINATHA HORA:
-{brief.get('kashinatha', {})}
 
 DHANA YOGA RESULTS:
 - Wealth category: {brief.get('dhana', {}).get('wealth_verdict', '')}
-- Verdict: {brief.get('dhana', {}).get('verdict_detail', '')}
+- Verdict detail: {brief.get('dhana', {}).get('verdict_detail', '')}
 - Dhani Yogas active: {brief.get('dhana', {}).get('dhani_count', 0)}
 - Daridra Yogas active: {brief.get('dhana', {}).get('daridra_count', 0)}
-- Strong (conjunctional) Dhani: {brief.get('dhana', {}).get('strong_dhani', 0)}
+- Strong Dhani: {brief.get('dhana', {}).get('strong_dhani', 0)}
 - Dhani details: {brief.get('dhana', {}).get('dhani_yogas', [])}
 - Daridra details: {brief.get('dhana', {}).get('daridra_yogas', [])}
 
-Write the full 4-section wealth report now. Each section 5-8 sentences. Synthesise — make it feel deeply personal and specific."""
+Write 4 focused sections on wealth prospects, types/sources of wealth, family life, and speech. No fluff. Be specific."""
 
     try:
         response = requests.post(
