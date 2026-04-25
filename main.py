@@ -939,12 +939,14 @@ Absolute rules:
 3. Second person throughout. "You are...", "Your soul..."
 4. Each section 5-7 sentences. No bullet points. Flowing, specific prose.
 5. This is NOT a personality report. Focus on the soul, dharma, inner life, and spiritual destiny.
-6. Write exactly 4 sections with these headings (use ### before each):
+6. Write exactly 5 sections with these headings (use ### before each):
    ### Your Soul's Signature and Dharmic Purpose
    ### Your Innate Gifts and Spiritual Talents
    ### Karmic Patterns and Shadow Work
    ### Your Spiritual Path and Divine Alignment
-7. Complete all 4 sections. Do not truncate."""
+   ### Your Spouse and the Marital Bond
+7. The spouse section covers: nature, personality, appearance, profession, marital quality. Be specific.
+8. Complete all 5 sections. Do not truncate."""
 
     user_prompt = f"""Write a focused D9 Navamsha soul report for {name}.
 
@@ -983,7 +985,14 @@ NOURISHED PLANETS (Pushkara): {brief.get('pushkara_planets', [])}
 PLANETS REQUIRING PURIFICATION (Dusthana D9): {brief.get('dusthana_planets', [])}
 ISHTA DEVATA for spiritual alignment: {brief.get('ishta_devata', '—')}
 
-Write 4 focused sections on soul nature, gifts, karmic patterns, and spiritual path. Deep, specific, no fluff."""
+SPOUSE ANALYSIS:
+Nature & Personality: {brief.get('spouse', {}).get('nature_list', [])}
+Likely Profession: {brief.get('spouse', {}).get('profession', [])}
+Marital Grace Factors: {brief.get('spouse', {}).get('marital_grace', [])}
+Marital Friction Factors: {brief.get('spouse', {}).get('marital_friction', [])}
+Stability Score: {brief.get('spouse', {}).get('stability', '—')}
+
+Write 5 focused sections on soul nature, gifts, karmic patterns, and spiritual path. Deep, specific, no fluff."""
 
     try:
         response = requests.post(
