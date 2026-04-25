@@ -819,3 +819,82 @@ Write 4 focused sections on home/property, property type, vehicles/comfort, and 
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"D4 report error: {str(e)}")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# D7 SAPTAMSHA REPORT ENDPOINT
+# ─────────────────────────────────────────────────────────────────────────────
+
+class D7ReportRequest(BaseModel):
+    name: str
+    chart_brief: Dict[str, Any]
+
+@app.post("/d7report")
+def generate_d7_report(req: D7ReportRequest):
+    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+    if not api_key:
+        raise HTTPException(status_code=500, detail="ANTHROPIC_API_KEY not configured on server.")
+
+    brief = req.chart_brief
+    name  = req.name or "the native"
+    gender = brief.get('gender', 'male')
+
+    system_prompt = """You are writing a focused lineage and progeny report for a Vedic astrology platform.
+Stay strictly on topic. Cover only: children, progeny potential, lineage quality, and the karmic nature of parent-child bonds.
+
+Absolute rules:
+1. Use ONLY the corpus provided. No external knowledge.
+2. ZERO technical terminology — no planet names, house numbers, sign names, Sanskrit terms, ocean/deity names.
+3. Second person throughout. "You will...", "Your children...", "Your lineage..."
+4. Each section 5-7 sentences. No bullet points. Direct, specific prose.
+5. NO personality analysis. NO career references. NO wealth commentary.
+6. Write exactly 4 sections with these headings (use ### before each):
+   ### Your Capacity for Children and Lineage
+   ### The Nature and Character of Your Children
+   ### Karmic Patterns and Challenges in Progeny
+   ### Your Legacy and the Fruit of Your Lineage
+7. Complete all 4 sections. Be specific about number of children where the data indicates."""
+
+    user_prompt = f"""Write a focused lineage and progeny report for {name} ({gender}).
+
+LAGNA OCEAN (sets the parental archetype tone):
+{brief.get('lagna_ocean', {})}
+
+BIOLOGICAL VITALITY:
+Self sphuta: {brief.get('self_sphuta', {})}
+Biological flag: {brief.get('bio_flag', False)}
+
+PROGENY SEQUENCE (Manduka Gati):
+Sequence: {brief.get('progeny_sequence', [])}
+Terminates after child: {brief.get('terminator_at', 'none detected')}
+Eldest child health flag: {brief.get('eldest_health_flag', False)}
+Adoption indicator: {brief.get('adoption_flag', False)}
+
+SEVEN OCEANS — CHILD TEMPERAMENT PROFILE:
+{brief.get('ocean_profile', [])}
+
+KARMIC OBSTACLES (D7 6th/8th/12th):
+{brief.get('dushtana', {})}
+
+QUALITATIVE OVERRIDES:
+{brief.get('overrides', [])}
+
+Write 4 focused sections on children, their nature, karmic challenges, and legacy. Specific about numbers where data supports it."""
+
+    try:
+        response = requests.post(
+            "https://api.anthropic.com/v1/messages",
+            headers={"x-api-key": api_key, "anthropic-version": "2023-06-01", "content-type": "application/json"},
+            json={"model": "claude-sonnet-4-6", "max_tokens": 2500, "system": system_prompt,
+                  "messages": [{"role": "user", "content": user_prompt}]},
+            timeout=60
+        )
+        if response.status_code != 200:
+            raise HTTPException(status_code=500, detail=f"Anthropic API error {response.status_code}: {response.text[:600]}")
+        data = response.json()
+        text = "".join(b["text"] for b in data.get("content", []) if b.get("type") == "text")
+        return {"report": text}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"D7 report error: {str(e)}")
