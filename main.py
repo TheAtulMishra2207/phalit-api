@@ -621,25 +621,23 @@ def generate_d2_report(req: D2ReportRequest):
     brief = req.chart_brief
     name  = req.name or "the native"
 
-    system_prompt = """You are writing a focused wealth and family life report for a Vedic astrology platform.
-Stay strictly on topic. Cover only: wealth and financial prospects, types/sources of wealth, family life, and speech.
+    system_prompt = """You are writing a focused wealth report for a Vedic astrology platform.
+Stay strictly on topic. Cover only: wealth prospects and the nature/sources of wealth.
 
 Absolute rules:
 1. Use ONLY the corpus provided. No external knowledge.
 2. ZERO technical terminology — no planet names, sign names, house numbers, Sanskrit terms, yoga names.
-3. Second person throughout. "You will...", "Your wealth...", "Your family..."
-4. Each section 4-6 sentences. No bullet points. Direct, factual, specific prose.
-5. NO personality observations. NO career analysis. NO spiritual commentary. NO philosophical meandering.
-6. Write exactly 4 sections with these headings (use ### before each):
+3. Second person throughout. "You will...", "Your wealth..."
+4. Each section 7-10 sentences. No bullet points. Rich, expansive, specific prose.
+5. NO personality observations. NO family life. NO speech analysis. NO career commentary. NO spiritual meandering.
+6. Write exactly 2 sections with these headings (use ### before each):
    ### Your Wealth and Financial Prospects
    ### The Nature and Sources of Your Wealth
-   ### Family Life and Domestic Harmony
-   ### Your Speech and Power of Communication
-7. Complete all 4 sections. Be specific."""
+7. Both sections must be detailed and thorough. Be specific about wealth patterns, challenges, and the quality of financial life."""
 
-    user_prompt = f"""Write a focused wealth and family report for {name}.
+    user_prompt = f"""Write a detailed wealth report for {name}.
 
-HORA CHART ANALYSIS (wealth temperament):
+HORA CHART ANALYSIS (wealth temperament and active/passive orientation):
 {brief.get('parashara', {})}
 
 DHANA YOGA RESULTS:
@@ -651,7 +649,7 @@ DHANA YOGA RESULTS:
 - Dhani details: {brief.get('dhana', {}).get('dhani_yogas', [])}
 - Daridra details: {brief.get('dhana', {}).get('daridra_yogas', [])}
 
-Write 4 focused sections on wealth prospects, types/sources of wealth, family life, and speech. No fluff. Be specific."""
+Write 2 rich, expanded sections on wealth prospects and sources of wealth. Each section must be thorough and specific."""
 
     try:
         response = requests.post(
