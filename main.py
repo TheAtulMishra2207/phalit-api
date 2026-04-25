@@ -827,6 +827,7 @@ Write 4 focused sections on home/property, property type, vehicles/comfort, and 
 
 class D7ReportRequest(BaseModel):
     name: str
+    gender: str = 'male'
     chart_brief: Dict[str, Any]
 
 @app.post("/d7report")
@@ -837,23 +838,29 @@ def generate_d7_report(req: D7ReportRequest):
 
     brief = req.chart_brief
     name  = req.name or "the native"
-    gender = brief.get('gender', 'male')
+    gender = req.gender or brief.get('gender', 'male')
+    pronoun = 'his' if gender == 'male' else 'her'
+    pronoun_subj = 'he' if gender == 'male' else 'she'
+    parent_role = 'father' if gender == 'male' else 'mother'
 
-    system_prompt = """You are writing a focused lineage and progeny report for a Vedic astrology platform.
+    system_prompt = f"""You are writing a focused lineage and progeny report for a Vedic astrology platform.
+The native is a {gender} — use correct pronouns: {"he/his/him" if gender=="male" else "she/her/her"}.
+Their parental role is {parent_role}. Always use "{parent_role}" — NEVER the opposite gender role.
 Stay strictly on topic. Cover only: children, progeny potential, lineage quality, and the karmic nature of parent-child bonds.
 
 Absolute rules:
 1. Use ONLY the corpus provided. No external knowledge.
 2. ZERO technical terminology — no planet names, house numbers, sign names, Sanskrit terms, ocean/deity names.
 3. Second person throughout. "You will...", "Your children...", "Your lineage..."
-4. Each section 5-7 sentences. No bullet points. Direct, specific prose.
-5. NO personality analysis. NO career references. NO wealth commentary.
-6. Write exactly 4 sections with these headings (use ### before each):
+4. CRITICAL: This native is a {parent_role}. Do NOT call them {"mother" if gender=="male" else "father"}.
+5. Each section 5-7 sentences. No bullet points. Direct, specific prose.
+6. NO personality analysis. NO career references. NO wealth commentary.
+7. Write exactly 4 sections with these headings (use ### before each):
    ### Your Capacity for Children and Lineage
    ### The Nature and Character of Your Children
    ### Karmic Patterns and Challenges in Progeny
    ### Your Legacy and the Fruit of Your Lineage
-7. Complete all 4 sections. Be specific about number of children where the data indicates."""
+8. Complete all 4 sections. Be specific about number of children where the data indicates."""
 
     stree_header = "STREE JATAK FEMALE PROGENY INDICATORS (additional classical rules for female nativity):"
     stree_data   = brief.get('stree_jatak_progeny', [])
