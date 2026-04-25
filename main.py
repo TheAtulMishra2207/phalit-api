@@ -879,7 +879,9 @@ KARMIC OBSTACLES (D7 6th/8th/12th):
 QUALITATIVE OVERRIDES:
 {brief.get('overrides', [])}
 
-Write 4 focused sections on children, their nature, karmic challenges, and legacy. Specific about numbers where data supports it."""
+{('STREE JATAK FEMALE PROGENY INDICATORS (additional classical rules for female nativity):\n'+str(brief.get('stree_jatak_progeny', []))) if gender=='female' and brief.get('stree_jatak_progeny') else ''}
+
+Write 4 focused sections on children, their nature, karmic challenges, and legacy. For female natives, integrate the Stree Jatak indicators. Be specific about numbers where data supports it."""
 
     try:
         response = requests.post(
