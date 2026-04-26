@@ -1096,3 +1096,77 @@ Write 4 focused sections on career identity, path, financials, and timing. No fl
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"D10 report error: {str(e)}")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# MEDICAL ASTROLOGY VAIDYA REPORT ENDPOINT
+# ─────────────────────────────────────────────────────────────────────────────
+
+@app.post("/medreport")
+def generate_med_report(req: dict):
+    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+    if not api_key:
+        raise HTTPException(status_code=500, detail="ANTHROPIC_API_KEY not configured on server.")
+
+    name = req.get('name', 'the native')
+
+    system_prompt = """You are a classical Vaidya (Ayurvedic physician) writing a health assessment report for a Vedic astrology platform.
+Write as a knowledgeable, compassionate practitioner who reads the body's signals through the lens of Ayurvedic and classical Jyotisha principles.
+
+Absolute rules:
+1. Use ONLY the corpus provided. No external medical advice.
+2. No planet names, house numbers, sign names, Sanskrit terms, or yoga names in the output.
+3. Write in second person. "Your constitution...", "Your body..."
+4. Each section 5-6 sentences. No bullet points. Warm, authoritative, clinical prose.
+5. NEVER use fatalistic or alarming language. Frame everything as "predisposition," "tendency," or "area warranting attention."
+6. End every section with a constructive, actionable note.
+7. Write exactly 4 sections with these headings (use ### before each):
+   ### Constitutional Assessment
+   ### Areas of Physiological Attention
+   ### The Current Season of Health
+   ### Restorative Recommendations
+8. Complete all 4 sections."""
+
+    brief = req
+    user_prompt = f"""Write a Vaidya's health assessment for {name}.
+
+CONSTITUTION (Prakriti):
+Vata: {brief.get('doshas', {}).get('Vata', {}).get('score', '?')}% — {brief.get('doshas', {}).get('Vata', {}).get('status', '?')}
+Pitta: {brief.get('doshas', {}).get('Pitta', {}).get('score', '?')}% — {brief.get('doshas', {}).get('Pitta', {}).get('status', '?')}
+Kapha: {brief.get('doshas', {}).get('Kapha', {}).get('score', '?')}% — {brief.get('doshas', {}).get('Kapha', {}).get('status', '?')}
+
+VITALITY STATUS: {brief.get('core_vitality', '')}
+Jupiter Escape (natural healing support): {brief.get('jupiter_escape', False)}
+
+ANATOMICAL VULNERABILITIES:
+{brief.get('vulnerabilities', [])}
+
+SPECIFIC CONDITIONS FLAGGED:
+Piles risk: {brief.get('medical_yogas', {}).get('piles', False)}
+Cardiac risk: {brief.get('medical_yogas', {}).get('cardiac', False)}
+Mental wellness: {brief.get('medical_yogas', {}).get('mental', False)}
+Eye sensitivity: {brief.get('medical_yogas', {}).get('eye', False)}
+Kidney sensitivity: {brief.get('medical_yogas', {}).get('kidney', False)}
+
+CURRENT PERIOD HEALTH RISK:
+{brief.get('dasha_risk', 'Not available')}
+
+Write as a Vaidya. Warm, clinical, specific. No fatalism. No technical astrology terms."""
+
+    try:
+        response = requests.post(
+            "https://api.anthropic.com/v1/messages",
+            headers={"x-api-key": api_key, "anthropic-version": "2023-06-01", "content-type": "application/json"},
+            json={"model": "claude-sonnet-4-6", "max_tokens": 2000, "system": system_prompt,
+                  "messages": [{"role": "user", "content": user_prompt}]},
+            timeout=60
+        )
+        if response.status_code != 200:
+            raise HTTPException(status_code=500, detail=f"Anthropic API error {response.status_code}: {response.text[:600]}")
+        data = response.json()
+        text = "".join(b["text"] for b in data.get("content", []) if b.get("type") == "text")
+        return {"report": text}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Med report error: {str(e)}")
