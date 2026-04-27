@@ -1170,3 +1170,84 @@ Write as a Vaidya. Warm, clinical, specific. No fatalism. No technical astrology
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Med report error: {str(e)}")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# D12 DWADASHAMSHA REPORT ENDPOINT
+# ─────────────────────────────────────────────────────────────────────────────
+
+class D12ReportRequest(BaseModel):
+    name: str
+    chart_brief: Dict[str, Any]
+
+@app.post("/d12report")
+def generate_d12_report(req: D12ReportRequest):
+    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+    if not api_key:
+        raise HTTPException(status_code=500, detail="ANTHROPIC_API_KEY not configured on server.")
+
+    brief = req.chart_brief
+    name  = req.name or "the native"
+
+    system_prompt = """You are writing a focused D12 Dwadashamsha report covering parents, ancestral karma, past-life imprints, and Moksha trajectory.
+
+Absolute rules:
+1. Use ONLY the corpus provided.
+2. ZERO technical terminology — no planet names, house numbers, sign names, Sanskrit terms.
+3. Second person. "Your relationship with your father...", "Your soul carries..."
+4. Each section 5-7 sentences. No bullet points. Flowing, specific prose.
+5. Write exactly 3 sections with these headings (use ### before each):
+   ### Your Parental Legacy and Ancestral Bonds
+   ### Your Past-Life Inheritance and Karmic Blueprint
+   ### Your Path Toward Liberation and Release
+6. Complete all 3 sections."""
+
+    user_prompt = f"""Write a D12 Dwadashamsha essay report for {name}.
+
+LAGNA DEITY: {brief.get('lagna_deity','')} (Hidden Name: {brief.get('lagna_hidden','')}) — {brief.get('lagna_meaning','')}
+KARAKA LOGIC: {brief.get('karaka_logic','')}
+
+FATHER (Sun & 9th House):
+Sun: H{brief.get('sun',{}).get('house','?')} — {brief.get('sun',{}).get('dignity','')}
+9th House lord: {brief.get('h9_lord','')} | Occupants: {brief.get('h9_occupants',[])}
+Father Maraka indicators: {brief.get('father_maraka',[])}
+
+MOTHER (Moon & 4th House):
+Moon: H{brief.get('moon',{}).get('house','?')} — {brief.get('moon',{}).get('dignity','')}
+4th House lord: {brief.get('h4_lord','')} | Occupants: {brief.get('h4_occupants',[])}
+Mother Maraka indicators: {brief.get('mother_maraka',[])}
+
+6TH HOUSE (Karmic Debt): Occupants: {brief.get('h6_occupants',[])} | Lord: {brief.get('h6_lord','')}
+
+PAST-LIFE & MOKSHA INSIGHTS:
+{brief.get('moksha_insights',[])}
+
+VASANA IMPRINTS (Deity per planet):
+{brief.get('vasanas',[])}
+
+KARYA RASHI QUALITY:
+{brief.get('karya_karakas',[])}
+
+ACTIVE DASHA THEMES:
+Parental: {brief.get('parental_theme','')}
+Moksha: {brief.get('moksha_theme','')}
+
+Write 3 focused essay sections. No astrology jargon. Specific, warm, insightful."""
+
+    try:
+        response = requests.post(
+            "https://api.anthropic.com/v1/messages",
+            headers={"x-api-key": api_key, "anthropic-version": "2023-06-01", "content-type": "application/json"},
+            json={"model": "claude-sonnet-4-6", "max_tokens": 2000, "system": system_prompt,
+                  "messages": [{"role": "user", "content": user_prompt}]},
+            timeout=60
+        )
+        if response.status_code != 200:
+            raise HTTPException(status_code=500, detail=f"Anthropic API error {response.status_code}: {response.text[:600]}")
+        data = response.json()
+        text = "".join(b["text"] for b in data.get("content", []) if b.get("type") == "text")
+        return {"report": text}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"D12 report error: {str(e)}")
