@@ -1406,3 +1406,157 @@ Write 3 focused sections. Contemplative, no jargon, specific to this soul's spir
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"D20 report error: {str(e)}")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# D24 SIDDHAMSHA REPORT ENDPOINT
+# ─────────────────────────────────────────────────────────────────────────────
+
+class D24ReportRequest(BaseModel):
+    name: str
+    chart_brief: Dict[str, Any]
+
+@app.post("/d24report")
+def generate_d24_report(req: D24ReportRequest):
+    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+    if not api_key:
+        raise HTTPException(status_code=500, detail="ANTHROPIC_API_KEY not configured on server.")
+
+    brief = req.chart_brief
+    name  = req.name or "the native"
+
+    system_prompt = """You are writing a focused D24 Siddhamsha mastery and accomplishment report.
+Cover only: learning style, fields of expertise, academic potential, professional mastery, and the path to Siddhi.
+
+Absolute rules:
+1. Use ONLY the corpus provided.
+2. ZERO technical terminology — no planet names, house numbers, sign names, Sanskrit terms, deity names.
+3. Second person. "Your mastery...", "Your field of expertise..."
+4. Each section 5-6 sentences. No bullet points. Flowing, specific prose.
+5. Focus on: what the person is built to master, how they learn, where they excel professionally.
+6. Write exactly 3 sections with these headings (use ### before each):
+   ### Your Learning Style and Mastery Path
+   ### Your Fields of Expertise and Accomplishment
+   ### Your Path to Siddhi — Perfection in Practice
+7. Complete all 3 sections."""
+
+    user_prompt = f"""Write a D24 mastery profile report for {name}.
+
+PRIMARY MASTERY PATH: {brief.get('mastery_path','')} — {brief.get('mastery_desc','')}
+KNOWLEDGE RETENTION: {brief.get('retention','')} — {brief.get('retention_desc','')}
+PRIMARY KARYESHA: {brief.get('primary_karyesha',{})}
+VARGOTTAMA PLANETS (2x multiplier): {brief.get('vargottama_planets',[])}
+
+PRIMARY FIELD (Lagna Deity): {brief.get('lagna_deity','')}
+- {brief.get('lagna_deity_field','')}
+- {brief.get('lagna_deity_quality','')}
+
+SECONDARY FIELD: {brief.get('secondary_deity','')} — {brief.get('secondary_field','')}
+
+PROFESSIONAL APTITUDE (10th/11th planets): {brief.get('professional_aptitude',[])}
+
+EIGHT SIDDHIS STATUS: {brief.get('siddhis',[])}
+
+EDUCATION CONTINUITY: breaks={brief.get('break_flag',False)}
+MONETISATION: {brief.get('monetisation','')}
+ADVANCED RESEARCH: {brief.get('phd_potential','')}
+
+NODE SHADOW (area of darkness to master): H{brief.get('node_house','?')} — {brief.get('node_sign','')}
+TRANSFORMATION REQUIRED: {brief.get('transformation_required','')}
+
+Write 3 focused sections. Specific about what this person is built to master and achieve."""
+
+    try:
+        response = requests.post(
+            "https://api.anthropic.com/v1/messages",
+            headers={"x-api-key": api_key, "anthropic-version": "2023-06-01", "content-type": "application/json"},
+            json={"model": "claude-sonnet-4-6", "max_tokens": 1800, "system": system_prompt,
+                  "messages": [{"role": "user", "content": user_prompt}]},
+            timeout=60
+        )
+        if response.status_code != 200:
+            raise HTTPException(status_code=500, detail=f"Anthropic API error {response.status_code}: {response.text[:600]}")
+        data = response.json()
+        text = "".join(b["text"] for b in data.get("content", []) if b.get("type") == "text")
+        return {"report": text}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"D24 report error: {str(e)}")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# D27 BHAMSHA REPORT ENDPOINT
+# ─────────────────────────────────────────────────────────────────────────────
+
+class D27ReportRequest(BaseModel):
+    name: str
+    chart_brief: Dict[str, Any]
+
+@app.post("/d27report")
+def generate_d27_report(req: D27ReportRequest):
+    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+    if not api_key:
+        raise HTTPException(status_code=500, detail="ANTHROPIC_API_KEY not configured on server.")
+
+    brief = req.chart_brief
+    name  = req.name or "the native"
+
+    system_prompt = """You are writing a focused D27 Bhamsha inner resilience and mental architecture report.
+Cover only: mental strength, psychological patterns, inner grit, subconscious fears, and the capacity for right thinking.
+
+Absolute rules:
+1. Use ONLY the corpus provided.
+2. ZERO technical terminology — no planet names, house numbers, sign names, Sanskrit terms, deity names.
+3. Second person. "Your mind...", "Your inner resilience..."
+4. Each section 5-6 sentences. No bullet points. Grounded, insightful prose — corrective rather than predictive.
+5. Focus on: mental strengths, psychological patterns, specific fears, and actionable mental practices.
+6. Write exactly 3 sections with these headings (use ### before each):
+   ### Your Mental Architecture and Inner Grit
+   ### The Shadow Rooms — Fears, Anxieties, and Letting Go
+   ### The Right Thinking Protocol — Building Inner Resilience
+7. Complete all 3 sections."""
+
+    user_prompt = f"""Write a D27 inner resilience report for {name}.
+
+OVERALL MENTAL RESILIENCE: {brief.get('overall_resilience','')}
+GUIDING DEVATA: {brief.get('lagna_devata','')} — {brief.get('lagna_devata_attr','')}
+INNER CHARACTERISTIC: {brief.get('lagna_inner','')}
+
+MENTAL KARAKAS:
+Moon (Mental Core): H{brief.get('moon',{}).get('house','?')} — {brief.get('moon',{}).get('dignity','')} — Weak: {brief.get('moon',{}).get('weak',False)}
+Mars (Coping): H{brief.get('mars',{}).get('house','?')} — {brief.get('mars',{}).get('dignity','')}
+Jupiter (Right Thinking): H{brief.get('jupiter',{}).get('house','?')} — {brief.get('jupiter',{}).get('dignity','')}
+
+KARYA ANALYSIS:
+3rd Lord ({brief.get('lord3',{}).get('planet','?')}): H{brief.get('lord3',{}).get('d27house','?')} — {brief.get('lord3',{}).get('dignity','')}
+9th Lord ({brief.get('lord9',{}).get('planet','?')}): H{brief.get('lord9',{}).get('d27house','?')} — {brief.get('lord9',{}).get('dignity','')}
+
+HOUSE PATTERNS:
+4th (Peace of Mind): {brief.get('h4_peace','')}
+6th (Adversity/Grit): {brief.get('h6_grit','')}
+8th occupants: {brief.get('h8_occupants',[])}
+12th occupants: {brief.get('h12_occupants',[])}
+
+HIDDEN STRENGTH: {brief.get('hidden_strength',[])}
+VARGOTTAMA RATING: {brief.get('vargo_rating','')}
+
+Write 3 grounded, specific sections on mental architecture, shadow patterns, and the right thinking protocol."""
+
+    try:
+        response = requests.post(
+            "https://api.anthropic.com/v1/messages",
+            headers={"x-api-key": api_key, "anthropic-version": "2023-06-01", "content-type": "application/json"},
+            json={"model": "claude-sonnet-4-6", "max_tokens": 1800, "system": system_prompt,
+                  "messages": [{"role": "user", "content": user_prompt}]},
+            timeout=60
+        )
+        if response.status_code != 200:
+            raise HTTPException(status_code=500, detail=f"Anthropic API error {response.status_code}: {response.text[:600]}")
+        data = response.json()
+        text = "".join(b["text"] for b in data.get("content", []) if b.get("type") == "text")
+        return {"report": text}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"D27 report error: {str(e)}")
