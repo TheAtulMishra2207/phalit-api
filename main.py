@@ -1560,3 +1560,79 @@ Write 3 grounded, specific sections on mental architecture, shadow patterns, and
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"D27 report error: {str(e)}")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# D30 TRIMSHAMSHA REPORT ENDPOINT
+# ─────────────────────────────────────────────────────────────────────────────
+
+class D30ReportRequest(BaseModel):
+    name: str
+    chart_brief: Dict[str, Any]
+
+@app.post("/d30report")
+def generate_d30_report(req: D30ReportRequest):
+    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+    if not api_key:
+        raise HTTPException(status_code=500, detail="ANTHROPIC_API_KEY not configured on server.")
+
+    brief = req.chart_brief
+    name  = req.name or "the native"
+
+    system_prompt = """You are writing a focused D30 Trimshamsha karmic obstacles and inner enemies report.
+Cover only: elemental imbalances, the six inner enemies (Shad Ripu), psychological patterns, karmic blocks, and remedial path.
+
+Absolute rules:
+1. Use ONLY the corpus provided.
+2. ZERO technical terminology — no planet names, house numbers, sign names, Sanskrit terms, deity names, tattva names.
+3. Second person. "Your inner fire...", "Your karmic pattern..."
+4. Each section 5-6 sentences. No bullet points. Direct, corrective, honest prose.
+5. NOT a personality report — focus on obstacles, enemies, patterns, and remediation.
+6. Write exactly 3 sections with these headings (use ### before each):
+   ### Your Elemental Imbalances and Primary Karmic Resistance
+   ### The Six Inner Enemies — Which Are Active
+   ### The Path of Resolution
+7. Complete all 3 sections."""
+
+    user_prompt = f"""Write a D30 karmic blueprint report for {name}.
+
+GLOBAL STATUS: {brief.get('global_badge','')}
+LAGNA: {brief.get('lagna_sign','')} — {brief.get('lagna_tattva','')} — {brief.get('lagna_deity','')}
+
+ELEMENTAL BALANCE:
+{brief.get('tattva_scores',{})}
+
+ELEMENTAL CONFLICTS: {brief.get('elemental_conflicts',[])}
+
+SATTVIK CONTROLLERS: {brief.get('controllers',[])}
+
+SHAD RIPU (Inner Enemies):
+{brief.get('shad_ripu',[])}
+
+VARANASI PSYCHOLOGICAL INSIGHT:
+Tithi: {brief.get('moon_tithi','')} — Group: {brief.get('moon_group','')}
+{brief.get('varanasi_insight','')}
+
+HOUSE OBSTACLES: {brief.get('house_obstacles',[])}
+
+PRIMARY REMEDY: {brief.get('primary_remedy',{})}
+
+Write 3 honest, corrective sections. Focus on patterns and what the person can do about them. No astrology jargon."""
+
+    try:
+        response = requests.post(
+            "https://api.anthropic.com/v1/messages",
+            headers={"x-api-key": api_key, "anthropic-version": "2023-06-01", "content-type": "application/json"},
+            json={"model": "claude-sonnet-4-6", "max_tokens": 1800, "system": system_prompt,
+                  "messages": [{"role": "user", "content": user_prompt}]},
+            timeout=60
+        )
+        if response.status_code != 200:
+            raise HTTPException(status_code=500, detail=f"Anthropic API error {response.status_code}: {response.text[:600]}")
+        data = response.json()
+        text = "".join(b["text"] for b in data.get("content", []) if b.get("type") == "text")
+        return {"report": text}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"D30 report error: {str(e)}")
