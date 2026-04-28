@@ -1329,3 +1329,80 @@ Write 3 focused sections. No astrology jargon. Specific and grounded."""
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"D16 report error: {str(e)}")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# D20 VIMSHAMSHA REPORT ENDPOINT
+# ─────────────────────────────────────────────────────────────────────────────
+
+class D20ReportRequest(BaseModel):
+    name: str
+    chart_brief: Dict[str, Any]
+
+@app.post("/d20report")
+def generate_d20_report(req: D20ReportRequest):
+    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+    if not api_key:
+        raise HTTPException(status_code=500, detail="ANTHROPIC_API_KEY not configured on server.")
+
+    brief = req.chart_brief
+    name  = req.name or "the native"
+
+    system_prompt = """You are writing a focused D20 Vimshamsha spiritual potential report.
+Cover only: spiritual capacity, worship path, karmic obstacles to spiritual growth, Moksha potential.
+
+Absolute rules:
+1. Use ONLY the corpus provided.
+2. ZERO technical terminology — no planet names, house numbers, sign names, Sanskrit terms, deity names.
+3. Second person. "Your spiritual path...", "Your capacity for worship..."
+4. Each section 5-6 sentences. No bullet points. Flowing, contemplative prose.
+5. This is a SPIRITUAL report — no career, relationships, or material commentary.
+6. Write exactly 3 sections with these headings (use ### before each):
+   ### Your Spiritual Foundation and Capacity for Grace
+   ### The Karmic Knot — What Must Be Untied
+   ### Your Path to Liberation
+7. Complete all 3 sections."""
+
+    user_prompt = f"""Write a D20 spiritual potential report for {name}.
+
+LAGNA DEITY: {brief.get('lagna_deity','')} — {brief.get('lagna_deity_attr','')}
+VARGESH DIGNITY: {brief.get('vargesh_dignity','')}
+
+SPIRITUAL KARAKAS:
+Jupiter (Grace): H{brief.get('jupiter',{}).get('house','?')} — {brief.get('jupiter',{}).get('dignity','')} — Strong: {brief.get('jupiter',{}).get('strong',False)}
+Saturn (Karmic Debt): H{brief.get('saturn',{}).get('house','?')} — {brief.get('saturn',{}).get('dignity','')} — Ashtamamsha: {brief.get('saturn',{}).get('ashtamamsha',False)}
+Ketu (Moksha): H{brief.get('ketu',{}).get('house','?')} — {brief.get('ketu',{}).get('dignity','')} — Strong: {brief.get('ketu',{}).get('strong',False)}
+
+KARMIC KNOT (Rahu-Ketu):
+Location: H{brief.get('node_house','?')} in {brief.get('node_sign','')}
+Dominant node: {brief.get('dominant_node','')}
+Entangled forces: {brief.get('node_conjuncts',[])}
+
+STRESS FLAGS: {brief.get('stress_flags',[])}
+
+KARYESHA FRAMEWORK: {brief.get('karyesha',[])}
+
+PRIMARY WORSHIP PATH: {brief.get('primary_deity','')} — {brief.get('primary_deity_attr','')}
+TRANSFORMATION PATH: {brief.get('trans_deity','')} — {brief.get('trans_deity_attr','')}
+
+MOKSHA SURRENDER STATUS: {brief.get('moksha_surrender','')}
+
+Write 3 focused sections. Contemplative, no jargon, specific to this soul's spiritual path."""
+
+    try:
+        response = requests.post(
+            "https://api.anthropic.com/v1/messages",
+            headers={"x-api-key": api_key, "anthropic-version": "2023-06-01", "content-type": "application/json"},
+            json={"model": "claude-sonnet-4-6", "max_tokens": 1800, "system": system_prompt,
+                  "messages": [{"role": "user", "content": user_prompt}]},
+            timeout=60
+        )
+        if response.status_code != 200:
+            raise HTTPException(status_code=500, detail=f"Anthropic API error {response.status_code}: {response.text[:600]}")
+        data = response.json()
+        text = "".join(b["text"] for b in data.get("content", []) if b.get("type") == "text")
+        return {"report": text}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"D20 report error: {str(e)}")
