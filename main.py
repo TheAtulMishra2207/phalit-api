@@ -1251,3 +1251,81 @@ Write 3 focused essay sections. No astrology jargon. Specific, warm, insightful.
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"D12 report error: {str(e)}")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# D16 SHODASHAMSHA REPORT ENDPOINT
+# ─────────────────────────────────────────────────────────────────────────────
+
+class D16ReportRequest(BaseModel):
+    name: str
+    chart_brief: Dict[str, Any]
+
+@app.post("/d16report")
+def generate_d16_report(req: D16ReportRequest):
+    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+    if not api_key:
+        raise HTTPException(status_code=500, detail="ANTHROPIC_API_KEY not configured on server.")
+
+    brief = req.chart_brief
+    name  = req.name or "the native"
+
+    system_prompt = """You are writing a focused D16 Shodashamsha report on vehicles, material happiness, and the mastery of lower nature.
+
+Absolute rules:
+1. Use ONLY the corpus provided.
+2. ZERO technical terminology — no planet names, house numbers, sign names, Sanskrit terms.
+3. Second person. "Your happiness...", "Your relationship with vehicles..."
+4. Each section 5-6 sentences. No bullet points. Flowing, specific prose.
+5. Focus strictly on: vehicles/transport, material comforts, happiness blueprint, mastery of primal impulses.
+6. Write exactly 3 sections with these headings (use ### before each):
+   ### Your Relationship with Vehicles and Material Comfort
+   ### Your Happiness Blueprint and Inner Fulfilment
+   ### The Mastery Task — Taming the Vahana
+7. Complete all 3 sections."""
+
+    user_prompt = f"""Write a D16 Shodashamsha report for {name}.
+
+LAGNA DEITY: {brief.get('lagna_deity','')} — {brief.get('lagna_archetype','')}
+VAHANA: {brief.get('lagna_vahana','')} — {brief.get('lagna_mastery_note','')}
+MASTERY LEVEL: {brief.get('mastery_level','')} — {brief.get('mastery_desc','')}
+
+VEHICLE PROFILE:
+Preference: {brief.get('vehicle_profile',{}).get('pref','')}
+Quality: {brief.get('vehicle_profile',{}).get('quality','')}
+Maintenance: {brief.get('vehicle_profile',{}).get('maintenance','')}
+Transformation: {brief.get('vehicle_profile',{}).get('transform','')}
+
+KARMIC NODE FOCUS:
+Location: H{brief.get('node_house','?')} in {brief.get('node_sign','')}
+Management: {brief.get('node_management','')}
+Node deity/vahana: {brief.get('node_deity','')} / {brief.get('node_vahana','')}
+
+HAPPINESS KARAKAS:
+Internal (Moon): H{brief.get('moon_happiness',{}).get('house','?')} — {brief.get('moon_happiness',{}).get('dignity','')} — Strong: {brief.get('moon_happiness',{}).get('strong',False)}
+Material (Venus): H{brief.get('venus_luxury',{}).get('house','?')} — {brief.get('venus_luxury',{}).get('dignity','')} — Strong: {brief.get('venus_luxury',{}).get('strong',False)}
+Moksha (Ketu): H{brief.get('ketu_moksha',{}).get('house','?')} — {brief.get('ketu_moksha',{}).get('dignity','')} — Strong: {brief.get('ketu_moksha',{}).get('strong',False)}
+
+ELEMENTAL ALIGNMENT:
+D1 Element: {brief.get('d1_element','')} | D16 Element: {brief.get('d16_element','')}
+Conflict: {brief.get('elemental_conflict',False)}
+
+Write 3 focused sections. No astrology jargon. Specific and grounded."""
+
+    try:
+        response = requests.post(
+            "https://api.anthropic.com/v1/messages",
+            headers={"x-api-key": api_key, "anthropic-version": "2023-06-01", "content-type": "application/json"},
+            json={"model": "claude-sonnet-4-6", "max_tokens": 1800, "system": system_prompt,
+                  "messages": [{"role": "user", "content": user_prompt}]},
+            timeout=60
+        )
+        if response.status_code != 200:
+            raise HTTPException(status_code=500, detail=f"Anthropic API error {response.status_code}: {response.text[:600]}")
+        data = response.json()
+        text = "".join(b["text"] for b in data.get("content", []) if b.get("type") == "text")
+        return {"report": text}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"D16 report error: {str(e)}")
