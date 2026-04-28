@@ -1636,3 +1636,77 @@ Write 3 honest, corrective sections. Focus on patterns and what the person can d
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"D30 report error: {str(e)}")
+
+class D40ReportRequest(BaseModel):
+    name: str
+    chart_brief: Dict[str, Any]
+
+@app.post("/d40report")
+def generate_d40_report(req: D40ReportRequest):
+    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+    if not api_key:
+        raise HTTPException(status_code=500, detail="ANTHROPIC_API_KEY not configured on server.")
+
+    brief = req.chart_brief
+    name  = req.name or "the native"
+
+    system_prompt = """You are writing a focused D40 Chatviramshamsha maternal lineage karma report.
+Cover only: quality of inherited knowledge and traditions, maternal lineage blessings and debts, domestic peace vs career balance, and the path to resolve ancestral karmic accounts.
+
+Absolute rules:
+1. Use ONLY the corpus data provided.
+2. ZERO technical terminology — no planet names, house numbers, sign names, Sanskrit terms, deity names.
+3. Second person. "Your maternal lineage...", "The inheritance you carry..."
+4. Each section 5-6 sentences. No bullet points. Direct, specific, honest prose.
+5. NOT a personality report — focus on lineage karma, ancestral patterns, and what the person can actively do.
+6. Write exactly 3 sections with these headings (use ### before each):
+   ### The Maternal Inheritance — What Was Passed Down
+   ### Lineage Debts & Active Karmic Patterns
+   ### Building Your Future — The Architect's Path
+7. Complete all 3 sections."""
+
+    user_prompt = f"""Write a D40 maternal lineage karma report for {name}.
+
+D40 LAGNA: {brief.get('lagna_sign','')} — Deity: {brief.get('lagna_deity','')} ({brief.get('lagna_deity_role','')})
+KARYA RASHI: {brief.get('karya_rashi','')} — KARYESHA: {brief.get('karyesha','')} ({brief.get('karyesha_dig','')})
+LAGNA LORD: {brief.get('lagna_lord','')} ({brief.get('lagna_lord_dig','')})
+
+LINEAGE KARAKA — MOON: {brief.get('moon_sign','')} ({brief.get('moon_dig','')})
+MARS (Gateway/Drive): {brief.get('mars_d40',{})}
+VENUS (Gateway/Grace): {brief.get('venus_d40',{})}
+JUPITER (Guru/Architect): {brief.get('jupiter_d40',{})}
+
+DOMINANT GUNA: {brief.get('dominant_guna','')}
+GUNA DISTRIBUTION: {brief.get('guna_count',{})}
+
+VARGOTTAMA PLANETS: {brief.get('vargottama',[])}
+
+KNOWLEDGE BLOCKS (planetary): {brief.get('knowledge_blocks',[])}
+
+4TH HOUSE (Domestic Peace): {brief.get('house_4',{})}
+10TH HOUSE (Professional): {brief.get('house_10',{})}
+WORK-LIFE STATUS: {brief.get('work_life_status','')}
+
+RAHU HOUSE: {brief.get('rahu_house','')} — KETU HOUSE: {brief.get('ketu_house','')}
+
+CURRENT DASHA: {brief.get('mahadasha','')} / {brief.get('antardasha','')}
+
+Write 3 honest, specific sections about the maternal lineage karma and what the person can do to honour, heal, or build upon it. No astrology jargon."""
+
+    try:
+        response = requests.post(
+            "https://api.anthropic.com/v1/messages",
+            headers={"x-api-key": api_key, "anthropic-version": "2023-06-01", "content-type": "application/json"},
+            json={"model": "claude-sonnet-4-6", "max_tokens": 1800, "system": system_prompt,
+                  "messages": [{"role": "user", "content": user_prompt}]},
+            timeout=60
+        )
+        if response.status_code != 200:
+            raise HTTPException(status_code=500, detail=f"Anthropic API error {response.status_code}: {response.text[:600]}")
+        data = response.json()
+        text = "".join(b["text"] for b in data.get("content", []) if b.get("type") == "text")
+        return {"report": text}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"D40 report error: {str(e)}")
