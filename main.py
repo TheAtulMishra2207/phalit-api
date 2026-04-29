@@ -1868,3 +1868,77 @@ Write 3 honest, specific sections about past-life karma and how it manifests in 
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"D60 report error: {str(e)}")
+
+class KarakReportRequest(BaseModel):
+    name: str
+    chart_brief: Dict[str, Any]
+
+@app.post("/karakreport")
+def generate_karak_report(req: KarakReportRequest):
+    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+    if not api_key:
+        raise HTTPException(status_code=500, detail="ANTHROPIC_API_KEY not configured on server.")
+
+    brief = req.chart_brief
+    name  = req.name or "the native"
+
+    system_prompt = """You are writing a focused Karakamsha soul analysis report.
+Cover only: the soul's primary desire and purpose (Atmakaraka), the karmic inheritance embedded in the Karakamsha sign, vocational expertise carried from past lives, how the soul's intent manifests through the Karakamsha Lagna in D1, the spiritual path and Ishta Devata, and the dasha timing verdict.
+
+Absolute rules:
+1. Use ONLY the corpus data provided.
+2. ZERO technical terminology — no planet names, house numbers, sign names, Sanskrit terms.
+3. Second person. "Your soul carries...", "The king of your chart..."
+4. Each section 5-6 sentences. No bullet points. Direct, specific, honest prose.
+5. This is a SOUL report — speak of deep purpose, inherited mastery, and karmic direction. Be specific.
+6. Write exactly 3 sections with these headings (use ### before each):
+   ### The Soul's Primary Desire — Who You Came Here to Be
+   ### Inherited Mastery & Worldly Manifestation
+   ### The Spiritual Path & Timing
+7. Complete all 3 sections."""
+
+    user_prompt = f"""Write a Karakamsha soul analysis for {name}.
+
+ATMAKARAKA: {brief.get('atmakaraka','')} at {brief.get('ak_degree','')}° in {brief.get('ak_d1_sign','')}
+KARAKAMSHA SIGN: {brief.get('karakamsha_sign','')}
+SOUL FULFILLMENT: {brief.get('soul_fulfillment','')} (KA in H{brief.get('trikona_house_from_d9','')} from D9 Lagna — {'Trikona' if brief.get('in_trikona') else 'Non-Trikona'})
+
+KA SIGN CORE: {brief.get('ka_core','')}
+KA SIGN OCCUPANTS (D9): {brief.get('ka_occupants',[])}
+
+AK CONJUNCTIONS IN D9: {brief.get('ak_conjuncts_d9',[])}
+
+KL HOUSE SUMMARY (D1):
+{brief.get('kl_house_summary',{})}
+
+SPIRITUAL PATH:
+Gatekeeper Deity: {brief.get('gatekeeper_deity','')}
+Final Destination Deity: {brief.get('final_destination_deity','')}
+Moksha Status: {brief.get('moksha_status','')}
+Spiritual Expenditure: {brief.get('spend_type','')}
+
+DASHA ALIGNMENT:
+Current Dasha: {brief.get('mahadasha','')}
+D1 Dignity: {brief.get('md_d1_dignity','')}
+KL House: H{brief.get('md_kl_house','')}
+Verdict: {brief.get('dasha_verdict','')}
+
+Write 3 specific sections about the soul's purpose and path. No astrology jargon."""
+
+    try:
+        response = requests.post(
+            "https://api.anthropic.com/v1/messages",
+            headers={"x-api-key": api_key, "anthropic-version": "2023-06-01", "content-type": "application/json"},
+            json={"model": "claude-sonnet-4-6", "max_tokens": 1800, "system": system_prompt,
+                  "messages": [{"role": "user", "content": user_prompt}]},
+            timeout=60
+        )
+        if response.status_code != 200:
+            raise HTTPException(status_code=500, detail=f"Anthropic API error {response.status_code}: {response.text[:600]}")
+        data = response.json()
+        text = "".join(b["text"] for b in data.get("content", []) if b.get("type") == "text")
+        return {"report": text}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Karakamsha report error: {str(e)}")
