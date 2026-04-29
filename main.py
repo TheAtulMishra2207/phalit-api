@@ -1710,3 +1710,81 @@ Write 3 honest, specific sections about the maternal lineage karma and what the 
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"D40 report error: {str(e)}")
+
+class D45ReportRequest(BaseModel):
+    name: str
+    chart_brief: Dict[str, Any]
+
+@app.post("/d45report")
+def generate_d45_report(req: D45ReportRequest):
+    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+    if not api_key:
+        raise HTTPException(status_code=500, detail="ANTHROPIC_API_KEY not configured on server.")
+
+    brief = req.chart_brief
+    name  = req.name or "the native"
+
+    system_prompt = """You are writing a focused D45 Akshavedamsha paternal lineage karma report.
+Cover only: paternal ancestral support, dharmic inheritance, Guru connection, ancestral debts, soul attachments, and the path to either sustain or transcend the paternal legacy.
+
+Absolute rules:
+1. Use ONLY the corpus data provided.
+2. ZERO technical terminology — no planet names, house numbers, sign names, Sanskrit terms, deity names.
+3. Second person. "Your paternal lineage...", "The wisdom you inherit..."
+4. Each section 5-6 sentences. No bullet points. Direct, specific, honest prose.
+5. NOT a personality report — focus on lineage karma, ancestral patterns, and actionable guidance.
+6. Write exactly 3 sections with these headings (use ### before each):
+   ### The Paternal Inheritance — Fire & Foundation
+   ### Ancestral Debts, Nodal Shadows & The Guru Test
+   ### The Path Forward — Sustaining or Forging the Legacy
+7. Complete all 3 sections. If the Independence Protocol is active, make the 3rd section about building an independent legacy."""
+
+    user_prompt = f"""Write a D45 paternal lineage karma report for {name}.
+
+D45 LAGNA: {brief.get('lagna_sign','')} — Deity: {brief.get('lagna_deity','')} ({brief.get('lagna_archetype','')}) — Modality: {brief.get('lagna_modality','')}
+AGNI ANCHOR: {'Active — fire principle intact' if brief.get('agni_anchor') else 'Anomalous — verify'}
+AGNI STRENGTH: {'Strong — can burn away negativity' if brief.get('agni_strong') else 'Challenged — needs rekindling'}
+INDEPENDENCE PROTOCOL: {'ACTIVE — forge own path' if brief.get('forge_flag') else 'Not active — sustain legacy'}
+
+KARYA RASHI: {brief.get('karya_rashi','')} — KARYESHA: {brief.get('karyesha','')} ({brief.get('karyesha_dig','')})
+LAGNA LORD: {brief.get('lagna_lord','')} ({brief.get('lagna_lord_dig','')})
+
+SUN (Father): {brief.get('sun_d45',{})}
+JUPITER (Exit Variable/Guru): {brief.get('jupiter_d45',{})}
+ATMAKARAKA: {brief.get('atmakaraka',{})}
+D1 NINTH LORD: {brief.get('d1_ninth_lord',{})}
+
+NODAL AXIS: Rahu H{brief.get('rahu_house','—')} / Ketu H{brief.get('ketu_house','—')}
+Node in Trikona: {brief.get('node_in_trikona',False)} — Node in 8th: {brief.get('node_in_8th',False)}
+Shadowed planets: {brief.get('node_conjunct_planets',[])}
+
+HOUSE 2 (Legacy): {brief.get('house_2',{})}
+HOUSE 6 (Ancestral Debt): {brief.get('house_6',{})}
+HOUSE 9 (Guru Blessing): {brief.get('house_9',{})}
+HOUSE 11 (Self-Earning): {brief.get('house_11',{})}
+HOUSE 12 (Attachments): {brief.get('house_12',{})}
+
+VARGOTTAMA: {brief.get('vargottama',[])}
+LINEAGE SUPPORT: {brief.get('lineage_support_pct','')}% / SELF EFFORT: {brief.get('self_effort_pct','')}%
+
+CURRENT DASHA: {brief.get('mahadasha','')} / {brief.get('antardasha','')}
+
+Write 3 honest, specific sections about paternal lineage karma. No astrology jargon."""
+
+    try:
+        response = requests.post(
+            "https://api.anthropic.com/v1/messages",
+            headers={"x-api-key": api_key, "anthropic-version": "2023-06-01", "content-type": "application/json"},
+            json={"model": "claude-sonnet-4-6", "max_tokens": 1800, "system": system_prompt,
+                  "messages": [{"role": "user", "content": user_prompt}]},
+            timeout=60
+        )
+        if response.status_code != 200:
+            raise HTTPException(status_code=500, detail=f"Anthropic API error {response.status_code}: {response.text[:600]}")
+        data = response.json()
+        text = "".join(b["text"] for b in data.get("content", []) if b.get("type") == "text")
+        return {"report": text}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"D45 report error: {str(e)}")
