@@ -1788,3 +1788,83 @@ Write 3 honest, specific sections about paternal lineage karma. No astrology jar
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"D45 report error: {str(e)}")
+
+class D60ReportRequest(BaseModel):
+    name: str
+    chart_brief: Dict[str, Any]
+
+@app.post("/d60report")
+def generate_d60_report(req: D60ReportRequest):
+    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+    if not api_key:
+        raise HTTPException(status_code=500, detail="ANTHROPIC_API_KEY not configured on server.")
+
+    brief = req.chart_brief
+    name  = req.name or "the native"
+
+    system_prompt = """You are writing a focused D60 Shashtiamsha deep karma and past-life report.
+Cover only: the soul's inherited karmic foundation, what was spoiled or purified from past lives, active karmic triggers, the specific attachment that caused this rebirth, and the purification path.
+
+Absolute rules:
+1. Use ONLY the corpus data provided.
+2. ZERO technical terminology — no planet names, house numbers, sign names, Sanskrit deity names, amsha numbers.
+3. Second person. "Your soul carries...", "In a previous life..."
+4. Each section 5-6 sentences. No bullet points. Direct, specific, honest prose.
+5. This is a DEEP KARMA report — speak of past-life causes and their present-life effects. Be specific about what the karmic triggers mean for daily experience.
+6. Write exactly 3 sections with these headings (use ### before each):
+   ### The Karmic Foundation — What the Soul Inherited
+   ### Active Triggers — What Past Lives Left Unresolved
+   ### The Purification Path — How to Redress the Balance
+7. Complete all 3 sections. If Kroora or a Cause of Rebirth trigger is active, name the past-life wound clearly."""
+
+    user_prompt = f"""Write a D60 deep karma report for {name}.
+
+D60 LAGNA: {brief.get('lagna_sign','')}
+LAGNA DEITY: #{brief.get('lagna_deity_id','')} {brief.get('lagna_deity','')} ({brief.get('lagna_deity_nature','')})
+LAGNA ESSENCE: {brief.get('lagna_deity_essence','')}
+
+ATMAKARAKA: {brief.get('atmakaraka','')}
+AK IN 12TH (Moksha Bond): {brief.get('ak_in_12th',False)}
+
+CAUSE OF REBIRTH: {brief.get('cause_of_rebirth',False)} — Planet: {brief.get('cause_of_rebirth_planet','')}
+DEEP SOUL ANXIETY: {brief.get('deep_soul_anxiety',False)} — Planet: {brief.get('anxiety_planet','')}
+IMMENSE WEALTH MARKER: {brief.get('immense_wealth',False)}
+EGO/AMBITION RISK PLANETS: {brief.get('ego_planets',[])}
+HEALER SIGNATURE PLANETS: {brief.get('healer_planets',[])}
+VENUS KANTAKA (Spousal Barb): {brief.get('venus_kantaka',False)}
+LINEAGE BREAK: {brief.get('lineage_break',False)} — Planet: {brief.get('lineage_break_planet','')}
+KING STATUS PLANETS: {brief.get('king_planets',[])}
+KROORA (Rebirth Cause): {brief.get('kroora_planets',[])}
+
+OVERALL EVOLUTION: {brief.get('overall_evolution','')}
+IMPROVED PLANETS: {brief.get('improved_planets',[])}
+SPOILED PLANETS: {brief.get('spoiled_planets',[])}
+
+12TH HOUSE REBIRTH TETHERS: {brief.get('h12_planets',[])}
+
+PLANETARY DEITIES (D60):
+{brief.get('planetary_deities',{})}
+
+CURRENT DASHA: {brief.get('mahadasha','')} / {brief.get('antardasha','')}
+MD DEITY: {brief.get('md_deity','')} ({brief.get('md_deity_nature','')}) — Block Active: {brief.get('md_block',False)}
+AD DEITY: {brief.get('ad_deity','')} ({brief.get('ad_deity_nature','')})
+
+Write 3 honest, specific sections about past-life karma and how it manifests in the present life. No astrology jargon."""
+
+    try:
+        response = requests.post(
+            "https://api.anthropic.com/v1/messages",
+            headers={"x-api-key": api_key, "anthropic-version": "2023-06-01", "content-type": "application/json"},
+            json={"model": "claude-sonnet-4-6", "max_tokens": 2000, "system": system_prompt,
+                  "messages": [{"role": "user", "content": user_prompt}]},
+            timeout=60
+        )
+        if response.status_code != 200:
+            raise HTTPException(status_code=500, detail=f"Anthropic API error {response.status_code}: {response.text[:600]}")
+        data = response.json()
+        text = "".join(b["text"] for b in data.get("content", []) if b.get("type") == "text")
+        return {"report": text}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"D60 report error: {str(e)}")
