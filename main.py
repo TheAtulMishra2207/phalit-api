@@ -1956,40 +1956,62 @@ def generate_dasha_report(req: DashaReportRequest):
     brief = req.chart_brief
     name  = req.name or "the native"
 
-    system_prompt = """You are writing an Executive Dasha Report — a flowing narrative that synthesises Vimshottari Dasha corpus keywords into actionable intelligence for the native.
+    system_prompt = """You are writing an Executive Dasha Report — a flowing narrative that synthesises pre-computed Vimshottari Dasha corpus keywords into actionable intelligence.
+
+The brief already contains the corpus-matched results: dignity table results, house-specific outputs, AD-within-MD matrix results, Lajjitadi states, positional distance results, and the synthesis verdict. Your job is to weave these into elegant, specific prose.
 
 Style: "The Monarch's Briefing" — authoritative, specific, elegant. No jargon. No bullet points. Second person.
 
 Structure: Write exactly 2 sections using ### headings:
 
 ### Section A: The [Planet] Reign — [Era Title]
-The Mahadasha overview: What era this is, what the soul is experiencing overall. Reference the planet's dignity, disposition, house placement, lordships, and timing pattern. Name specific corpus keywords (e.g., "Royal Service," "Extreme Opulence," "Garvit state") woven naturally into prose. 5-7 sentences.
+The Mahadasha overview. Use the md_dignity_result, md_house_ausp/inausp, md_disposition_result, md_lord_results, md_timing, and ausp_factors/inausp_factors to paint the full picture. Name specific corpus keywords naturally woven into prose. Reference the net_result verdict. 5-7 sentences.
 
-### Section B: The [AD Planet] Current Chapter — [Subtitle]
-The Antardasha friction or amplification. If the AD planet is strong, show how it accelerates the MD. If weak, name the specific obstacles (use corpus keywords: "Anorexia," "Fear of Water," "Bile disorders" etc.) as tactical challenges to navigate. End with a specific actionable instruction. 4-6 sentences.
+### Section B: The [AD Planet] Chapter — [Subtitle]
+The Antardasha layer. Use ad_within_md_strong or ad_within_md_weak (depending on ad_score), ad_dignity_result, ad_house_ausp/inausp, ad_disposition_result, and md_ad_pos_ausp/inausp. End with a specific actionable instruction referencing direction, material, or health_focus. 4-6 sentences.
 
 Rules:
-- Never say "according to the corpus" or "the data shows"
-- Use present tense throughout
-- Name specific body zones, directions, materials from the brief
-- Be specific to THIS native's placements — not generic"""
+- Never say "according to the corpus" or "the data shows" or "the brief states"
+- Use present tense throughout  
+- Quote specific corpus phrases (e.g., "Royal Service," "Extreme Opulence," "Anorexia," "Fear of Water") naturally
+- Be specific to THIS native's placements — not generic
+- If net_result is Balanced, acknowledge both the promise and the friction"""
 
     user_prompt = f"""Write an Executive Dasha Report for {name}.
 
-MAHADASHA: {brief.get('md_planet','')}
-Sign: {brief.get('md_sign','')} | House: {brief.get('md_house','')} | Dignity: {brief.get('md_dignity','')} | Strength: {brief.get('md_strength','')}
-Disposition: {brief.get('md_disposition','')} — {brief.get('md_disposition_desc','')}
-House Lordships: H{brief.get('md_lordships',[])} | Timing: {brief.get('md_timing','')}
+=== MAHADASHA: {brief.get('md_planet','')} ===
+Sign: {brief.get('md_sign','')} | House: H{brief.get('md_house','')} | Dignity: {brief.get('md_dignity','')} | Potency: {brief.get('md_potency','')}%
+Disposition: {brief.get('md_disposition','')} — {brief.get('md_disposition_result','')}
+Dignity Result: {brief.get('md_dignity_result','')}
+H{brief.get('md_house','')} Auspicious: {brief.get('md_house_ausp','')}
+H{brief.get('md_house','')} Inauspicious: {brief.get('md_house_inausp','')}
+House Lordships: H{brief.get('md_lord_houses',[])}
+Lord Results (H placement): {brief.get('md_lord_results',[])}
+Timing Pattern: {brief.get('md_timing','')} — {brief.get('md_timing_desc','')}
+Lagnesh Mobility: {brief.get('md_lagnesh_mobility','')}
+Lajjit State: {brief.get('md_lajjit','None')}
+Kshudhit State: {brief.get('md_kshudhit','None')}
+Badhaka Risk: {brief.get('md_badhaka',False)}
 Progress: {brief.get('md_pct_elapsed','')}% elapsed · Ends {brief.get('md_end','')}
+
+=== ANTARDASHA: {brief.get('ad_planet','')} ===
+Sign: {brief.get('ad_sign','')} | House: H{brief.get('ad_house','')} | Dignity: {brief.get('ad_dignity','')} | Potency: {brief.get('ad_potency','')}%
+Disposition: {brief.get('ad_disposition','')} — {brief.get('ad_disposition_result','')}
+Dignity Result: {brief.get('ad_dignity_result','')}
+H{brief.get('ad_house','')} Auspicious: {brief.get('ad_house_ausp','')}
+H{brief.get('ad_house','')} Inauspicious: {brief.get('ad_house_inausp','')}
+AD within MD (Strong): {brief.get('ad_within_md_strong','')}
+AD within MD (Weak): {brief.get('ad_within_md_weak','')}
+MD→AD Positional Distance (H{brief.get('md_ad_distance','')}): Ausp: {brief.get('md_ad_pos_ausp','')} | Inausp: {brief.get('md_ad_pos_inausp','')}
+Days remaining: {brief.get('ad_days_remaining','')} · Ends {brief.get('ad_end','')}
+
+=== SYNTHESIS ===
+Auspicious Factors: {brief.get('ausp_factors',[])}
+Inauspicious Factors: {brief.get('inausp_factors',[])}
+Net Result: {brief.get('net_result','')}
+Lagna: {brief.get('lagna_sign','')} | Lagnesh: {brief.get('lagnesh','')} | Badhaka H: {brief.get('badhaka_house','')}
 Direction: {brief.get('md_direction','')} | Material: {brief.get('md_material','')} | Taste: {brief.get('md_taste','')}
-
-ANTARDASHA: {brief.get('ad_planet','')}
-Sign: {brief.get('ad_sign','')} | House: {brief.get('ad_house','')} | Dignity: {brief.get('ad_dignity','')} | Strength: {brief.get('ad_strength','')}
-Disposition: {brief.get('ad_disposition','')} — {brief.get('ad_disposition_desc','')}
-House Lordships: H{brief.get('ad_lordships',[])} | Days remaining: {brief.get('ad_days_remaining','')} · Ends {brief.get('ad_end','')}
-
-LAGNA: {brief.get('lagna_sign','')}
-HEALTH FOCUS: {brief.get('health_focus','')}
+Health Focus: {brief.get('health_focus','')}
 
 Write the 2-section executive report now."""
 
