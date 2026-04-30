@@ -1942,3 +1942,71 @@ Write 3 specific sections about the soul's purpose and path. No astrology jargon
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Karakamsha report error: {str(e)}")
+
+class DashaReportRequest(BaseModel):
+    name: str
+    chart_brief: Dict[str, Any]
+
+@app.post("/dashareport")
+def generate_dasha_report(req: DashaReportRequest):
+    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+    if not api_key:
+        raise HTTPException(status_code=500, detail="ANTHROPIC_API_KEY not configured on server.")
+
+    brief = req.chart_brief
+    name  = req.name or "the native"
+
+    system_prompt = """You are writing an Executive Dasha Report — a flowing narrative that synthesises Vimshottari Dasha corpus keywords into actionable intelligence for the native.
+
+Style: "The Monarch's Briefing" — authoritative, specific, elegant. No jargon. No bullet points. Second person.
+
+Structure: Write exactly 2 sections using ### headings:
+
+### Section A: The [Planet] Reign — [Era Title]
+The Mahadasha overview: What era this is, what the soul is experiencing overall. Reference the planet's dignity, disposition, house placement, lordships, and timing pattern. Name specific corpus keywords (e.g., "Royal Service," "Extreme Opulence," "Garvit state") woven naturally into prose. 5-7 sentences.
+
+### Section B: The [AD Planet] Current Chapter — [Subtitle]
+The Antardasha friction or amplification. If the AD planet is strong, show how it accelerates the MD. If weak, name the specific obstacles (use corpus keywords: "Anorexia," "Fear of Water," "Bile disorders" etc.) as tactical challenges to navigate. End with a specific actionable instruction. 4-6 sentences.
+
+Rules:
+- Never say "according to the corpus" or "the data shows"
+- Use present tense throughout
+- Name specific body zones, directions, materials from the brief
+- Be specific to THIS native's placements — not generic"""
+
+    user_prompt = f"""Write an Executive Dasha Report for {name}.
+
+MAHADASHA: {brief.get('md_planet','')}
+Sign: {brief.get('md_sign','')} | House: {brief.get('md_house','')} | Dignity: {brief.get('md_dignity','')} | Strength: {brief.get('md_strength','')}
+Disposition: {brief.get('md_disposition','')} — {brief.get('md_disposition_desc','')}
+House Lordships: H{brief.get('md_lordships',[])} | Timing: {brief.get('md_timing','')}
+Progress: {brief.get('md_pct_elapsed','')}% elapsed · Ends {brief.get('md_end','')}
+Direction: {brief.get('md_direction','')} | Material: {brief.get('md_material','')} | Taste: {brief.get('md_taste','')}
+
+ANTARDASHA: {brief.get('ad_planet','')}
+Sign: {brief.get('ad_sign','')} | House: {brief.get('ad_house','')} | Dignity: {brief.get('ad_dignity','')} | Strength: {brief.get('ad_strength','')}
+Disposition: {brief.get('ad_disposition','')} — {brief.get('ad_disposition_desc','')}
+House Lordships: H{brief.get('ad_lordships',[])} | Days remaining: {brief.get('ad_days_remaining','')} · Ends {brief.get('ad_end','')}
+
+LAGNA: {brief.get('lagna_sign','')}
+HEALTH FOCUS: {brief.get('health_focus','')}
+
+Write the 2-section executive report now."""
+
+    try:
+        response = requests.post(
+            "https://api.anthropic.com/v1/messages",
+            headers={"x-api-key": api_key, "anthropic-version": "2023-06-01", "content-type": "application/json"},
+            json={"model": "claude-sonnet-4-6", "max_tokens": 1200, "system": system_prompt,
+                  "messages": [{"role": "user", "content": user_prompt}]},
+            timeout=60
+        )
+        if response.status_code != 200:
+            raise HTTPException(status_code=500, detail=f"Anthropic API error {response.status_code}: {response.text[:600]}")
+        data = response.json()
+        text = "".join(b["text"] for b in data.get("content", []) if b.get("type") == "text")
+        return {"report": text}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Dasha report error: {str(e)}")
