@@ -2112,14 +2112,15 @@ Style: Strategic intelligence briefing. Authoritative. Second person. No bullet 
 Write exactly 2 sections using ### headings:
 
 ### The Integrated Synthesis
-One paragraph (5-7 sentences) covering: the harmony or conflict between the active Mahadasha/Antardasha and the current dominant transits. Apply dignity overrides. Name the primary theme of this window (e.g., "Industrial Investment," "Strategic Toil," "Mental Metamorphosis"). Reference Moorthy Nirnaya quality and Sade Sati phase if active.
+One paragraph (5-7 sentences) covering: the harmony or conflict between the active Mahadasha/Antardasha and the current dominant transits. Apply dignity overrides. Name the primary theme of this window (e.g., "Industrial Investment," "Strategic Toil," "Mental Metamorphosis"). Reference Moorthy Nirnaya quality and Sade Sati phase if active. Weave in 1-2 specific upcoming dates from the Important Dates list to ground the analysis in time.
 
 ### The Execution Directive
-One paragraph (4-5 sentences) with specific actionable guidance. Reference Masa Dasa timing, Dhina Phala energy, Anga Phala anatomical zone, and the 10th house meridian indicator. Give the native a concrete operational window and focus area.
+One paragraph (4-5 sentences) with specific actionable guidance tied to the calendar. Reference specific dates from the Important Dates list — tell the native exactly when to act and when to hold back. Reference Masa Dasa timing, Dhina Phala energy, Anga Phala anatomical zone, and the 10th house meridian indicator. End with the single most important date the native should mark in their calendar and why.
 
 Rules:
 - Never say "according to the corpus" or "the data shows"
-- Quote corpus keywords naturally (e.g., "Janma Sani," "Swarna Moorthy," "Chandhrashtama")  
+- Quote corpus keywords naturally (e.g., "Janma Sani," "Swarna Moorthy," "Chandhrashtama")
+- Always reference specific dates from important_dates when available
 - Be specific to THIS native's positions — not generic
 - Use present tense throughout"""
 
@@ -2144,9 +2145,12 @@ NAKSHATRA VEDHA: {brief.get('nak_vedha','')}
 10TH HOUSE MERIDIAN: {brief.get('meridian_planet','')} — {brief.get('meridian_result','')}
 WORST HOUSE ALERTS: {brief.get('worst_house_alerts','')}
 
+IMPORTANT DATES (next 12 months — USE THESE IN THE NARRATIVE):
+{brief.get('important_dates','No dates computed')}
+
 LAGNA: {brief.get('lagna_sign','')} | RASI: {brief.get('rasi','')} | NAKSHATRA: {brief.get('nakshatra','')}
 
-Write the 2-section Supreme Transit Audit now."""
+Write the 2-section Supreme Transit Audit now. Reference specific dates from Important Dates in both sections."""
 
     try:
         response = requests.post(
