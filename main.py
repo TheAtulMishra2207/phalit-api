@@ -2032,3 +2032,139 @@ Write the 2-section executive report now."""
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Dasha report error: {str(e)}")
+
+
+# ── GOCHAR: CURRENT TRANSITS ENDPOINT ────────────────────────────────────────
+
+@app.get("/transits")
+def get_current_transits():
+    """Return current planetary positions (sidereal, Lahiri) for Gochar computation."""
+    import swisseph as swe
+    from datetime import datetime, timezone
+    now = datetime.now(timezone.utc)
+    jd  = swe.julday(now.year, now.month, now.day,
+                     now.hour + now.minute/60.0 + now.second/3600.0)
+    swe.set_ephe_path('/tmp')
+
+    # Lahiri ayanamsha (same formula as natal chart)
+    T  = (jd - 2451545.0) / 36525.0
+    ayan = 23.85 + 0.013004 * T
+
+    BODIES = {
+        'Sun': swe.SUN, 'Moon': swe.MOON, 'Mars': swe.MARS,
+        'Mercury': swe.MERCURY, 'Jupiter': swe.JUPITER,
+        'Venus': swe.VENUS, 'Saturn': swe.SATURN, 'Rahu': swe.MEAN_NODE
+    }
+    result = {}
+    for name, body in BODIES.items():
+        pos, _ = swe.calc_ut(jd, body)
+        lon = (pos[0] - ayan) % 360
+        if name == 'Rahu': lon = (pos[0] - ayan) % 360  # north node
+        result[name] = {
+            'longitude':  round(lon, 4),
+            'sign_index': int(lon / 30),
+            'nakshatra':  int(lon / (360/27)),
+            'deg_in_sign': round(lon % 30, 4),
+            'retrograde': bool(pos[3] < 0)
+        }
+    # Ketu = opposite of Rahu
+    k_lon = (result['Rahu']['longitude'] + 180) % 360
+    result['Ketu'] = {
+        'longitude':  round(k_lon, 4),
+        'sign_index': int(k_lon / 30),
+        'nakshatra':  int(k_lon / (360/27)),
+        'deg_in_sign': round(k_lon % 30, 4),
+        'retrograde': False
+    }
+    # Moon-Sun difference for Tithi
+    moon_lon = result['Moon']['longitude']
+    sun_lon  = result['Sun']['longitude']
+    diff     = (moon_lon - sun_lon) % 360
+    tithi    = int(diff / 12) + 1  # 1–30
+    weekday  = now.isoweekday() % 7 + 1  # Sun=1 … Sat=7
+    return {
+        'planets':  result,
+        'tithi':    tithi,
+        'weekday':  weekday,
+        'jd':       round(jd, 4),
+        'date_utc': now.strftime('%Y-%m-%d %H:%M UTC')
+    }
+
+
+# ── GOCHAR: REPORT NARRATIVE ENDPOINT ────────────────────────────────────────
+
+class GocharReportRequest(BaseModel):
+    name: str
+    chart_brief: Dict[str, Any]
+
+@app.post("/gochareport")
+def generate_gochar_report(req: GocharReportRequest):
+    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+    if not api_key:
+        raise HTTPException(status_code=500, detail="ANTHROPIC_API_KEY not configured.")
+    brief = req.chart_brief
+    name  = req.name or "the native"
+
+    system_prompt = """You are writing a Supreme Transit Audit — a precise, executive-level Gochar (transit) analysis.
+
+Style: Strategic intelligence briefing. Authoritative. Second person. No bullet points inside paragraphs.
+
+Write exactly 2 sections using ### headings:
+
+### The Integrated Synthesis
+One paragraph (5-7 sentences) covering: the harmony or conflict between the active Mahadasha/Antardasha and the current dominant transits. Apply dignity overrides. Name the primary theme of this window (e.g., "Industrial Investment," "Strategic Toil," "Mental Metamorphosis"). Reference Moorthy Nirnaya quality and Sade Sati phase if active.
+
+### The Execution Directive
+One paragraph (4-5 sentences) with specific actionable guidance. Reference Masa Dasa timing, Dhina Phala energy, Anga Phala anatomical zone, and the 10th house meridian indicator. Give the native a concrete operational window and focus area.
+
+Rules:
+- Never say "according to the corpus" or "the data shows"
+- Quote corpus keywords naturally (e.g., "Janma Sani," "Swarna Moorthy," "Chandhrashtama")  
+- Be specific to THIS native's positions — not generic
+- Use present tense throughout"""
+
+    user_prompt = f"""Write a Supreme Transit Audit for {name}.
+
+DASHA CONTEXT:
+MD: {brief.get('md_planet','')} in H{brief.get('md_house','')} ({brief.get('md_dignity','')}) | AD: {brief.get('ad_planet','')} in H{brief.get('ad_house','')} ({brief.get('ad_dignity','')})
+
+CURRENT TRANSITS (from Moon):
+{brief.get('transit_summary','')}
+
+SADE SATI: {brief.get('sade_sati_status','')}
+MOORTHY NIRNAYA: Saturn={brief.get('saturn_moorthy','')}, Jupiter={brief.get('jupiter_moorthy','')}
+TARA CYCLE: {brief.get('tara_status','')}
+
+PRECISION TIMING:
+Varsha Dasa Lord: {brief.get('varsha_lord','')} | Masa Dasa Lord: {brief.get('masa_lord','')} ({brief.get('masa_days','')} days)
+Dhina Phala: {brief.get('dhina_phala','')} — {brief.get('dhina_result','')}
+
+ANGA PHALA: {brief.get('anga_phala','')}
+NAKSHATRA VEDHA: {brief.get('nak_vedha','')}
+10TH HOUSE MERIDIAN: {brief.get('meridian_planet','')} — {brief.get('meridian_result','')}
+WORST HOUSE ALERTS: {brief.get('worst_house_alerts','')}
+
+LAGNA: {brief.get('lagna_sign','')} | RASI: {brief.get('rasi','')} | NAKSHATRA: {brief.get('nakshatra','')}
+
+Write the 2-section Supreme Transit Audit now."""
+
+    try:
+        response = requests.post(
+            "https://api.anthropic.com/v1/messages",
+            headers={"x-api-key": api_key, "anthropic-version": "2023-06-01",
+                     "content-type": "application/json"},
+            json={"model": "claude-sonnet-4-6", "max_tokens": 1000,
+                  "system": system_prompt,
+                  "messages": [{"role": "user", "content": user_prompt}]},
+            timeout=60
+        )
+        if response.status_code != 200:
+            raise HTTPException(status_code=500,
+                detail=f"Anthropic API error {response.status_code}: {response.text[:400]}")
+        data = response.json()
+        text = "".join(b["text"] for b in data.get("content",[]) if b.get("type")=="text")
+        return {"report": text}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Gochar report error: {str(e)}")
