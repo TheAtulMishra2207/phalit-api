@@ -148,6 +148,22 @@ def calc_d9_sign(lon: float) -> dict:
         "d9_lord": SIGN_LORDS[d9_sign_index]
     }
 
+def calc_d20_sign(lon: float) -> dict:
+    """D-20 Vimsamsa: each sign divided into 20 parts of 1°30' each."""
+    sign_index = int(lon / 30)
+    degree_in_sign = lon % 30
+    part = int(degree_in_sign / 1.5)   # 0-19
+    # Odd signs start from Aries (0), Even signs start from Sagittarius (8)
+    if sign_index % 2 == 0:  # Odd sign (Aries, Gemini…)
+        d20_sign_index = part % 12
+    else:                     # Even sign (Taurus, Cancer…)
+        d20_sign_index = (8 + part) % 12
+    return {
+        "d20_sign_index": d20_sign_index,
+        "d20_sign": SIGNS[d20_sign_index],
+        "d20_lord": SIGN_LORDS[d20_sign_index]
+    }
+
 # ─────────────────────────────────────────────────────────────────────────────
 # AYANAMSHA — Manual Lahiri (IAE standard)
 # Avoids pyswisseph version discrepancies on hosted environments
@@ -288,7 +304,8 @@ def calc_planet_data(jd: float, planet: str, lagna_sign_index: int) -> dict:
     nakshatra = get_nakshatra_info(lon)
     dignity = get_dignity(planet, sign_index, degree_in_sign)
     d9 = calc_d9_sign(lon)
-    d9_dignity = get_dignity(planet, d9["d9_sign_index"], 0)  # degree 0 within D9 sign (sign-level dignity)
+    d20 = calc_d20_sign(lon)
+    d9_dignity = get_dignity(planet, d9["d9_sign_index"], 0)
     vargottama = (sign_index == d9["d9_sign_index"])
 
     return {
@@ -309,7 +326,10 @@ def calc_planet_data(jd: float, planet: str, lagna_sign_index: int) -> dict:
         "d9_sign_index": d9["d9_sign_index"],
         "d9_lord": d9["d9_lord"],
         "d9_dignity": d9_dignity,
-        "vargottama": vargottama
+        "vargottama": vargottama,
+        "d20_sign_index": d20["d20_sign_index"],
+        "d20_sign": d20["d20_sign"],
+        "d20_lord": d20["d20_lord"]
     }
 
 
@@ -2172,3 +2192,82 @@ Write the 2-section Supreme Transit Audit now. Reference specific dates from Imp
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Gochar report error: {str(e)}")
+
+
+# ── REMEDIES REPORT ENDPOINT ──────────────────────────────────────────────────
+
+class RemediesReportRequest(BaseModel):
+    name: str
+    chart_brief: Dict[str, Any]
+
+@app.post("/remediesreport")
+def generate_remedies_report(req: RemediesReportRequest):
+    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+    if not api_key:
+        raise HTTPException(status_code=500, detail="ANTHROPIC_API_KEY not configured.")
+    brief = req.chart_brief
+    name  = req.name or "the native"
+
+    system_prompt = """You are writing the Detailed Remedial Analysis section of a Supreme Remedial Dossier.
+
+Style: A learned Jyotishi speaking directly to the native. Warm but authoritative. Second person. No bullet points.
+
+Write exactly 2 paragraphs with no headings:
+
+Paragraph 1 (The Diagnosis): Explain WHY these specific remedies were prescribed. Reference the Atma Karaka planet and its condition, the active Dasha/Antardasha afflictions, and the natal weaknesses identified. Connect the Ishta Devata to the soul's evolutionary need. Use corpus keywords naturally (e.g., "Malefic Rule," "Elemental Sign Attribution," "43-day gestation").
+
+Paragraph 2 (The Prescription Logic): Explain the priority order of the recommended remedies and why. Which remedy is the foundation (usually the primary gem or Rudraksha), which is the amplifier (Yantra/Mantra), and which is the daily anchor (Vrata/Color). End with a specific motivating statement about the karmic window currently open.
+
+Rules:
+- Never say "according to the corpus" or cite chapter numbers
+- Be specific to THIS native's chart — not generic
+- Maximum 150 words per paragraph
+- Quote the selected Devta name naturally"""
+
+    user_prompt = f"""Write the Detailed Remedial Analysis for {name}.
+
+CHART FOUNDATION:
+Lagna: {brief.get('lagna_sign','')} | Lagna Lord: {brief.get('lagna_lord','')} ({brief.get('lagna_lord_dignity','')} in H{brief.get('lagna_lord_house','')})
+Atma Karaka: {brief.get('ak_planet','')} in {brief.get('ak_sign','')} H{brief.get('ak_house','')} ({brief.get('ak_dignity','')}
+Moon: {brief.get('moon_sign','')} | Nakshatra: {brief.get('nakshatra','')}
+
+DASHA CONTEXT:
+MD: {brief.get('md_planet','')} ({brief.get('md_dignity','')}) | AD: {brief.get('ad_planet','')} ({brief.get('ad_dignity','')})
+
+DEVTA PROFILE:
+Ishta Devata: {brief.get('ishta_devata','')} (from {brief.get('ishta_planet','')} in 12th from Karakamsa)
+Kula Devata: {brief.get('kula_devata','')}
+Sthana Devata: {brief.get('sthana_devata','')}
+
+PRIMARY AFFLICTIONS: {brief.get('primary_afflictions','')}
+
+PRESCRIBED REMEDIES:
+Primary Gem: {brief.get('primary_gem','')}
+Rudraksha: {brief.get('rudraksha','')}
+Primary Yantra: {brief.get('primary_yantra','')}
+Primary Mantra: {brief.get('primary_mantra','')}
+Primary Vrata: {brief.get('primary_vrata','')}
+Nakshatra Tree: {brief.get('nak_tree','')}
+
+Write the 2-paragraph Detailed Remedial Analysis now."""
+
+    try:
+        response = requests.post(
+            "https://api.anthropic.com/v1/messages",
+            headers={"x-api-key": api_key, "anthropic-version": "2023-06-01",
+                     "content-type": "application/json"},
+            json={"model": "claude-sonnet-4-6", "max_tokens": 800,
+                  "system": system_prompt,
+                  "messages": [{"role": "user", "content": user_prompt}]},
+            timeout=60
+        )
+        if response.status_code != 200:
+            raise HTTPException(status_code=500,
+                detail=f"Anthropic API error {response.status_code}: {response.text[:400]}")
+        data = response.json()
+        text = "".join(b["text"] for b in data.get("content",[]) if b.get("type")=="text")
+        return {"report": text}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Remedies report error: {str(e)}")
