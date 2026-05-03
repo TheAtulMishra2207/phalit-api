@@ -2271,3 +2271,77 @@ Write the 2-paragraph Detailed Remedial Analysis now."""
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Remedies report error: {str(e)}")
+
+
+# ── NAKSHATRA BIRTHDAY ENDPOINT ───────────────────────────────────────────────
+
+@app.get("/nakshatra_birthday")
+def get_nakshatra_birthday(nak_index: int, birth_month: int, birth_day: int):
+    """
+    Find the next annual Nakshatra Birthday — the date the Moon transits
+    the birth nakshatra closest to the native's birth calendar date this year.
+    """
+    import swisseph as swe
+    from datetime import datetime, timezone, timedelta
+
+    NAK_SPAN = 360 / 27  # 13.333...°
+
+    def moon_nak(jd, ayan):
+        pos, _ = swe.calc_ut(jd, swe.MOON)
+        lon = (pos[0] - ayan) % 360
+        return int(lon / NAK_SPAN), lon
+
+    swe.set_ephe_path('/tmp')
+    now = datetime.now(timezone.utc)
+    jd_now = swe.julday(now.year, now.month, now.day, now.hour + now.minute/60.0)
+
+    # Lahiri ayanamsha
+    T = (jd_now - 2451545.0) / 36525.0
+    ayan = 23.85 + 0.013004 * T
+
+    # Scan forward day by day for up to 400 days — collect all occurrences of birth nakshatra
+    occurrences = []
+    prev_nak = None
+    jd = jd_now
+    for day in range(400):
+        cur_nak, cur_lon = moon_nak(jd, ayan)
+        # Detect entry into birth nakshatra
+        if cur_nak == nak_index and prev_nak != nak_index:
+            dt = datetime(now.year, 1, 1, tzinfo=timezone.utc) + timedelta(days=(jd - swe.julday(now.year, 1, 1, 0)))
+            # More precise: reconstruct date from jd
+            y, m, d, h = swe.revjul(jd)
+            entry_date = datetime(int(y), int(m), int(d), tzinfo=timezone.utc)
+            occurrences.append(entry_date)
+        prev_nak = cur_nak
+        jd += 1
+
+    if not occurrences:
+        return {"error": "Could not find nakshatra birthday"}
+
+    # Among all occurrences, pick the one closest to the birth calendar date
+    # Target: birth_month / birth_day in current or next year
+    best = None
+    best_diff = float('inf')
+    for year_offset in [0, 1]:
+        try:
+            target = datetime(now.year + year_offset, birth_month, birth_day, tzinfo=timezone.utc)
+        except ValueError:
+            continue
+        for occ in occurrences:
+            diff = abs((occ - target).days)
+            if diff < best_diff:
+                best_diff = diff
+                best = occ
+
+    if not best:
+        best = occurrences[0]
+        best_diff = 0
+
+    days_away = (best - now.replace(hour=0, minute=0, second=0, microsecond=0)).days
+
+    return {
+        "nakshatra_birthday": best.strftime("%d/%m/%Y"),
+        "days_away": max(0, days_away),
+        "weekday": best.strftime("%A"),
+        "note": f"Moon transits your birth Nakshatra (#{nak_index+1}) nearest to your birth anniversary"
+    }
