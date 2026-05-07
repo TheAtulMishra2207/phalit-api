@@ -5,6 +5,7 @@ import swisseph as swe
 from datetime import datetime, timedelta
 import requests
 import os
+import json
 from typing import Any, Dict
 
 # ─────────────────────────────────────────────────────────────────────────────
