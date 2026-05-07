@@ -2887,19 +2887,81 @@ def get_varsha_report(req: VarshaReportRequest):
         rt = req.report_type
 
         prompts = {
-            "annual": f"""You are a Tajik Neelakanthi Varshaphal expert. Generate a precise annual forecast.
+            "annual": f"""You are a Tajik Neelakanthi Varshaphal expert generating a structured annual cosmic blueprint.
 
 Annual Chart Data: {json.dumps(vb, indent=2)}
 Natal Chart Context: {json.dumps(nb, indent=2)}
 
-Write a 400-word Varsha Phala covering:
-1. Varshesha (Year Lord) — its strength tier and primary prediction
-2. Muntha placement — what karmic focus it defines for the year
-3. Three key Sahams most activated this year
-4. Temporal phasing — which half of the year is stronger
-5. One protective combination (if present) and one caution
+CRITICAL INSTRUCTION: Write ENTIRELY in plain English that any non-astrology person can understand. No Sanskrit jargon. Replace technical terms with plain equivalents (e.g. "Year Lord" not "Varshesha", "life-focus point" not "Muntha", "House" with its life domain e.g. "Career house").
 
-Be specific to the chart data. Classical Tajik Neelakanthi language only. No generic statements.""",
+Generate the report in EXACTLY this structure and format:
+
+---
+
+ANNUAL COSMIC BLUEPRINT: {vb.get('target_year', 'This Year')}
+The Path of the Year Lord & The Muntha's Journey
+
+EXECUTIVE SUMMARY: THE YEAR AT A GLANCE
+
+⚡ The Core Energy (Year Lord)
+• Dominant Archetype: [Planet Name] — The Year Lord. [1 sentence on what this planet archetypally represents in plain terms]
+• Vibe Check: [Auspicious/Neutral/Inauspicious] — [1 sentence explaining why in plain terms]
+• The Ceiling: [The maximum positive outcome this year's energy can deliver]
+• The Floor: [The baseline risk area to watch — health, finances, relationships etc.]
+
+🎯 The Karmic Focus (Life-Focus Point)
+• Active Life Domain: [House Number] House — [The real-world domain e.g. Career, Relationships, Home, Wealth]
+• Momentum Check: [Amplified/Blocked/Neutral] — [1 sentence on whether efforts gain traction or face resistance]
+• Ease of Manifestation: [High/Medium/Low] — [1 sentence reason]
+
+🌓 The Temporal Split
+• First 180 Days: [Concrete prediction — what kind of energy, events, opportunities dominate the first half]
+• Second 180 Days: [Concrete prediction — how the energy shifts in the second half]
+
+---
+
+DETAILED TECHNICAL ANALYSIS
+
+I. The Year Lord: Master of {vb.get('target_year', 'the Year')}
+• Strength Level: [Very Strong/Medium/Weak] — [What this means in plain terms for the native]
+• How This Year Connects to Your Birth Promise: [Does the annual energy support or challenge what the natal chart promised? Plain language.]
+• Joy Strength (Biswas): [Number]/20 — [What this score means in plain terms]
+• Key Planetary Conversation: [Is the Year Lord moving toward a benefic planet (approaching/building energy) or separating from one (waning energy)? Plain language.]
+
+II. The Life-Focus Point: Your Point of Evolution
+• Placement: [Sign] in the [House Number] House ([Life Domain]) — [What this placement means for this year in plain language]
+• The Steward of This Focus: [Lord of the sign the Muntha is in] — [Is this planet friendly to your overall chart? What does that mean practically?]
+• Override Check: [Is there any protective planet cancelling negative effects? If yes, name it and explain in plain terms. If no, state "No override active."]
+
+III. Material & Physical Vitality (The Risk Audit)
+• Health Constitution: [Which body system or dosha is active — translate to modern terms: e.g. "inflammatory/digestive/nervous system"] — [1 sentence on what to watch]
+• Wealth Sustainability: [Strong/Moderate/Weak] — [1 sentence on why, in plain terms]
+• Protection Status: [Is Jupiter or the Lagna Lord acting as a shield? Plain terms — e.g. "Jupiter in a powerful house is absorbing most of the year's negative combinations."]
+
+---
+
+AI-GENERATED NARRATIVE: THE PROPHETIC SYNTHESIS
+
+The Narrative Arc:
+[3-4 sentences weaving the Year Lord's energy, Muntha's placement, and temporal phasing into a cohesive life-story. Use plain, evocative language. Example style: "As Saturn takes the throne this year, your path is defined by slow, deliberate consolidation. While your birth chart promised career advancement, the annual chart creates a specific window for foundational work rather than dramatic leaps. The life-focus point in your career house suggests your evolution this year is about mastering systems, not chasing recognition."]
+
+The Challenge & The Shield:
+[2-3 sentences. Name the specific challenge area (health, finances, relationships) and the specific protective force. Plain language. Be honest but not alarming.]
+
+The Subconscious Echo:
+[1-2 sentences on the dietary and dream theme — translate these into modern psychological/lifestyle terms. E.g. "Your body will crave grounding, hearty foods. Dreams may carry themes of travel or unfinished journeys — a signal to resolve pending decisions."]
+
+---
+
+ACTIONABLE WISDOM
+
+• Primary Life Area to Watch: [The single most activated Saham/life area with its house placement in plain terms]
+• Strategic Guidance: [One sentence of practical, grounded advice based on the Year Lord and Muntha together]
+• The Golden Window: [Specific time period — month or Patyayini sub-period — when the Year Lord reaches peak power and action is most rewarded]
+
+---
+
+Be specific to the chart data provided. Every statement must be traceable to an actual planetary placement in the data. No generic filler.""",
 
             "arishta": f"""You are a Tajik Varshaphal Arishta analyst. Assess risk combinations.
 
@@ -2934,7 +2996,7 @@ Mrityu (health risk). For each: state its house/sign placement, whether activate
         client = ant_client.Anthropic()
         resp = client.messages.create(
             model="claude-sonnet-4-6",
-            max_tokens=1000,
+            max_tokens=2000,
             messages=[{"role":"user","content": prompt}]
         )
         text = "".join(b["text"] for b in resp.content if b.type == "text")
