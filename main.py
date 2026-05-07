@@ -2963,6 +2963,24 @@ ACTIONABLE WISDOM
 
 Be specific to the chart data provided. Every statement must be traceable to an actual planetary placement in the data. No generic filler.""",
 
+            "narrative": f"""You are a Tajik Neelakanthi Varshaphal expert. Write ONLY the narrative section of an annual report.
+
+Annual Data: {json.dumps(vb, indent=2)}
+Natal Context: {json.dumps(nb, indent=2)}
+
+Write EXACTLY these 3 paragraphs in plain English (no Sanskrit jargon, no technical terms):
+
+**The Narrative Arc:**
+[3-4 sentences. As [Year Lord planet] governs this year, weave together: what archetype is dominant, how it connects to the natal chart's promise, what specific opportunity window the annual chart creates, and what the Life-Focus Point in House [X] demands from the native's attention. Be specific to the data — name the actual planet, actual house, actual life domain.]
+
+**The Challenge & The Shield:**
+[2-3 sentences. Name the specific risk area for this year (health system, financial pressure point, or relationship domain). Then name the specific protective planet/placement and what it concretely prevents. Be honest but not alarming. If no shield exists, say so plainly.]
+
+**The Subconscious Echo:**
+[1-2 sentences. Translate the dietary indicator and dream theme into modern psychological/lifestyle language. E.g. "Your body will crave grounding foods. Dreams may carry themes of unfinished journeys — a signal to resolve pending decisions before acting on new ones."]
+
+Write only these 3 paragraphs with their bold headers. Nothing else. Plain English throughout.""",
+
             "arishta": f"""You are a Tajik Varshaphal Arishta analyst. Assess risk combinations.
 
 Chart Data: {json.dumps(vb, indent=2)}
