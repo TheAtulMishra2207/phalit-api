@@ -3010,14 +3010,28 @@ Mrityu (health risk). For each: state its house/sign placement, whether activate
 
         prompt = prompts.get(rt, prompts["annual"])
 
-        import anthropic as ant_client
-        client = ant_client.Anthropic()
-        resp = client.messages.create(
-            model="claude-sonnet-4-6",
-            max_tokens=2000,
-            messages=[{"role":"user","content": prompt}]
+        api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+        response = requests.post(
+            "https://api.anthropic.com/v1/messages",
+            headers={
+                "x-api-key": api_key,
+                "anthropic-version": "2023-06-01",
+                "content-type": "application/json"
+            },
+            json={
+                "model": "claude-sonnet-4-6",
+                "max_tokens": 2000,
+                "messages": [{"role": "user", "content": prompt}]
+            },
+            timeout=90
         )
-        text = "".join(b["text"] for b in resp.content if b.type == "text")
+        if response.status_code != 200:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Anthropic API error {response.status_code}: {response.text[:400]}"
+            )
+        data = response.json()
+        text = "".join(b["text"] for b in data.get("content", []) if b.get("type") == "text")
         return {"report": text}
 
     except HTTPException:
