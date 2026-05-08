@@ -3596,7 +3596,7 @@ def get_maas_chart(req: MaasChartRequest):
         month_label = f"{MONTH_NAMES[entry['month']-1]} {entry['year']}"
 
         return {
-            "month_num":        req.month_num,
+            "month_num":        req.calendar_month,
             "month_label":      month_label,
             "entry":            entry,
             "lagna":            monthly_lagna,
