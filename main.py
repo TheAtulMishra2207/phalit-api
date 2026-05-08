@@ -3297,3 +3297,321 @@ Write 250 words on: Muntha house status, Rahu-Muntha mouth/back protocol if appl
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Varsha report error: {str(e)}")
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# MAAS PHALA ENGINE — Monthly Resolution
+# ═══════════════════════════════════════════════════════════════════════════════
+
+LUNAR_STATES = [
+    '', 'Pravaas (Journey/Travel)', 'Nashta (Excess Expenditure)',
+    'Maran (Death-like Fear)', 'Jaya (Victory)', 'Haasya (Joy & Laughter)',
+    'Rati (Satisfaction)', 'Kreeda (Sports & Fun)', 'Prasupta (Inactivity)',
+    'Bhukta (Fear & Pain)', 'Jwara (Fever & Illness)', 'Kampita (Sorrows & Loss)',
+    'Susthita (Comfort & Joy)'
+]
+
+DREAM_THEMES = {
+    "Sun":     "Red objects, fire, intense light, authority figures",
+    "Moon":    "Water, white cloth, silver, beautiful landscapes, peace",
+    "Mars":    "Combat, red stones, weapons, blood, high energy pursuits",
+    "Mercury": "Flying, horse riding, books, intellectual discussions",
+    "Jupiter": "Temples, elders, children, abundance, divine figures",
+    "Venus":   "Rivers, flowers, romantic encounters, beautiful music",
+    "Saturn":  "Dark spaces, crowds of strangers, slow journeys, old structures",
+    "Rahu":    "Serpents, fog, confusion, underground spaces",
+    "Ketu":    "Flags, fire, spiritual figures, detachment",
+}
+
+def find_maas_entry(natal_sun_sid: float, target_year: int,
+                    month_num: int, lat: float, lon: float) -> dict:
+    """
+    Find the JD when Sun reaches natal_sun_sid + month_num * 30° (mod 360).
+    This is the Maas Pravesha — start of the monthly chart.
+    """
+    target_lon = (natal_sun_sid + month_num * 30.0) % 360.0
+    # Start search from Jan 1 of target year
+    jd_start = swe.julday(target_year, 1, 1, 0.0)
+    prev_diff = None
+    jd_bracket = None
+    for d in range(400):
+        jd = jd_start + d
+        sun_trop = swe.calc_ut(jd, swe.SUN)[0][0]
+        sun_sid  = (sun_trop - get_lahiri_ayanamsha(jd)) % 360.0
+        diff = (sun_sid - target_lon + 360) % 360
+        if diff > 180: diff -= 360
+        if prev_diff is not None and prev_diff < 0 and diff >= 0:
+            jd_bracket = (jd - 1, jd)
+            break
+        prev_diff = diff
+    if not jd_bracket:
+        return {}
+    jd_lo, jd_hi = jd_bracket
+    for _ in range(60):
+        jd_mid = (jd_lo + jd_hi) / 2
+        sun_sid = (swe.calc_ut(jd_mid, swe.SUN)[0][0] - get_lahiri_ayanamsha(jd_mid)) % 360.0
+        diff = (sun_sid - target_lon + 360) % 360
+        if diff > 180: diff -= 360
+        if diff < 0: jd_lo = jd_mid
+        else:         jd_hi = jd_mid
+    jd_sr = (jd_lo + jd_hi) / 2
+    y, m, d, h = swe.revjul(jd_sr)
+    hour_int = int(h)
+    minute_int = int((h - hour_int) * 60)
+    return {"jd": jd_sr, "year": int(y), "month": int(m), "day": int(d),
+            "hour": hour_int, "minute": minute_int, "is_day": 6 <= h <= 18,
+            "target_lon": round(target_lon, 4)}
+
+
+def compute_maas_lord(monthly_lagna_si: int, muntha_si: int,
+                      birth_lagna_si: int, planets: dict,
+                      is_day: bool, harsha_bala: dict) -> str:
+    """
+    5-way Monthly Lord (Maas-Adhipati) selection:
+    1. Monthly Lagna Lord  2. Muntha Sign Lord  3. Birth Lagna Lord
+    4. Tri-Rasi Lord (day=Sun sign lord, night=Moon sign lord)
+    5. Day/Night Lord
+    Strongest Harsha Bala among contestants wins.
+    """
+    contestants = set()
+    contestants.add(SIGN_LORDS_LIST[monthly_lagna_si])
+    contestants.add(SIGN_LORDS_LIST[muntha_si])
+    contestants.add(SIGN_LORDS_LIST[birth_lagna_si])
+    sun_si  = int(planets.get("Sun",  {}).get("longitude", 0) / 30) % 12
+    moon_si = int(planets.get("Moon", {}).get("longitude", 0) / 30) % 12
+    contestants.add(SIGN_LORDS_LIST[sun_si] if is_day else SIGN_LORDS_LIST[moon_si])
+    contestants.add("Sun" if is_day else "Moon")
+    return max(contestants, key=lambda p: harsha_bala.get(p, {}).get("biswas", 0))
+
+
+def compute_navamsa_aspect(planet_a: str, lon_a: float,
+                           planet_b: str, lon_b: float) -> dict:
+    """Check if two planets' D9 signs are in 3-11 or 5-9 aspect."""
+    def d9_si(lon):
+        sign_idx = int(lon / 30) % 12
+        deg_in_sign = lon % 30
+        pada = int(deg_in_sign / (30/9))
+        return (sign_idx * 9 + pada) % 12
+
+    si_a = d9_si(lon_a)
+    si_b = d9_si(lon_b)
+    dist_fwd = ((si_b - si_a + 12) % 12) + 1
+    dist_rev = ((si_a - si_b + 12) % 12) + 1
+    friendly = {3, 11, 5, 9}
+    auspicious = dist_fwd in friendly or dist_rev in friendly
+    return {
+        "planet_a": planet_a, "d9_sign_a": SIGNS_LIST[si_a],
+        "planet_b": planet_b, "d9_sign_b": SIGNS_LIST[si_b],
+        "house_dist": min(dist_fwd, dist_rev),
+        "auspicious": auspicious,
+        "gate": "Auspicious" if auspicious else "Inauspicious",
+    }
+
+
+def check_kartari(planets: dict, monthly_lagna_si: int) -> dict:
+    """Kartari (Scissors) Yoga: both 2nd and 12th houses occupied by malefics."""
+    MALEFICS = {"Sun", "Mars", "Saturn", "Rahu", "Ketu"}
+    h2_si  = (monthly_lagna_si + 1) % 12
+    h12_si = (monthly_lagna_si + 11) % 12
+    h2_malefics  = [p for p,d in planets.items()
+                    if not p.startswith("_") and p in MALEFICS
+                    and int(d.get("longitude",0)/30)%12 == h2_si]
+    h12_malefics = [p for p,d in planets.items()
+                    if not p.startswith("_") and p in MALEFICS
+                    and int(d.get("longitude",0)/30)%12 == h12_si]
+    afflicted = bool(h2_malefics and h12_malefics)
+    return {
+        "afflicted":    afflicted,
+        "status":       "Afflicted — Kartari Scissors Active" if afflicted else "Safe",
+        "h2_malefics":  h2_malefics,
+        "h12_malefics": h12_malefics,
+    }
+
+
+class MaasChartRequest(BaseModel):
+    natal_chart:     Dict[str, Any]
+    varsha_data:     Dict[str, Any]   # from /varsha_chart
+    month_num:       int              # 1-12 (months after solar return)
+    current_lat:     float
+    current_lon:     float
+    use_birth_place: bool = False
+
+
+@app.post("/maas_chart")
+def get_maas_chart(req: MaasChartRequest):
+    """Compute Tajik Maas Kundali (monthly chart) for a given month offset."""
+    try:
+        nc = req.natal_chart
+        vd = req.varsha_data
+        birth_lagna_si = int(nc.get("lagna",{}).get("sign_index", 0))
+        natal_sun_sid  = float(nc.get("planets",{}).get("Sun",{}).get("longitude", 0.0))
+        target_year    = int(vd.get("target_year", 2026))
+        muntha_si      = int(vd.get("muntha",{}).get("sign_index", 0))
+        lat = float(nc.get("input",{}).get("lat",28.6)) if req.use_birth_place else req.current_lat
+        lon = float(nc.get("input",{}).get("lon",77.2)) if req.use_birth_place else req.current_lon
+
+        # 1. Monthly entry moment
+        entry = find_maas_entry(natal_sun_sid, target_year, req.month_num, lat, lon)
+        if not entry:
+            raise HTTPException(status_code=400, detail="Monthly entry not found")
+        jd_m   = entry["jd"]
+        is_day = entry["is_day"]
+
+        # 2. Monthly chart
+        monthly_lagna    = calc_lagna(jd_m, lat, lon)
+        monthly_lagna_si = monthly_lagna["sign_index"]
+        lagna_lon        = monthly_lagna["longitude"]
+        monthly_planets  = calc_all_planets(jd_m, monthly_lagna_si)
+
+        # 3. Harsha Bala for monthly
+        monthly_hb = {}
+        for p in ["Sun","Moon","Mars","Mercury","Jupiter","Venus","Saturn"]:
+            pd     = monthly_planets.get(p, {})
+            score  = (pd.get("dignity",{}).get("score",0)
+                      if isinstance(pd.get("dignity"),dict) else 0)
+            house0 = (pd.get("sign_index",0) - monthly_lagna_si + 12) % 12
+            monthly_hb[p] = calc_harsha_bala(p, pd.get("sign_index",0), house0, score, is_day)
+
+        # 4. Monthly Lord (Maas-Adhipati)
+        maas_lord = compute_maas_lord(monthly_lagna_si, muntha_si, birth_lagna_si,
+                                      monthly_planets, is_day, monthly_hb)
+        maas_lord_hb   = monthly_hb.get(maas_lord, {})
+        maas_lord_tier = maas_lord_hb.get("tier", "Weak")
+        maas_lord_pd   = monthly_planets.get(maas_lord, {})
+        combust        = maas_lord_pd.get("dignity",{}).get("label","") == "Combust" if isinstance(maas_lord_pd.get("dignity"),dict) else False
+
+        # 5. Navamsa overlay
+        lg_lord = SIGN_LORDS_LIST[monthly_lagna_si]
+        lg_lord_lon  = monthly_planets.get(lg_lord, {}).get("longitude", 0.0)
+        moon_lon_m   = monthly_planets.get("Moon", {}).get("longitude", 0.0)
+        navamsa_asp  = compute_navamsa_aspect(lg_lord, lg_lord_lon, "Moon", moon_lon_m)
+
+        # 6. Kartari check
+        kartari = check_kartari(monthly_planets, monthly_lagna_si)
+
+        # 7. Lunar Quotient (12-state)
+        moon_deg   = moon_lon_m % 30
+        lq_raw     = int((moon_deg * 2) / 5)
+        lq_state   = max(1, min(12, lq_raw if lq_raw > 0 else 12))
+        lq_name    = LUNAR_STATES[lq_state]
+        dream_lord = SIGN_LORDS_LIST[int(lagna_lon / 30) % 12]
+        dream_theme = DREAM_THEMES.get(dream_lord, "Unclear themes")
+
+        # 8. Artha Saham (monthly) — 2nd cusp based on Shripati
+        cusps_m = calc_shripati_cusps(jd_m, lat, lon)
+        h2_cusp_lon  = cusps_m[1]
+        h2_lord      = SIGN_LORDS_LIST[int(h2_cusp_lon/30)%12]
+        h2_lord_tier = monthly_hb.get(h2_lord, {}).get("tier", "Unknown")
+
+        # 9. 6th house lord (health)
+        h6_si       = (monthly_lagna_si + 5) % 12
+        h6_lord     = SIGN_LORDS_LIST[h6_si]
+        h6_lord_pd  = monthly_planets.get(h6_lord, {})
+        h6_lord_dign = h6_lord_pd.get("dignity",{}).get("label","") if isinstance(h6_lord_pd.get("dignity"),dict) else "Unknown"
+
+        # 10. Dietary
+        h4_si  = (monthly_lagna_si + 3) % 12
+        food_planet = next((p for p,d in monthly_planets.items()
+                           if not p.startswith("_")
+                           and int(d.get("longitude",0)/30)%12 == h4_si), None)
+        food_note = {
+            "Mars":   "Cold food this month",
+            "Venus":  "Oily, ghee-rich food",
+            "Saturn": "Fried or dry food",
+            "Moon":   "Fresh and warm food",
+        }.get(food_planet, "Standard diet — no specific indicator active")
+
+        MONTH_NAMES = ["Jan","Feb","Mar","Apr","May","Jun",
+                       "Jul","Aug","Sep","Oct","Nov","Dec"]
+        month_label = f"{MONTH_NAMES[entry['month']-1]} {entry['year']}"
+
+        return {
+            "month_num":        req.month_num,
+            "month_label":      month_label,
+            "entry":            entry,
+            "lagna":            monthly_lagna,
+            "planets":          monthly_planets,
+            "harsha_bala":      monthly_hb,
+            "maas_lord": {
+                "planet":    maas_lord,
+                "tier":      maas_lord_tier,
+                "biswas":    maas_lord_hb.get("biswas", 0),
+                "combust":   combust,
+                "sign":      maas_lord_pd.get("sign",""),
+                "house":     maas_lord_pd.get("house", 0),
+            },
+            "navamsa_aspect":   navamsa_asp,
+            "kartari":          kartari,
+            "lunar_quotient": {
+                "state_num":  lq_state,
+                "state_name": lq_name,
+                "moon_degree": round(moon_deg, 2),
+                "dream_lord":  dream_lord,
+                "dream_theme": dream_theme,
+            },
+            "artha": {
+                "h2_lord":  h2_lord,
+                "h2_tier":  h2_lord_tier,
+            },
+            "h6_lord":          h6_lord,
+            "h6_lord_dignity":  h6_lord_dign,
+            "food_note":        food_note,
+            "is_day":           is_day,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Maas chart error: {str(e)}")
+
+
+class MaasReportRequest(BaseModel):
+    maas_brief:   Dict[str, Any]
+    varsha_brief: Dict[str, Any]
+    natal_brief:  Dict[str, Any]
+
+
+@app.post("/maasreport")
+def get_maas_report(req: MaasReportRequest):
+    """AI narrative for Maas Phala monthly report."""
+    try:
+        mb = req.maas_brief
+        vb = req.varsha_brief
+        nb = req.natal_brief
+
+        prompt = f"""You are a Tajik Neelakanthi Varshaphal expert writing a monthly analysis report.
+
+Monthly Data: {json.dumps(mb, indent=2)}
+Annual Context (Year Lord / Muntha): {json.dumps({"varshesha": vb.get("varshesha"), "muntha": vb.get("muntha"), "munthesh": vb.get("munthesh")}, indent=2)}
+Natal Context: {json.dumps(nb, indent=2)}
+
+Write EXACTLY these 3 sections in plain English (bold headers, no Sanskrit jargon):
+
+**The Narrative Arc:**
+2-3 sentences. How does this month fit within the annual theme? What is the Monthly Lord's primary domain of influence, and how does its strength level (tier) shape this 30-day window? Connect the monthly focus to the broader annual Year Lord energy.
+
+**The Navamsa Insight:**
+2 sentences. Describe the Navamsa Lords' relationship (auspicious or inauspicious) and what psychological environment this creates. If the gate is auspicious, state the specific nature of the opportunity. If inauspicious, describe the internal friction plainly.
+
+**The Warning & The Shield:**
+2-3 sentences. If Kartari is active, name it plainly as a wealth-protection alert. Identify the key risk from the 6th house lord's status. If any benefic provides a shield (Jupiter/Venus strong in a good house), name it explicitly. End with actionable language."""
+
+        api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+        response = requests.post(
+            "https://api.anthropic.com/v1/messages",
+            headers={"x-api-key": api_key,
+                     "anthropic-version": "2023-06-01",
+                     "content-type": "application/json"},
+            json={"model": "claude-sonnet-4-6", "max_tokens": 1200,
+                  "messages": [{"role": "user", "content": prompt}]},
+            timeout=90
+        )
+        if response.status_code != 200:
+            raise HTTPException(status_code=500,
+                detail=f"API error {response.status_code}: {response.text[:300]}")
+        data = response.json()
+        text = "".join(b["text"] for b in data.get("content",[]) if b.get("type")=="text")
+        return {"report": text}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Maas report error: {str(e)}")
