@@ -3326,33 +3326,41 @@ DREAM_THEMES = {
 def find_maas_entry_for_month(natal_sun_sid: float, calendar_month: int,
                                calendar_year: int, lat: float, lon: float) -> dict:
     """
-    Find the Maas Pravesha (monthly solar entry) that falls within
-    the given calendar month and year. Scans all 12 possible monthly
-    intervals (natal_sun + n*30°) and returns the one whose entry
-    moment falls within the requested calendar month.
+    Find the Maas Pravesha that falls within the requested calendar month.
+    Strategy:
+      1. Compute Sun's sidereal longitude at mid-month.
+      2. Find which natal_sun + n*30° is nearest to mid-month Sun position.
+      3. Binary-search for exact crossing of that longitude within the month.
     """
     import calendar as cal_mod
-    # Scan up to 14 monthly intervals starting from 6 months before the target
-    start_jd   = swe.julday(calendar_year, calendar_month, 1, 0.0)
-    end_day    = cal_mod.monthrange(calendar_year, calendar_month)[1]
-    end_jd     = swe.julday(calendar_year, calendar_month, end_day, 23.99)
+    end_day  = cal_mod.monthrange(calendar_year, calendar_month)[1]
+    start_jd = swe.julday(calendar_year, calendar_month, 1, 0.0)
+    end_jd   = swe.julday(calendar_year, calendar_month, end_day, 23.99)
+    mid_jd   = (start_jd + end_jd) / 2.0
 
-    # Try each of the 12 possible monthly target longitudes
-    for n in range(14):
-        target_lon = (natal_sun_sid + n * 30.0) % 360.0
-        # Rough estimate: search around the start of target month
-        result = _find_sun_lon_in_range(target_lon, start_jd - 5, end_jd + 5, lat, lon)
-        if result and start_jd <= result["jd"] <= end_jd:
-            return result
-
-    # Fallback: find the entry closest to mid-month
-    mid_jd = (start_jd + end_jd) / 2
+    # Step 1: Sun's sidereal lon at mid-month
     sun_trop = swe.calc_ut(mid_jd, swe.SUN)[0][0]
     sun_sid  = (sun_trop - get_lahiri_ayanamsha(mid_jd)) % 360.0
-    # Round to nearest 30° interval of natal sun
-    nearest_n = round(((sun_sid - natal_sun_sid + 360) % 360) / 30)
+
+    # Step 2: Find nearest natal_sun + n*30° to mid-month Sun
+    # signed angular distance from natal_sun to sun_sid
+    delta = (sun_sid - natal_sun_sid + 360) % 360   # 0-360
+    nearest_n = round(delta / 30.0)                  # n such that natal+n*30 ≈ sun_sid
     target_lon = (natal_sun_sid + nearest_n * 30.0) % 360.0
-    return _find_sun_lon_in_range(target_lon, start_jd - 2, end_jd + 2, lat, lon) or {}
+
+    # Step 3: Search within month ± 3-day buffer
+    result = _find_sun_lon_in_range(target_lon, start_jd - 3, end_jd + 3, lat, lon)
+    if result:
+        return result
+
+    # Fallback: try adjacent n values (±1)
+    for dn in [1, -1, 2, -2]:
+        tl = (natal_sun_sid + (nearest_n + dn) * 30.0) % 360.0
+        r  = _find_sun_lon_in_range(tl, start_jd - 3, end_jd + 3, lat, lon)
+        if r:
+            return r
+
+    return {}
 
 
 def _find_sun_lon_in_range(target_lon: float, jd_lo: float, jd_hi: float,
@@ -3362,7 +3370,7 @@ def _find_sun_lon_in_range(target_lon: float, jd_lo: float, jd_hi: float,
     def sun_diff(jd):
         s = (swe.calc_ut(jd, swe.SUN)[0][0] - get_lahiri_ayanamsha(jd)) % 360.0
         d = (s - target_lon + 360) % 360
-        return d - 180 if d > 180 else d
+        return (d - 360) if d > 180 else d   # negative=not yet reached, positive=already passed
 
     d_lo = sun_diff(jd_lo)
     d_hi = sun_diff(jd_hi)
