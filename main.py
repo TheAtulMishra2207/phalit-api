@@ -3323,6 +3323,65 @@ DREAM_THEMES = {
     "Ketu":    "Flags, fire, spiritual figures, detachment",
 }
 
+def find_maas_entry_for_month(natal_sun_sid: float, calendar_month: int,
+                               calendar_year: int, lat: float, lon: float) -> dict:
+    """
+    Find the Maas Pravesha (monthly solar entry) that falls within
+    the given calendar month and year. Scans all 12 possible monthly
+    intervals (natal_sun + n*30°) and returns the one whose entry
+    moment falls within the requested calendar month.
+    """
+    import calendar as cal_mod
+    # Scan up to 14 monthly intervals starting from 6 months before the target
+    start_jd   = swe.julday(calendar_year, calendar_month, 1, 0.0)
+    end_day    = cal_mod.monthrange(calendar_year, calendar_month)[1]
+    end_jd     = swe.julday(calendar_year, calendar_month, end_day, 23.99)
+
+    # Try each of the 12 possible monthly target longitudes
+    for n in range(14):
+        target_lon = (natal_sun_sid + n * 30.0) % 360.0
+        # Rough estimate: search around the start of target month
+        result = _find_sun_lon_in_range(target_lon, start_jd - 5, end_jd + 5, lat, lon)
+        if result and start_jd <= result["jd"] <= end_jd:
+            return result
+
+    # Fallback: find the entry closest to mid-month
+    mid_jd = (start_jd + end_jd) / 2
+    sun_trop = swe.calc_ut(mid_jd, swe.SUN)[0][0]
+    sun_sid  = (sun_trop - get_lahiri_ayanamsha(mid_jd)) % 360.0
+    # Round to nearest 30° interval of natal sun
+    nearest_n = round(((sun_sid - natal_sun_sid + 360) % 360) / 30)
+    target_lon = (natal_sun_sid + nearest_n * 30.0) % 360.0
+    return _find_sun_lon_in_range(target_lon, start_jd - 2, end_jd + 2, lat, lon) or {}
+
+
+def _find_sun_lon_in_range(target_lon: float, jd_lo: float, jd_hi: float,
+                            lat: float, lon: float) -> dict:
+    """Binary search for the JD when Sun reaches target_lon within a range."""
+    # First check if target is crossed in this range
+    def sun_diff(jd):
+        s = (swe.calc_ut(jd, swe.SUN)[0][0] - get_lahiri_ayanamsha(jd)) % 360.0
+        d = (s - target_lon + 360) % 360
+        return d - 180 if d > 180 else d
+
+    d_lo = sun_diff(jd_lo)
+    d_hi = sun_diff(jd_hi)
+    if d_lo * d_hi > 0 and abs(d_lo) > 5:
+        return None  # Not crossed in this range
+
+    for _ in range(60):
+        jd_mid = (jd_lo + jd_hi) / 2
+        d_mid  = sun_diff(jd_mid)
+        if d_mid < 0: jd_lo = jd_mid
+        else:          jd_hi = jd_mid
+
+    jd_sr = (jd_lo + jd_hi) / 2
+    y, m, d, h = swe.revjul(jd_sr)
+    return {"jd": jd_sr, "year": int(y), "month": int(m), "day": int(d),
+            "hour": int(h), "minute": int((h - int(h)) * 60),
+            "is_day": 6 <= h <= 18, "target_lon": round(target_lon, 4)}
+
+
 def find_maas_entry(natal_sun_sid: float, target_year: int,
                     month_num: int, lat: float, lon: float) -> dict:
     """
@@ -3429,12 +3488,13 @@ def check_kartari(planets: dict, monthly_lagna_si: int) -> dict:
 
 
 class MaasChartRequest(BaseModel):
-    natal_chart:     Dict[str, Any]
-    varsha_data:     Dict[str, Any]   # from /varsha_chart
-    month_num:       int              # 1-12 (months after solar return)
-    current_lat:     float
-    current_lon:     float
-    use_birth_place: bool = False
+    natal_chart:      Dict[str, Any]
+    varsha_data:      Dict[str, Any]
+    calendar_month:   int            # 1-12 (actual calendar month)
+    calendar_year:    int            # actual calendar year
+    current_lat:      float
+    current_lon:      float
+    use_birth_place:  bool = False
 
 
 @app.post("/maas_chart")
@@ -3451,7 +3511,9 @@ def get_maas_chart(req: MaasChartRequest):
         lon = float(nc.get("input",{}).get("lon",77.2)) if req.use_birth_place else req.current_lon
 
         # 1. Monthly entry moment
-        entry = find_maas_entry(natal_sun_sid, target_year, req.month_num, lat, lon)
+        # Find the Maas Pravesha that falls within the requested calendar month
+        entry = find_maas_entry_for_month(natal_sun_sid, req.calendar_month,
+                                          req.calendar_year, lat, lon)
         if not entry:
             raise HTTPException(status_code=400, detail="Monthly entry not found")
         jd_m   = entry["jd"]
