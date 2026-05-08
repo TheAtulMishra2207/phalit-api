@@ -2740,276 +2740,685 @@ def select_varshesha(annual_lagna_si: int, muntha_si: int,
     return winner
 
 
-# ── Request model ─────────────────────────────────────────────────────────────
-class VarshaChartRequest(BaseModel):
-    natal_chart: Dict[str, Any]   # Full natal chart data from /chart
-    target_year: int
-    current_lat: float
-    current_lon: float
-    use_birth_place: bool = False
 
+# ── Tajik Aspect & Ithesal/Esrapha Engine ─────────────────────────────────────
+# Corpus: Neelakanthi — orb-gated aspects, Ithesal/Esrapha, Nakta, Yamaya
 
-# ── Endpoint ──────────────────────────────────────────────────────────────────
-@app.post("/varsha_chart")
-def get_varsha_chart(req: VarshaChartRequest):
+# Deeptamsha mean orbs (degrees)
+TAJ_DEEPTAMSHA = {
+    "Sun": 15, "Moon": 12, "Mars": 8, "Mercury": 7,
+    "Jupiter": 9, "Venus": 7, "Saturn": 9
+}
+
+def tajik_combined_orb(p1: str, p2: str) -> float:
+    return (TAJ_DEEPTAMSHA.get(p1, 9) + TAJ_DEEPTAMSHA.get(p2, 9)) / 2.0
+
+# Aspect table: house distance → (name, strength%, nature)
+TAJ_ASPECTS = {
+    1:  ("Pratyaksha Shatru", 100, "Openly Inimical"),
+    7:  ("Pratyaksha Shatru", 100, "Openly Inimical"),
+    5:  ("Trikona Mitra",      75, "Openly Friendly"),
+    9:  ("Trikona Mitra",      75, "Openly Friendly"),
+    4:  ("Gupta Shatru",       75, "Secretly Inimical"),
+    10: ("Gupta Shatru",       75, "Secretly Inimical"),
+    3:  ("Gupta Mitra",        40, "Secretly Friendly"),
+    11: ("Gupta Mitra",        10, "Secretly Friendly"),
+    # 2, 6, 8, 12 → 0% — no functional aspect
+}
+
+# Speed tier: lower = faster
+TAJ_SPEED_TIER = {
+    "Moon": 1, "Mercury": 2, "Venus": 3, "Sun": 4,
+    "Mars": 5, "Jupiter": 6, "Saturn": 7
+}
+
+# Natural friendship (Neelakanthi)
+TAJ_FRIENDS = {
+    "Sun":     ["Moon", "Mars", "Jupiter"],
+    "Moon":    ["Sun", "Mercury"],
+    "Mars":    ["Sun", "Moon", "Jupiter"],
+    "Mercury": ["Sun", "Venus"],
+    "Jupiter": ["Sun", "Moon", "Mars"],
+    "Venus":   ["Mercury", "Saturn"],
+    "Saturn":  ["Mercury", "Venus"],
+}
+TAJ_ENEMIES = {
+    "Sun":     ["Venus", "Saturn"],
+    "Moon":    [],
+    "Mars":    ["Mercury"],
+    "Mercury": ["Moon"],
+    "Jupiter": ["Mercury", "Venus"],
+    "Venus":   ["Sun", "Moon"],
+    "Saturn":  ["Sun", "Moon", "Mars"],
+}
+
+def tajik_natural_friendship(p1: str, p2: str) -> str:
+    if p2 in TAJ_FRIENDS.get(p1, []) and p1 in TAJ_FRIENDS.get(p2, []):
+        return "Friend"
+    if p2 in TAJ_ENEMIES.get(p1, []) or p1 in TAJ_ENEMIES.get(p2, []):
+        return "Enemy"
+    return "Neutral"
+
+# ── Core: Orb-gated aspect + Ithesal/Esrapha between any two planets ──────────
+def _tajik_aspect_between(name_a: str, lon_a: float,
+                           name_b: str, lon_b: float) -> dict:
     """
-    Compute Tajik Varsha Kundali (solar return chart) for target_year.
-    Returns full annual chart, Shripati cusps, Muntha, Harsha Bala,
-    50 Sahams, Patyayini Dasha, and Varshesha.
+    Step A: Effective_Orb = (Orb_A + Orb_B) / 2
+    Step B: Diff = |lon_A - lon_B| (shortest arc, 0-180)
+    Step C: deviation = min(Diff % 30, 30 - Diff % 30) — distance from exact aspect
+    Rule: if Diff > Effective_Orb → Wide, yoga does NOT fire.
     """
-    try:
-        nc = req.natal_chart
-        planets_natal = nc.get("planets", {})
+    # Step B: angular distance (shortest arc)
+    diff = abs(lon_a - lon_b)
+    if diff > 180:
+        diff = 360 - diff
 
-        # Birth details
-        birth_lat  = float(nc.get("input", {}).get("lat",  28.6))
-        birth_lon  = float(nc.get("input", {}).get("lon",  77.2))
-        birth_year = int(nc.get("input", {}).get("date", "1990-01-01").split("-")[0])
-        birth_lagna_si = int(nc.get("lagna", {}).get("sign_index", 0))
+    # Step C: deviation from nearest exact 30° interval
+    remainder  = diff % 30
+    deviation  = min(remainder, 30 - remainder)
 
-        # Natal Sun sidereal longitude
-        natal_sun_sid = float(planets_natal.get("Sun", {}).get("longitude", 0.0))
+    # Step A: effective orb
+    eff_orb = tajik_combined_orb(name_a, name_b)
 
-        # Location for annual chart
-        lat = birth_lat if req.use_birth_place else req.current_lat
-        lon = birth_lon if req.use_birth_place else req.current_lon
+    # Determine aspect house from nearest multiple of 30
+    nearest_mult = round(diff / 30)
+    if nearest_mult == 0:
+        nearest_mult = 1   # conjunct = 1st house
+    house_num = nearest_mult if nearest_mult <= 12 else 12
 
-        # ── 1. Find solar return ─────────────────────────────────────────────
-        sr = find_solar_return(natal_sun_sid, req.target_year, lat, lon)
-        if not sr:
-            raise HTTPException(status_code=400, detail="Solar return not found for target year")
+    aspect_data = TAJ_ASPECTS.get(house_num)
 
-        jd_sr   = sr["jd"]
-        is_day  = sr["is_day"]
-
-        # ── 2. Annual Lagna (Alcabitius/Shripati) ────────────────────────────
-        annual_lagna = calc_lagna(jd_sr, lat, lon)
-        annual_lagna_si = annual_lagna["sign_index"]
-        lagna_lon = annual_lagna["longitude"]
-
-        # ── 3. Annual Planets ────────────────────────────────────────────────
-        annual_planets = calc_all_planets(jd_sr, annual_lagna_si)
-
-        # ── 4. Shripati Cusps ────────────────────────────────────────────────
-        cusps = calc_shripati_cusps(jd_sr, lat, lon)
-        cusps_out = [{"cusp": i+1, "longitude": round(c,4),
-                      "sign": SIGNS_LIST[int(c/30)%12],
-                      "degree": round(c%30, 4)} for i, c in enumerate(cusps)]
-
-        # ── 5. Muntha ────────────────────────────────────────────────────────
-        completed_years = req.target_year - birth_year
-        muntha_si  = (birth_lagna_si + completed_years) % 12
-        muntha_deg = (annual_lagna["degree"] * 2) / 5   # within sign
-        muntha_lon = muntha_si * 30.0 + muntha_deg
-        muntha_house = ((muntha_si - annual_lagna_si + 12) % 12) + 1
-
-        muntha_status = ("auspicious"   if muntha_house in [9,10,11] else
-                         "neutral"      if muntha_house in [1,2,3,5]  else
-                         "inauspicious")
-
-        muntha_out = {
-            "sign_index": muntha_si,
-            "sign":       SIGNS_LIST[muntha_si],
-            "degree":     round(muntha_deg, 4),
-            "longitude":  round(muntha_lon, 4),
-            "house":      muntha_house,
-            "status":     muntha_status,
-        }
-
-        # ── 6. Harsha Bala ───────────────────────────────────────────────────
-        harsha_bala = {}
-        for p_name in ["Sun","Moon","Mars","Mercury","Jupiter","Venus","Saturn"]:
-            p_data = annual_planets.get(p_name, {})
-            dign   = p_data.get("dignity", {})
-            score  = dign.get("score", 0) if isinstance(dign, dict) else 0
-            house_0 = (p_data.get("sign_index", 0) - annual_lagna_si + 12) % 12
-            harsha_bala[p_name] = calc_harsha_bala(p_name, p_data.get("sign_index",0),
-                                                    house_0, score, is_day)
-
-        # ── 7. Varshesha ─────────────────────────────────────────────────────
-        varshesha_name = select_varshesha(annual_lagna_si, muntha_si,
-                                          annual_planets, is_day, harsha_bala)
-        varshesha_lon  = annual_planets.get(varshesha_name, {}).get("longitude", 0.0)
-        varshesha_hb   = harsha_bala.get(varshesha_name, {})
-        varshesha_tier = varshesha_hb.get("tier", "Weak")
-        varshesha_result = TAJ_VARSHESHA_RESULTS.get(varshesha_name, {}).get(
-            "strong" if varshesha_tier == "Very Strong" else
-            "medium" if varshesha_tier == "Medium"      else "weak", "")
-
-        annual_planets["_varshesha"] = varshesha_name  # inject for Saham use
-
-        # ── 8. 50 Sahams ─────────────────────────────────────────────────────
-        sahams = calc_all_sahams(annual_planets, lagna_lon, cusps, is_day, annual_lagna_si)
-
-        # ── 9. Patyayini Dasha ───────────────────────────────────────────────
-        dasha = calc_patyayini_dasha(annual_planets, lagna_lon,
-                                     muntha_lon, varshesha_lon)
-
+    if deviation > eff_orb:
+        # Wide — deviation from exact aspect exceeds combined Deeptamsha orb
         return {
-            "solar_return": sr,
-            "completed_years": completed_years,
-            "target_year": req.target_year,
-            "location": {"lat": lat, "lon": lon, "use_birth_place": req.use_birth_place},
-            "lagna": annual_lagna,
-            "planets": annual_planets,
-            "shripati_cusps": cusps_out,
-            "muntha": muntha_out,
-            "harsha_bala": harsha_bala,
-            "varshesha": {
-                "planet": varshesha_name,
-                "longitude": round(varshesha_lon, 4),
-                "harsha_biswas": varshesha_hb.get("biswas", 0),
-                "tier": varshesha_tier,
-                "result": varshesha_result,
-            },
-            "sahams": sahams,
-            "patyayini_dasha": dasha,
-            "is_day": is_day,
+            "within_orb":    False,
+            "diff":          round(diff, 2),
+            "deviation":     round(deviation, 2),
+            "effective_orb": round(eff_orb, 2),
+            "aspect_house":  house_num,
+            "aspect_name":   aspect_data[0] if aspect_data else "No functional aspect",
+            "yoga":          f"Wide (deviation {deviation:.1f}° > orb {eff_orb:.1f}°) — Yoga does NOT fire",
         }
 
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Varsha chart error: {str(e)}")
+    if not aspect_data:
+        # Within range but non-functional house (2, 6, 8, 12)
+        return {
+            "within_orb":    False,
+            "diff":          round(diff, 2),
+            "deviation":     round(deviation, 2),
+            "effective_orb": round(eff_orb, 2),
+            "aspect_house":  house_num,
+            "aspect_name":   "No functional aspect",
+            "yoga":          "Non-functional house — no Tajik aspect",
+        }
+
+    # Functional aspect within orb — determine Ithesal/Esrapha
+    aspect_name, aspect_pct, aspect_nature = aspect_data
+
+    tier_a = TAJ_SPEED_TIER.get(name_a, 4)
+    tier_b = TAJ_SPEED_TIER.get(name_b, 4)
+    if tier_a <= tier_b:
+        faster_name, faster_lon = name_a, lon_a
+        slower_name, slower_lon = name_b, lon_b
+    else:
+        faster_name, faster_lon = name_b, lon_b
+        slower_name, slower_lon = name_a, lon_a
+
+    ithesal  = faster_lon < slower_lon   # faster is chasing (lower lon = behind)
+    vartaman = deviation <= 1.0
+
+    return {
+        "within_orb":    True,
+        "diff":          round(diff, 2),
+        "deviation":     round(deviation, 2),
+        "effective_orb": round(eff_orb, 2),
+        "aspect_house":  house_num,
+        "aspect_name":   aspect_name,
+        "aspect_pct":    aspect_pct,
+        "aspect_nature": aspect_nature,
+        "faster_planet": faster_name,
+        "slower_planet": slower_name,
+        "ithesal":       ithesal,
+        "vartaman":      vartaman,
+        "yoga":          ("Ithesal" if ithesal else "Esrapha")
+                         + (" — Vartaman (peak, within 1°)" if vartaman else ""),
+    }
 
 
-# ── Varsha Report endpoint ────────────────────────────────────────────────────
+# ── Nakta Yoga: fast bridge ────────────────────────────────────────────────────
+def _check_nakta(name_v: str, lon_v: float,
+                 name_m: str, lon_m: float,
+                 all_planets: dict) -> dict:
+    """
+    Nakta: Energy flow A (Faster) → Bridge (Fastest) → B (Slower)
+    Longitude order MUST be: lon_A < bridge_lon < lon_B
+    Bridge sits between A and B — chasing B while A chases Bridge.
+    If Bridge has already passed B (bridge_lon > lon_B), the bridge is broken.
+    """
+    tier_v = TAJ_SPEED_TIER.get(name_v, 4)
+    tier_m = TAJ_SPEED_TIER.get(name_m, 4)
+
+    # Identify A (faster of the two) and B (slower)
+    if tier_v <= tier_m:
+        name_a, lon_a, name_b, lon_b = name_v, lon_v, name_m, lon_m
+    else:
+        name_a, lon_a, name_b, lon_b = name_m, lon_m, name_v, lon_v
+
+    for bridge in ["Moon", "Mercury", "Venus", "Sun"]:
+        if bridge in (name_v, name_m):
+            continue
+        bridge_tier = TAJ_SPEED_TIER.get(bridge, 4)
+        if bridge_tier >= tier_v or bridge_tier >= tier_m:
+            continue  # bridge must be faster than BOTH A and B
+
+        bridge_lon = all_planets.get(bridge, {}).get("longitude")
+        if bridge_lon is None:
+            continue
+
+        # Longitude sequence: lon_A < bridge_lon < lon_B
+        # Bridge is ahead of A (A chasing Bridge) and behind B (Bridge chasing B)
+        if not (lon_a < bridge_lon < lon_b):
+            continue
+
+        # Orb check: A within Deeptamsha of Bridge, Bridge within Deeptamsha of B
+        asp_a_bridge = _tajik_aspect_between(name_a, lon_a, bridge, bridge_lon)
+        asp_bridge_b = _tajik_aspect_between(bridge, bridge_lon, name_b, lon_b)
+
+        if asp_a_bridge.get("within_orb") and asp_bridge_b.get("within_orb"):
+            return {
+                "type":         "Nakta",
+                "intermediary": bridge,
+                "description": (
+                    f"Nakta Yoga — {bridge} sits between {name_a} (lon {lon_a:.1f}°) "
+                    f"and {name_b} (lon {lon_b:.1f}°), with bridge at {bridge_lon:.1f}°. "
+                    f"{name_a} is chasing {bridge}; {bridge} is chasing {name_b}. "
+                    f"Direct cooperation between Year Lord and Muntha Lord is absent, "
+                    f"but {bridge} acts as a living bridge — results come through a "
+                    f"third party, intermediary, or unexpected facilitator."
+                ),
+                "a_to_bridge": asp_a_bridge,
+                "bridge_to_b": asp_bridge_b,
+            }
+    return {}
+
+
+# ── Yamaya Yoga: slow bridge ───────────────────────────────────────────────────
+def _check_yamaya(name_v: str, lon_v: float,
+                  name_m: str, lon_m: float,
+                  all_planets: dict) -> dict:
+    """
+    Yamaya: Energy flow A (Faster) → Bridge (Slowest) ← B (Faster)
+    Both primary planets at LOWER longitudes than Bridge — both converging on it.
+    Longitude requirement: lon_V < bridge_lon AND lon_M < bridge_lon
+    """
+    tier_v = TAJ_SPEED_TIER.get(name_v, 4)
+    tier_m = TAJ_SPEED_TIER.get(name_m, 4)
+
+    for bridge in ["Saturn", "Jupiter", "Mars"]:
+        if bridge in (name_v, name_m):
+            continue
+        bridge_tier = TAJ_SPEED_TIER.get(bridge, 5)
+        if bridge_tier <= tier_v or bridge_tier <= tier_m:
+            continue  # bridge must be slower than BOTH V and M
+
+        bridge_lon = all_planets.get(bridge, {}).get("longitude")
+        if bridge_lon is None:
+            continue
+
+        # Both primary planets must be at lower longitudes — converging on Bridge
+        if not (lon_v < bridge_lon and lon_m < bridge_lon):
+            continue
+
+        # Orb check: both V and M within Deeptamsha of Bridge
+        asp_v_bridge = _tajik_aspect_between(name_v, lon_v, bridge, bridge_lon)
+        asp_m_bridge = _tajik_aspect_between(name_m, lon_m, bridge, bridge_lon)
+
+        if asp_v_bridge.get("within_orb") and asp_m_bridge.get("within_orb"):
+            return {
+                "type":         "Yamaya",
+                "intermediary": bridge,
+                "description": (
+                    f"Yamaya Yoga — both {name_v} (lon {lon_v:.1f}°) and {name_m} "
+                    f"(lon {lon_m:.1f}°) are converging on {bridge} (lon {bridge_lon:.1f}°), "
+                    f"which is slower than both and ahead of both in longitude. "
+                    f"Success is mediated by an authority figure, institution, or external "
+                    f"structure that binds both interests — not through direct action."
+                ),
+                "varshesha_to_bridge": asp_v_bridge,
+                "munthesh_to_bridge":  asp_m_bridge,
+            }
+    return {}
+
+
+# ── Master function ────────────────────────────────────────────────────────────
+def compute_tajik_varshesha_munthesh(
+    varshesha_name: str, varshesha_lon: float, varshesha_speed: float,
+    munthesh_name:  str, munthesh_lon:  float, munthesh_speed:  float,
+    all_planets: dict = None
+) -> dict:
+    """
+    Priority:
+    1. Direct aspect + orb check (Deeptamsha gate)
+    2. If no direct active yoga → Nakta (fast bridge)
+    3. If no Nakta → Yamaya (slow bridge)
+    """
+    friendship = tajik_natural_friendship(varshesha_name, munthesh_name)
+
+    direct = _tajik_aspect_between(varshesha_name, varshesha_lon,
+                                   munthesh_name,  munthesh_lon)
+
+    intermediary = {}
+    ithesal       = None
+    vartaman      = False
+    within_orb    = direct.get("within_orb", False)
+    aspect_house  = direct.get("aspect_house")
+    aspect_name   = direct.get("aspect_name", "No aspect")
+    aspect_pct    = direct.get("aspect_pct", 0)
+    aspect_nature = direct.get("aspect_nature", "Neutral")
+    harmony       = "Neutral"
+
+    if within_orb:
+        ithesal  = direct["ithesal"]
+        vartaman = direct["vartaman"]
+        faster   = direct["faster_planet"]
+        slower   = direct["slower_planet"]
+        yoga_trigger = (
+            f"{'Ithesal (Applying — building)' if ithesal else 'Esrapha (Separating — waning)'}: "
+            f"{faster} is at {'lower' if ithesal else 'higher'} longitude — "
+            f"{'chasing and will catch up' if ithesal else 'already passed the meeting point'}. "
+            f"Angular diff {direct['diff']:.1f}° within orb {direct['effective_orb']:.1f}°."
+            + (" Vartaman — peak 1° orb." if vartaman else "")
+        )
+        harmony = (
+            "Harmonious" if (ithesal and "Friendly" in aspect_nature)  else
+            "Friction"   if (ithesal and "Inimical" in aspect_nature)  else
+            "Waning"     if (not ithesal and "Friendly" in aspect_nature) else
+            "Tense"
+        )
+    else:
+        yoga_trigger = direct.get("yoga", "No active yoga between Year Lord and Muntha Lord.")
+        # Orb filter blocked or no functional aspect — try intermediaries
+        if all_planets:
+            intermediary = _check_nakta(varshesha_name, varshesha_lon,
+                                        munthesh_name,  munthesh_lon, all_planets)
+            if not intermediary:
+                intermediary = _check_yamaya(varshesha_name, varshesha_lon,
+                                             munthesh_name,  munthesh_lon, all_planets)
+            if intermediary:
+                yoga_trigger = intermediary["description"]
+                harmony      = "Mediated"
+
+    # Vartaman determination
+    vartaman_active = within_orb and vartaman
+    vartaman_label  = "TRUE — Impending and Certain (within 1° orb)" if vartaman_active else "FALSE — Standard Ithesal (effort required)" if (within_orb and ithesal) else "FALSE"
+
+    relationship_header = (
+        f"Varshesha: {varshesha_name} | Munthesh: {munthesh_name}\n"
+        f"Distance: {aspect_house or 'N/A'} houses — {aspect_name} ({aspect_pct}% strength, {aspect_nature})\n"
+        f"Yoga Trigger: {yoga_trigger}\n"
+        f"Vartaman: {vartaman_label}\n"
+        f"Natural Status: {varshesha_name} and {munthesh_name} are Natural {friendship}s."
+        + (f"\nIntermediary Yoga: {intermediary.get('type')} via {intermediary.get('intermediary')}"
+           if intermediary else "")
+    )
+
+    return {
+        "varshesha":           varshesha_name,
+        "munthesh":            munthesh_name,
+        "aspect_house":        aspect_house,
+        "aspect_name":         aspect_name,
+        "aspect_strength_pct": aspect_pct,
+        "aspect_nature":       aspect_nature,
+        "within_orb":          within_orb,
+        "ithesal":             ithesal,
+        "vartaman":            vartaman,
+        "friendship":          friendship,
+        "harmony":             harmony,
+        "intermediary":        intermediary or None,
+        "relationship_header": relationship_header,
+    }
+
+# ── Helper: get sidereal longitude of Shripati house cusp ────────────────────
+def calc_shripati_cusps(jd: float, lat: float, lon: float) -> list:
+    """Alcabitius (Shripati) house cusps, returned as sidereal longitudes."""
+    cusps, _ = swe.houses(jd, lat, lon, b'B')
+    ayan = get_lahiri_ayanamsha(jd)
+    return [(c - ayan) % 360.0 for c in cusps]  # 12 values, 0-indexed
+
+
+# ── Solar return finder ───────────────────────────────────────────────────────
+def find_solar_return(natal_sun_sid: float, target_year: int,
+                      lat: float, lon: float) -> dict:
+    """Binary-search for exact JD when Sun returns to natal sidereal longitude."""
+    jd_start = swe.julday(target_year, 1, 1, 0.0)
+    prev_diff = None
+    jd_bracket = None
+
+    for d in range(370):
+        jd = jd_start + d
+        sun_trop = swe.calc_ut(jd, swe.SUN)[0][0]
+        sun_sid  = (sun_trop - get_lahiri_ayanamsha(jd)) % 360.0
+        diff = (sun_sid - natal_sun_sid + 360) % 360
+        if diff > 180: diff -= 360
+        if prev_diff is not None and prev_diff < 0 and diff >= 0:
+            jd_bracket = (jd - 1, jd)
+            break
+        prev_diff = diff
+
+    if not jd_bracket:
+        return {}
+
+    jd_lo, jd_hi = jd_bracket
+    for _ in range(60):
+        jd_mid = (jd_lo + jd_hi) / 2
+        sun_sid = (swe.calc_ut(jd_mid, swe.SUN)[0][0] - get_lahiri_ayanamsha(jd_mid)) % 360.0
+        diff = (sun_sid - natal_sun_sid + 360) % 360
+        if diff > 180: diff -= 360
+        if diff < 0: jd_lo = jd_mid
+        else:         jd_hi = jd_mid
+
+    jd_sr = (jd_lo + jd_hi) / 2
+    y, m, d, h = swe.revjul(jd_sr)
+    hour_int = int(h); minute_int = int((h - hour_int) * 60)
+
+    # Day/Night: simple hour check (local solar noon = 12h)
+    # Approximate sunrise/sunset at ±6h from noon
+    is_day = 6.0 <= h <= 18.0
+
+    return {
+        "jd": jd_sr,
+        "year": int(y), "month": int(m), "day": int(d),
+        "hour": hour_int, "minute": minute_int,
+        "is_day": is_day,
+    }
+
+
+# ── Harsha Bala ───────────────────────────────────────────────────────────────
+def calc_harsha_bala(planet: str, sign_index: int, house_0idx: int,
+                     dignity_score: int, is_day: bool) -> dict:
+    """4 criteria × 5 Biswas each, capped at 20. Rahu/Ketu return 0."""
+    if planet in ("Rahu", "Ketu"):
+        return {"biswas": 0, "tier": "Excluded", "criteria": []}
+
+    biswas = 0; criteria = []
+
+    # 1. Own/Exaltation (score ≥ 3 means Own=3 or Exalted=5)
+    if dignity_score >= 3:
+        biswas += 5; criteria.append("Own/Exaltation")
+
+    # 2. Specific Harshasthana
+    if house_0idx == TAJ_HARSHA_STHANA.get(planet, -1):
+        biswas += 5; criteria.append(f"Harshasthana (H{house_0idx+1})")
+
+    # 3. Temporal strength
+    g = TAJ_GENDER.get(planet, "M")
+    if (g == "M" and is_day) or (g == "F" and not is_day):
+        biswas += 5; criteria.append("Temporal strength")
+
+    # 4. Positional group
+    if g == "F" and house_0idx in TAJ_FEMALE_HOUSES:
+        biswas += 5; criteria.append("Positional (Female houses)")
+    elif g == "M" and house_0idx in TAJ_MALE_HOUSES:
+        biswas += 5; criteria.append("Positional (Male houses)")
+
+    biswas = min(biswas, 20)
+    tier = ("Very Strong" if biswas >= 15 else
+            "Medium"      if biswas >= 10 else
+            "Weak"        if biswas >= 5  else "Very Weak")
+    return {"biswas": biswas, "tier": tier, "criteria": criteria}
+
+
+# ── Single Saham computation ──────────────────────────────────────────────────
+def compute_saham(A: float, B: float, C: float,
+                  lagna_lon: float, is_day: bool, reverse: bool) -> float:
+    """A - B + C with 30° correction. Reverses A/B for night if reverse=True."""
+    if not is_day and reverse:
+        A, B = B, A
+    result = (A - B + C) % 360.0
+
+    # 30° rule: Lagna NOT in arc from B → A → add 30°
+    arc_B_A = (A - B + 360) % 360
+    arc_B_L = (lagna_lon - B + 360) % 360
+    if arc_B_L >= arc_B_A:
+        result = (result + 30.0) % 360.0
+
+    return round(result, 4)
+
+
+# ── All 50 Sahams ─────────────────────────────────────────────────────────────
+def calc_all_sahams(planets: dict, lagna_lon: float, cusps: list,
+                    is_day: bool, lagna_si: int) -> list:
+    """Compute all 50 Sahams. Returns list of dicts."""
+
+    def plon(name):
+        return planets.get(name, {}).get("longitude", 0.0)
+
+    def lon_to_house(lon):
+        si = int(lon / 30) % 12
+        # Whole Sign house from Lagna
+        return ((si - lagna_si + 12) % 12) + 1
+
+    def cusp_lon(n):  # n = 1-based cusp index
+        return cusps[n - 1] if cusps and len(cusps) >= n else 0.0
+
+    def lord_of_cusp(n):
+        si = int(cusp_lon(n) / 30) % 12
+        return SIGN_LORDS_LIST[si]
+
+    results = []
+    computed = {}  # Cache computed Sahams for dependent formulas
+
+    # Varshesha lon — use strongest Harsha Bala planet (placeholder: Sun if unknown)
+    yl_name = planets.get("_varshesha", "Sun")
+    year_lord_lon = plon(yl_name)
+
+    def get_lon(key):
+        mapping = {
+            "Sun": plon("Sun"), "Moon": plon("Moon"), "Mars": plon("Mars"),
+            "Mercury": plon("Mercury"), "Jupiter": plon("Jupiter"),
+            "Venus": plon("Venus"), "Saturn": plon("Saturn"),
+            "Lagna": lagna_lon,
+            "LagnaLord": plon(SIGN_LORDS_LIST[lagna_si]),
+            "2ndCusp":  cusp_lon(2),  "2ndLord":  plon(lord_of_cusp(2)),
+            "9thCusp":  cusp_lon(9),  "9thLord":  plon(lord_of_cusp(9)),
+            "11thCusp": cusp_lon(11), "11thLord": plon(lord_of_cusp(11)),
+            "8thCusp":  cusp_lon(8),
+            "Punya":    computed.get("Punya", 0.0),
+            "Vidya":    computed.get("Vidya", 0.0),
+            "YearLord": year_lord_lon,
+        }
+        return mapping.get(key, 0.0)
+
+    for (num, name, domain, A_key, B_key, C_key, rev) in TAJ_SAHAM_FORMULAS:
+        A = get_lon(A_key); B = get_lon(B_key); C = get_lon(C_key)
+        lon = compute_saham(A, B, C, lagna_lon, is_day, rev)
+        si  = int(lon / 30) % 12
+        house = lon_to_house(lon)
+        computed[name] = lon  # Cache for dependents
+
+        results.append({
+            "number": num,
+            "name": name,
+            "domain": domain,
+            "longitude": lon,
+            "sign": SIGNS_LIST[si],
+            "sign_index": si,
+            "house": house,
+        })
+
+    return results
+
+
+# ── Patyayini Dasha ───────────────────────────────────────────────────────────
+def calc_patyayini_dasha(planets: dict, lagna_lon: float,
+                         muntha_lon: float, varshesha_lon: float) -> dict:
+    """
+    Sort 10 entities by Krissamsa (degree within sign), compute Patyamsas,
+    derive K and Dasha days (365.25-day year).
+    """
+    PLANET_KEYS = ["Sun","Moon","Mars","Mercury","Jupiter","Venus","Saturn"]
+
+    entities = []
+    for p in PLANET_KEYS:
+        lon = planets.get(p, {}).get("longitude", 0.0)
+        krissamsa = lon % 30.0
+        entities.append({"name": p, "longitude": lon, "krissamsa": krissamsa})
+
+    entities.append({"name": "Lagna",      "longitude": lagna_lon,    "krissamsa": lagna_lon % 30.0})
+    entities.append({"name": "Muntha",     "longitude": muntha_lon,   "krissamsa": muntha_lon % 30.0})
+    entities.append({"name": "Varshesha",  "longitude": varshesha_lon,"krissamsa": varshesha_lon % 30.0})
+
+    # Sort ascending by Krissamsa
+    entities.sort(key=lambda x: x["krissamsa"])
+
+    # Patyamsas
+    for i, e in enumerate(entities):
+        if i == 0:
+            e["patyamsa"] = e["krissamsa"]
+        else:
+            e["patyamsa"] = entities[i]["krissamsa"] - entities[i-1]["krissamsa"]
+
+    total_pat = sum(e["patyamsa"] for e in entities)
+    K = 365.25 / total_pat if total_pat > 0 else 1.0
+
+    for e in entities:
+        e["dasha_days"] = round(e["patyamsa"] * K, 2)
+
+    return {
+        "entities": entities,
+        "total_patyamsa": round(total_pat, 4),
+        "K": round(K, 4),
+    }
+
+
+# ── Varshesha (Year Lord) selection — 5-contestant simplified ─────────────────
+def select_varshesha(annual_lagna_si: int, muntha_si: int,
+                     planets: dict, is_day: bool,
+                     harsha_bala: dict) -> str:
+    """
+    5 contestants: Annual Lagna Lord, Muntha Lord, Tri-Rasi Lord,
+    Strongest Harsha Bala planet, Day/Night Lord.
+    Returns name of planet with highest Harsha Bala among contestants.
+    """
+    contestants = set()
+    contestants.add(SIGN_LORDS_LIST[annual_lagna_si])   # 1. Annual Lagna Lord
+    contestants.add(SIGN_LORDS_LIST[muntha_si])          # 2. Muntha Lord
+
+    # 3. Tri-Rasi Lord: day = Sun sign lord, night = Moon sign lord
+    sun_si  = int(planets.get("Sun",  {}).get("longitude", 0) / 30) % 12
+    moon_si = int(planets.get("Moon", {}).get("longitude", 0) / 30) % 12
+    contestants.add(SIGN_LORDS_LIST[sun_si] if is_day else SIGN_LORDS_LIST[moon_si])
+
+    # 4. Strongest Harsha Bala planet
+    best_planet = max(
+        [p for p in harsha_bala if p not in ("Rahu","Ketu")],
+        key=lambda p: harsha_bala[p]["biswas"]
+    )
+    contestants.add(best_planet)
+
+    # 5. Day Lord (Sun) / Night Lord (Moon) directly
+    contestants.add("Sun" if is_day else "Moon")
+
+    # Winner = highest Harsha Bala among contestants
+    winner = max(contestants, key=lambda p: harsha_bala.get(p, {}).get("biswas", 0))
+    return winner
+
+
+
+# ── Tajik Aspect & Ithesal/Esrapha Engine ─────────────────────────────────────
+# Corpus: Neelakanthi — aspect by house distance, nature, Deeptamsha orb, and speed-based trigger
+
+# Deeptamsha orbs (mean orb per planet in degrees)
+TAJ_DEEPTAMSHA = {
+    "Sun": 15, "Moon": 12, "Mars": 8, "Mercury": 7,
+    "Jupiter": 9, "Venus": 7, "Saturn": 9
+}
+
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# VARSHA PHALA REPORT ENDPOINTS
+# ═══════════════════════════════════════════════════════════════════════════════
+
 class VarshaReportRequest(BaseModel):
     varsha_brief: Dict[str, Any]
     natal_brief:  Dict[str, Any]
-    report_type:  str = "annual"   # annual | monthly | saham | arishta | muntha
+    report_type:  str = "narrative"
 
 @app.post("/varshareport")
 def get_varsha_report(req: VarshaReportRequest):
-    """Generate AI narrative for Tajik Varshaphal modules."""
+    """AI narrative reports for Tajik Varshaphal modules."""
     try:
         vb = req.varsha_brief
         nb = req.natal_brief
         rt = req.report_type
 
+        vm_header = vb.get("varshesha_munthesh_aspect", {}).get("relationship_header",
+                    vb.get("vm_aspect", "Not computed"))
+
         prompts = {
-            "annual": f"""You are a Tajik Neelakanthi Varshaphal expert generating a structured annual cosmic blueprint.
-
-Annual Chart Data: {json.dumps(vb, indent=2)}
-Natal Chart Context: {json.dumps(nb, indent=2)}
-
-CRITICAL INSTRUCTION: Write ENTIRELY in plain English that any non-astrology person can understand. No Sanskrit jargon. Replace technical terms with plain equivalents (e.g. "Year Lord" not "Varshesha", "life-focus point" not "Muntha", "House" with its life domain e.g. "Career house").
-
-Generate the report in EXACTLY this structure and format:
-
----
-
-ANNUAL COSMIC BLUEPRINT: {vb.get('target_year', 'This Year')}
-The Path of the Year Lord & The Muntha's Journey
-
-EXECUTIVE SUMMARY: THE YEAR AT A GLANCE
-
-⚡ The Core Energy (Year Lord)
-• Dominant Archetype: [Planet Name] — The Year Lord. [1 sentence on what this planet archetypally represents in plain terms]
-• Vibe Check: [Auspicious/Neutral/Inauspicious] — [1 sentence explaining why in plain terms]
-• The Ceiling: [The maximum positive outcome this year's energy can deliver]
-• The Floor: [The baseline risk area to watch — health, finances, relationships etc.]
-
-🎯 The Karmic Focus (Life-Focus Point)
-• Active Life Domain: [House Number] House — [The real-world domain e.g. Career, Relationships, Home, Wealth]
-• Momentum Check: [Amplified/Blocked/Neutral] — [1 sentence on whether efforts gain traction or face resistance]
-• Ease of Manifestation: [High/Medium/Low] — [1 sentence reason]
-
-🌓 The Temporal Split
-• First 180 Days: [Concrete prediction — what kind of energy, events, opportunities dominate the first half]
-• Second 180 Days: [Concrete prediction — how the energy shifts in the second half]
-
----
-
-DETAILED TECHNICAL ANALYSIS
-
-I. The Year Lord: Master of {vb.get('target_year', 'the Year')}
-• Strength Level: [Very Strong/Medium/Weak] — [What this means in plain terms for the native]
-• How This Year Connects to Your Birth Promise: [Does the annual energy support or challenge what the natal chart promised? Plain language.]
-• Joy Strength (Biswas): [Number]/20 — [What this score means in plain terms]
-• Key Planetary Conversation: [Is the Year Lord moving toward a benefic planet (approaching/building energy) or separating from one (waning energy)? Plain language.]
-
-II. The Life-Focus Point: Your Point of Evolution
-• Placement: [Sign] in the [House Number] House ([Life Domain]) — [What this placement means for this year in plain language]
-• The Steward of This Focus: [Lord of the sign the Muntha is in] — [Is this planet friendly to your overall chart? What does that mean practically?]
-• Override Check: [Is there any protective planet cancelling negative effects? If yes, name it and explain in plain terms. If no, state "No override active."]
-
-III. Material & Physical Vitality (The Risk Audit)
-• Health Constitution: [Which body system or dosha is active — translate to modern terms: e.g. "inflammatory/digestive/nervous system"] — [1 sentence on what to watch]
-• Wealth Sustainability: [Strong/Moderate/Weak] — [1 sentence on why, in plain terms]
-• Protection Status: [Is Jupiter or the Lagna Lord acting as a shield? Plain terms — e.g. "Jupiter in a powerful house is absorbing most of the year's negative combinations."]
-
----
-
-AI-GENERATED NARRATIVE: THE PROPHETIC SYNTHESIS
-
-The Narrative Arc:
-[3-4 sentences weaving the Year Lord's energy, Muntha's placement, and temporal phasing into a cohesive life-story. Use plain, evocative language. Example style: "As Saturn takes the throne this year, your path is defined by slow, deliberate consolidation. While your birth chart promised career advancement, the annual chart creates a specific window for foundational work rather than dramatic leaps. The life-focus point in your career house suggests your evolution this year is about mastering systems, not chasing recognition."]
-
-The Challenge & The Shield:
-[2-3 sentences. Name the specific challenge area (health, finances, relationships) and the specific protective force. Plain language. Be honest but not alarming.]
-
-The Subconscious Echo:
-[1-2 sentences on the dietary and dream theme — translate these into modern psychological/lifestyle terms. E.g. "Your body will crave grounding, hearty foods. Dreams may carry themes of travel or unfinished journeys — a signal to resolve pending decisions."]
-
----
-
-ACTIONABLE WISDOM
-
-• Primary Life Area to Watch: [The single most activated Saham/life area with its house placement in plain terms]
-• Strategic Guidance: [One sentence of practical, grounded advice based on the Year Lord and Muntha together]
-• The Golden Window: [Specific time period — month or Patyayini sub-period — when the Year Lord reaches peak power and action is most rewarded]
-
----
-
-Be specific to the chart data provided. Every statement must be traceable to an actual planetary placement in the data. No generic filler.""",
-
             "narrative": f"""You are a Tajik Neelakanthi Varshaphal expert. Write ONLY the narrative section of an annual report.
 
 Annual Data: {json.dumps(vb, indent=2)}
 Natal Context: {json.dumps(nb, indent=2)}
 
+MASTER KEY — Varshesha-Munthesh Relationship:
+{vm_header}
+
+The Varshesha (Year Lord) governs the year's RESULTS. The Munthesh (Muntha Lord) governs the year's EVOLUTION and KARMIC FOCUS. Their aspect relationship determines whether these two forces work in harmony or against each other. You MUST open the Narrative Arc with this relationship — name both planets, the aspect type, whether it is building (Ithesal/Applying) or waning (Esrapha/Separating), the natural friendship status, and what this means for the native in plain, vivid language. This is not optional. If Vartaman is TRUE, use definite, certain language ('This year, X will...'). If Vartaman is FALSE but Ithesal, use effort-conditional language ('Through consistent effort, X can...'). If Esrapha, acknowledge the waning energy plainly. If an Intermediary Yoga (Nakta/Yamaya) is present, lead with it as the defining mechanism of the year.
+
 Write EXACTLY these 3 paragraphs in plain English (no Sanskrit jargon, no technical terms):
 
 **The Narrative Arc:**
-[3-4 sentences. As [Year Lord planet] governs this year, weave together: what archetype is dominant, how it connects to the natal chart's promise, what specific opportunity window the annual chart creates, and what the Life-Focus Point in House [X] demands from the native's attention. Be specific to the data — name the actual planet, actual house, actual life domain.]
+Open with the Varshesha-Munthesh relationship. Then weave in: the Year Lord archetype, the Muntha house domain, and the specific opportunity or friction this creates. 3-4 sentences total.
 
 **The Challenge & The Shield:**
-[2-3 sentences. Name the specific risk area for this year (health system, financial pressure point, or relationship domain). Then name the specific protective planet/placement and what it concretely prevents. Be honest but not alarming. If no shield exists, say so plainly.]
+Name the specific risk area and the specific protective planet/placement. If the aspect is Esrapha or hostile, acknowledge the internal friction plainly. 2-3 sentences.
 
 **The Subconscious Echo:**
-[1-2 sentences. Translate the dietary indicator and dream theme into modern psychological/lifestyle language. E.g. "Your body will crave grounding foods. Dreams may carry themes of unfinished journeys — a signal to resolve pending decisions before acting on new ones."]
+1-2 sentences. Translate the dietary indicator and dream theme into modern lifestyle language.
 
-Write only these 3 paragraphs with their bold headers. Nothing else. Plain English throughout.""",
+Write only these 3 paragraphs with bold headers. Plain English throughout.""",
 
-            "arishta": f"""You are a Tajik Varshaphal Arishta analyst. Assess risk combinations.
+            "vivaha": f"""You are a Tajik Neelakanthi Varshaphal expert writing a marriage and relationship report.
+
+Data: {json.dumps(vb, indent=2)}
+Natal Context: {json.dumps(nb, indent=2)}
+
+Write 3 plain-English paragraphs (bold headers, no Sanskrit jargon):
+
+**The Marriage Window:**
+State clearly whether this year favours union, deepening of existing partnerships, or neither. Reference the Primary Vivaha Saham house placement and Venus strength. If Vartaman Ithesal is active, use definite language. Name the actual house and what it means for relationships.
+
+**The Harmony Check:**
+Analyse the Secondary Vivaha Saham (partnership harmony). If it conflicts with the Primary, explain the tension plainly. If both are well-placed, describe the nature of the relationship energy this year.
+
+**The Action Guidance:**
+One paragraph of practical, plain-language advice on timing a commitment, deepening a relationship, or navigating friction in an existing one.""",
+
+            "arishta": f"""You are a Tajik Varshaphal analyst. Assess risk combinations for this annual chart.
 
 Chart Data: {json.dumps(vb, indent=2)}
 
-Scan for: (1) Lagna Lord Armor / Jupiterian Grace cancellations, (2) Muntha afflictions,
-(3) 8th Lord combinations, (4) Rajya Yoga Bhanga conditions.
-Output a structured risk report: GREEN (protected), AMBER (moderate), RED (flagged).
-Each flag must cite the specific planetary combination. Max 300 words.""",
+Scan for: Lagna Lord Armor and Jupiterian Grace cancellations, Muntha afflictions, 8th Lord combinations, and Rajya Yoga Bhanga conditions.
+
+Output a structured risk report with 3 sections, each labelled GREEN (protected), AMBER (monitor), or RED (flagged). Each flag must cite the specific planetary combination in plain language. 300 words maximum.""",
+
+            "saham": f"""You are a Tajik Saham analyst (Neelakanthi system).
+
+Data: {json.dumps(vb, indent=2)}
+
+Analyse the 4 featured Sahams (Vivaha, Artha, Putra, Mrityu). For each: state its house and sign placement, whether it is activated (auspicious houses: 1/5/9/10/11), and what it concretely predicts for this year. 300 words total. Plain English.""",
 
             "muntha": f"""You are a Tajik Muntha analyst (Neelakanthi system).
 
 Muntha Data: {json.dumps(vb.get('muntha', {}), indent=2)}
-Annual Chart: {json.dumps(vb, indent=2)}
+Annual Context: {json.dumps(vb, indent=2)}
 
-Write 250 words on: Muntha house status, Rahu-Muntha mouth/back protocol if applicable,
-natal vs annual benefic aspect timing (early vs late year), and the year's karmic focus.""",
-
-            "saham": f"""You are a Tajik Saham analyst (Neelakanthi, 50 Sahams).
-
-Saham Data: {json.dumps(vb.get('sahams', [])[:20], indent=2)}
-Annual Context: {json.dumps({'varshesha': vb.get('varshesha'), 'lagna': vb.get('lagna')}, indent=2)}
-
-Analyze the 4 featured Sahams: Vivaha (marriage), Artha (wealth), Putra (progeny),
-Mrityu (health risk). For each: state its house/sign placement, whether activated
-(house 1/5/9/10/11 = auspicious), and what it predicts. 300 words total.""",
+Write 250 words on: Muntha house status, Rahu-Muntha mouth/back protocol if applicable (Mouth 0-10° = auspicious, Back 20-30° = caution), timing of manifestation (early vs late year based on natal vs annual benefic aspects), and the year's karmic focus in plain language.""",
         }
 
-        prompt = prompts.get(rt, prompts["annual"])
+        prompt = prompts.get(rt, prompts["narrative"])
 
         api_key = os.environ.get("ANTHROPIC_API_KEY", "")
         response = requests.post(
