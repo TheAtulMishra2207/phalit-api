@@ -3078,265 +3078,114 @@ def compute_tajik_varshesha_munthesh(
         "relationship_header": relationship_header,
     }
 
-# ── Helper: get sidereal longitude of Shripati house cusp ────────────────────
-def calc_shripati_cusps(jd: float, lat: float, lon: float) -> list:
-    """Alcabitius (Shripati) house cusps, returned as sidereal longitudes."""
-    cusps, _ = swe.houses(jd, lat, lon, b'B')
-    ayan = get_lahiri_ayanamsha(jd)
-    return [(c - ayan) % 360.0 for c in cusps]  # 12 values, 0-indexed
 
 
-# ── Solar return finder ───────────────────────────────────────────────────────
-def find_solar_return(natal_sun_sid: float, target_year: int,
-                      lat: float, lon: float) -> dict:
-    """Binary-search for exact JD when Sun returns to natal sidereal longitude."""
-    jd_start = swe.julday(target_year, 1, 1, 0.0)
-    prev_diff = None
-    jd_bracket = None
-
-    for d in range(370):
-        jd = jd_start + d
-        sun_trop = swe.calc_ut(jd, swe.SUN)[0][0]
-        sun_sid  = (sun_trop - get_lahiri_ayanamsha(jd)) % 360.0
-        diff = (sun_sid - natal_sun_sid + 360) % 360
-        if diff > 180: diff -= 360
-        if prev_diff is not None and prev_diff < 0 and diff >= 0:
-            jd_bracket = (jd - 1, jd)
-            break
-        prev_diff = diff
-
-    if not jd_bracket:
-        return {}
-
-    jd_lo, jd_hi = jd_bracket
-    for _ in range(60):
-        jd_mid = (jd_lo + jd_hi) / 2
-        sun_sid = (swe.calc_ut(jd_mid, swe.SUN)[0][0] - get_lahiri_ayanamsha(jd_mid)) % 360.0
-        diff = (sun_sid - natal_sun_sid + 360) % 360
-        if diff > 180: diff -= 360
-        if diff < 0: jd_lo = jd_mid
-        else:         jd_hi = jd_mid
-
-    jd_sr = (jd_lo + jd_hi) / 2
-    y, m, d, h = swe.revjul(jd_sr)
-    hour_int = int(h); minute_int = int((h - hour_int) * 60)
-
-    # Day/Night: simple hour check (local solar noon = 12h)
-    # Approximate sunrise/sunset at ±6h from noon
-    is_day = 6.0 <= h <= 18.0
-
-    return {
-        "jd": jd_sr,
-        "year": int(y), "month": int(m), "day": int(d),
-        "hour": hour_int, "minute": minute_int,
-        "is_day": is_day,
-    }
+# ── Request model ─────────────────────────────────────────────────────────────
+class VarshaChartRequest(BaseModel):
+    natal_chart:     Dict[str, Any]
+    target_year:     int
+    current_lat:     float
+    current_lon:     float
+    use_birth_place: bool = False
 
 
-# ── Harsha Bala ───────────────────────────────────────────────────────────────
-def calc_harsha_bala(planet: str, sign_index: int, house_0idx: int,
-                     dignity_score: int, is_day: bool) -> dict:
-    """4 criteria × 5 Biswas each, capped at 20. Rahu/Ketu return 0."""
-    if planet in ("Rahu", "Ketu"):
-        return {"biswas": 0, "tier": "Excluded", "criteria": []}
+@app.post("/varsha_chart")
+def get_varsha_chart(req: VarshaChartRequest):
+    """Tajik Varsha Kundali — solar return chart + full Tajik analysis."""
+    try:
+        nc             = req.natal_chart
+        planets_natal  = nc.get("planets", {})
+        birth_lat      = float(nc.get("input", {}).get("lat",  28.6))
+        birth_lon      = float(nc.get("input", {}).get("lon",  77.2))
+        birth_year     = int(nc.get("input", {}).get("date", "1990-01-01").split("-")[0])
+        birth_lagna_si = int(nc.get("lagna", {}).get("sign_index", 0))
+        natal_sun_sid  = float(planets_natal.get("Sun", {}).get("longitude", 0.0))
+        lat = birth_lat if req.use_birth_place else req.current_lat
+        lon = birth_lon if req.use_birth_place else req.current_lon
 
-    biswas = 0; criteria = []
+        sr = find_solar_return(natal_sun_sid, req.target_year, lat, lon)
+        if not sr:
+            raise HTTPException(status_code=400, detail="Solar return not found for target year")
+        jd_sr  = sr["jd"]
+        is_day = sr["is_day"]
 
-    # 1. Own/Exaltation (score ≥ 3 means Own=3 or Exalted=5)
-    if dignity_score >= 3:
-        biswas += 5; criteria.append("Own/Exaltation")
+        annual_lagna    = calc_lagna(jd_sr, lat, lon)
+        annual_lagna_si = annual_lagna["sign_index"]
+        lagna_lon       = annual_lagna["longitude"]
+        annual_planets  = calc_all_planets(jd_sr, annual_lagna_si)
 
-    # 2. Specific Harshasthana
-    if house_0idx == TAJ_HARSHA_STHANA.get(planet, -1):
-        biswas += 5; criteria.append(f"Harshasthana (H{house_0idx+1})")
+        cusps = calc_shripati_cusps(jd_sr, lat, lon)
+        cusps_out = [{"cusp": i+1, "longitude": round(c,4),
+                      "sign": SIGNS_LIST[int(c/30)%12],
+                      "degree": round(c%30,4)} for i,c in enumerate(cusps)]
 
-    # 3. Temporal strength
-    g = TAJ_GENDER.get(planet, "M")
-    if (g == "M" and is_day) or (g == "F" and not is_day):
-        biswas += 5; criteria.append("Temporal strength")
+        completed_years = req.target_year - birth_year
+        muntha_si    = (birth_lagna_si + completed_years) % 12
+        muntha_deg   = (annual_lagna["degree"] * 2) / 5
+        muntha_lon   = muntha_si * 30.0 + muntha_deg
+        muntha_house = ((muntha_si - annual_lagna_si + 12) % 12) + 1
+        muntha_status = ("auspicious"   if muntha_house in [9,10,11] else
+                         "neutral"      if muntha_house in [1,2,3,5]  else
+                         "inauspicious")
+        muntha_out = {"sign_index": muntha_si, "sign": SIGNS_LIST[muntha_si],
+                      "degree": round(muntha_deg,4), "longitude": round(muntha_lon,4),
+                      "house": muntha_house, "status": muntha_status}
 
-    # 4. Positional group
-    if g == "F" and house_0idx in TAJ_FEMALE_HOUSES:
-        biswas += 5; criteria.append("Positional (Female houses)")
-    elif g == "M" and house_0idx in TAJ_MALE_HOUSES:
-        biswas += 5; criteria.append("Positional (Male houses)")
+        harsha_bala = {}
+        for p in ["Sun","Moon","Mars","Mercury","Jupiter","Venus","Saturn"]:
+            pd     = annual_planets.get(p, {})
+            score  = (pd.get("dignity",{}).get("score",0)
+                      if isinstance(pd.get("dignity"),dict) else 0)
+            house0 = (pd.get("sign_index",0) - annual_lagna_si + 12) % 12
+            harsha_bala[p] = calc_harsha_bala(p, pd.get("sign_index",0), house0, score, is_day)
 
-    biswas = min(biswas, 20)
-    tier = ("Very Strong" if biswas >= 15 else
-            "Medium"      if biswas >= 10 else
-            "Weak"        if biswas >= 5  else "Very Weak")
-    return {"biswas": biswas, "tier": tier, "criteria": criteria}
+        varshesha_name  = select_varshesha(annual_lagna_si, muntha_si,
+                                            annual_planets, is_day, harsha_bala)
+        varshesha_lon   = annual_planets.get(varshesha_name,{}).get("longitude",0.0)
+        varshesha_speed = annual_planets.get(varshesha_name,{}).get("speed",1.0)
+        varshesha_hb    = harsha_bala.get(varshesha_name,{})
+        varshesha_tier  = varshesha_hb.get("tier","Weak")
+        varshesha_result = TAJ_VARSHESHA_RESULTS.get(varshesha_name,{}).get(
+            "strong" if varshesha_tier=="Very Strong" else
+            "medium" if varshesha_tier=="Medium" else "weak","")
 
+        munthesh_name  = SIGN_LORDS_LIST[muntha_si]
+        munthesh_lon   = annual_planets.get(munthesh_name,{}).get("longitude",0.0)
+        munthesh_speed = annual_planets.get(munthesh_name,{}).get("speed",1.0)
+        vm_aspect = compute_tajik_varshesha_munthesh(
+            varshesha_name, varshesha_lon, varshesha_speed,
+            munthesh_name,  munthesh_lon,  munthesh_speed,
+            all_planets=annual_planets)
 
-# ── Single Saham computation ──────────────────────────────────────────────────
-def compute_saham(A: float, B: float, C: float,
-                  lagna_lon: float, is_day: bool, reverse: bool) -> float:
-    """A - B + C with 30° correction. Reverses A/B for night if reverse=True."""
-    if not is_day and reverse:
-        A, B = B, A
-    result = (A - B + C) % 360.0
+        annual_planets["_varshesha"] = varshesha_name
+        sahams = calc_all_sahams(annual_planets, lagna_lon, cusps, is_day, annual_lagna_si)
+        dasha  = calc_patyayini_dasha(annual_planets, lagna_lon, muntha_lon, varshesha_lon)
 
-    # 30° rule: Lagna NOT in arc from B → A → add 30°
-    arc_B_A = (A - B + 360) % 360
-    arc_B_L = (lagna_lon - B + 360) % 360
-    if arc_B_L >= arc_B_A:
-        result = (result + 30.0) % 360.0
-
-    return round(result, 4)
-
-
-# ── All 50 Sahams ─────────────────────────────────────────────────────────────
-def calc_all_sahams(planets: dict, lagna_lon: float, cusps: list,
-                    is_day: bool, lagna_si: int) -> list:
-    """Compute all 50 Sahams. Returns list of dicts."""
-
-    def plon(name):
-        return planets.get(name, {}).get("longitude", 0.0)
-
-    def lon_to_house(lon):
-        si = int(lon / 30) % 12
-        # Whole Sign house from Lagna
-        return ((si - lagna_si + 12) % 12) + 1
-
-    def cusp_lon(n):  # n = 1-based cusp index
-        return cusps[n - 1] if cusps and len(cusps) >= n else 0.0
-
-    def lord_of_cusp(n):
-        si = int(cusp_lon(n) / 30) % 12
-        return SIGN_LORDS_LIST[si]
-
-    results = []
-    computed = {}  # Cache computed Sahams for dependent formulas
-
-    # Varshesha lon — use strongest Harsha Bala planet (placeholder: Sun if unknown)
-    yl_name = planets.get("_varshesha", "Sun")
-    year_lord_lon = plon(yl_name)
-
-    def get_lon(key):
-        mapping = {
-            "Sun": plon("Sun"), "Moon": plon("Moon"), "Mars": plon("Mars"),
-            "Mercury": plon("Mercury"), "Jupiter": plon("Jupiter"),
-            "Venus": plon("Venus"), "Saturn": plon("Saturn"),
-            "Lagna": lagna_lon,
-            "LagnaLord": plon(SIGN_LORDS_LIST[lagna_si]),
-            "2ndCusp":  cusp_lon(2),  "2ndLord":  plon(lord_of_cusp(2)),
-            "9thCusp":  cusp_lon(9),  "9thLord":  plon(lord_of_cusp(9)),
-            "11thCusp": cusp_lon(11), "11thLord": plon(lord_of_cusp(11)),
-            "8thCusp":  cusp_lon(8),
-            "Punya":    computed.get("Punya", 0.0),
-            "Vidya":    computed.get("Vidya", 0.0),
-            "YearLord": year_lord_lon,
+        return {
+            "solar_return":    sr,
+            "completed_years": completed_years,
+            "target_year":     req.target_year,
+            "location":        {"lat":lat,"lon":lon,"use_birth_place":req.use_birth_place},
+            "lagna":           annual_lagna,
+            "planets":         annual_planets,
+            "shripati_cusps":  cusps_out,
+            "muntha":          muntha_out,
+            "munthesh":        munthesh_name,
+            "harsha_bala":     harsha_bala,
+            "varshesha":       {"planet":varshesha_name,"longitude":round(varshesha_lon,4),
+                                "harsha_biswas":varshesha_hb.get("biswas",0),
+                                "tier":varshesha_tier,"result":varshesha_result},
+            "varshesha_munthesh_aspect": vm_aspect,
+            "sahams":          sahams,
+            "patyayini_dasha": dasha,
+            "is_day":          is_day,
         }
-        return mapping.get(key, 0.0)
-
-    for (num, name, domain, A_key, B_key, C_key, rev) in TAJ_SAHAM_FORMULAS:
-        A = get_lon(A_key); B = get_lon(B_key); C = get_lon(C_key)
-        lon = compute_saham(A, B, C, lagna_lon, is_day, rev)
-        si  = int(lon / 30) % 12
-        house = lon_to_house(lon)
-        computed[name] = lon  # Cache for dependents
-
-        results.append({
-            "number": num,
-            "name": name,
-            "domain": domain,
-            "longitude": lon,
-            "sign": SIGNS_LIST[si],
-            "sign_index": si,
-            "house": house,
-        })
-
-    return results
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Varsha chart error: {str(e)}")
 
 
-# ── Patyayini Dasha ───────────────────────────────────────────────────────────
-def calc_patyayini_dasha(planets: dict, lagna_lon: float,
-                         muntha_lon: float, varshesha_lon: float) -> dict:
-    """
-    Sort 10 entities by Krissamsa (degree within sign), compute Patyamsas,
-    derive K and Dasha days (365.25-day year).
-    """
-    PLANET_KEYS = ["Sun","Moon","Mars","Mercury","Jupiter","Venus","Saturn"]
-
-    entities = []
-    for p in PLANET_KEYS:
-        lon = planets.get(p, {}).get("longitude", 0.0)
-        krissamsa = lon % 30.0
-        entities.append({"name": p, "longitude": lon, "krissamsa": krissamsa})
-
-    entities.append({"name": "Lagna",      "longitude": lagna_lon,    "krissamsa": lagna_lon % 30.0})
-    entities.append({"name": "Muntha",     "longitude": muntha_lon,   "krissamsa": muntha_lon % 30.0})
-    entities.append({"name": "Varshesha",  "longitude": varshesha_lon,"krissamsa": varshesha_lon % 30.0})
-
-    # Sort ascending by Krissamsa
-    entities.sort(key=lambda x: x["krissamsa"])
-
-    # Patyamsas
-    for i, e in enumerate(entities):
-        if i == 0:
-            e["patyamsa"] = e["krissamsa"]
-        else:
-            e["patyamsa"] = entities[i]["krissamsa"] - entities[i-1]["krissamsa"]
-
-    total_pat = sum(e["patyamsa"] for e in entities)
-    K = 365.25 / total_pat if total_pat > 0 else 1.0
-
-    for e in entities:
-        e["dasha_days"] = round(e["patyamsa"] * K, 2)
-
-    return {
-        "entities": entities,
-        "total_patyamsa": round(total_pat, 4),
-        "K": round(K, 4),
-    }
-
-
-# ── Varshesha (Year Lord) selection — 5-contestant simplified ─────────────────
-def select_varshesha(annual_lagna_si: int, muntha_si: int,
-                     planets: dict, is_day: bool,
-                     harsha_bala: dict) -> str:
-    """
-    5 contestants: Annual Lagna Lord, Muntha Lord, Tri-Rasi Lord,
-    Strongest Harsha Bala planet, Day/Night Lord.
-    Returns name of planet with highest Harsha Bala among contestants.
-    """
-    contestants = set()
-    contestants.add(SIGN_LORDS_LIST[annual_lagna_si])   # 1. Annual Lagna Lord
-    contestants.add(SIGN_LORDS_LIST[muntha_si])          # 2. Muntha Lord
-
-    # 3. Tri-Rasi Lord: day = Sun sign lord, night = Moon sign lord
-    sun_si  = int(planets.get("Sun",  {}).get("longitude", 0) / 30) % 12
-    moon_si = int(planets.get("Moon", {}).get("longitude", 0) / 30) % 12
-    contestants.add(SIGN_LORDS_LIST[sun_si] if is_day else SIGN_LORDS_LIST[moon_si])
-
-    # 4. Strongest Harsha Bala planet
-    best_planet = max(
-        [p for p in harsha_bala if p not in ("Rahu","Ketu")],
-        key=lambda p: harsha_bala[p]["biswas"]
-    )
-    contestants.add(best_planet)
-
-    # 5. Day Lord (Sun) / Night Lord (Moon) directly
-    contestants.add("Sun" if is_day else "Moon")
-
-    # Winner = highest Harsha Bala among contestants
-    winner = max(contestants, key=lambda p: harsha_bala.get(p, {}).get("biswas", 0))
-    return winner
-
-
-
-# ── Tajik Aspect & Ithesal/Esrapha Engine ─────────────────────────────────────
-# Corpus: Neelakanthi — aspect by house distance, nature, Deeptamsha orb, and speed-based trigger
-
-# Deeptamsha orbs (mean orb per planet in degrees)
-TAJ_DEEPTAMSHA = {
-    "Sun": 15, "Moon": 12, "Mars": 8, "Mercury": 7,
-    "Jupiter": 9, "Venus": 7, "Saturn": 9
-}
-
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
 # VARSHA PHALA REPORT ENDPOINTS
 # ═══════════════════════════════════════════════════════════════════════════════
 
