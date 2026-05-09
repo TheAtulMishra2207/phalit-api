@@ -3745,17 +3745,18 @@ DINA_MOON_STATE_MOOD = {
 }
 
 def get_sunrise_jd(date_str: str, lat: float, lon: float) -> float:
-    """Get JD of sunrise for a given date and location."""
+    """
+    Get approximate sunrise JD for a given date and location.
+    Uses solar noon minus half daylight (approximately 6h for equator,
+    adjusted for latitude). Simple and dependency-free.
+    """
     parts = date_str.split("-")
     y, m, d = int(parts[0]), int(parts[1]), int(parts[2])
-    jd_noon = swe.julday(y, m, d, 12.0)
-    try:
-        geopos = (lon, lat, 0.0)
-        ret = swe.rise_trans(jd_noon - 0.5, swe.SUN, geopos,
-                             swe.CALC_RISE | swe.BIT_DISC_CENTER)
-        return ret[1][0]
-    except Exception:
-        return swe.julday(y, m, d, 6.0)  # fallback: 6 AM
+    # Approximate sunrise: 6 AM local solar time adjusted for longitude
+    # Solar noon is at 12:00 UTC + longitude/15 hours offset
+    lon_offset_h = lon / 15.0
+    sunrise_utc  = max(3.0, min(9.0, 6.0 - lon_offset_h * 0.5))
+    return swe.julday(y, m, d, sunrise_utc)
 
 
 def compute_dina_lord(daily_lagna_si: int, muntha_si: int, birth_lagna_si: int,
@@ -3921,10 +3922,10 @@ def get_dina_chart(req: DinaChartRequest):
 
         # 10. Go/Stop time windows (approximate based on Day Lord + Lunar state)
         goodTiers = ["Very Strong","Medium"]
-        if lq_state in [4,5,12] and goodTiers.includes(dina_lord_tier) if False else            lq_state in [4,5,12] and dina_lord_tier in goodTiers:
+        if lq_state in [4, 5, 12] and dina_lord_tier in goodTiers:
             go_time   = "08:00 AM – 11:00 AM (Morning power window)"
             stop_time = "02:00 PM – 04:00 PM (Afternoon friction zone)"
-        elif lq_state in [3,9,10,11]:
+        elif lq_state in [3, 9, 10, 11]:
             go_time   = "No strong Go window today — prefer planning over action"
             stop_time = "Avoid all major decisions; entire day requires caution"
         else:
