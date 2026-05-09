@@ -3701,3 +3701,321 @@ Write EXACTLY these 3 sections in plain English (bold headers, no Sanskrit jargo
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Maas report error: {str(e)}")
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# DINA PHALA ENGINE — Daily Precision Pulse
+# ═══════════════════════════════════════════════════════════════════════════════
+
+DINA_HUMOR = {
+    "Sun":    ("Pitta", "Bile/Heat", "Inflammatory conditions, eye strain, excess heat"),
+    "Moon":   ("Kapha", "Phlegm/Water", "Cold, mucus, emotional sensitivity"),
+    "Mars":   ("Pitta", "Bile/Fire", "Cuts, fever, blood pressure, aggression"),
+    "Mercury":("Vata-Pitta", "Wind-Bile", "Nervous tension, skin sensitivity, digestion"),
+    "Jupiter":("Kapha-Vata", "Phlegm-Wind", "Liver, obesity, water retention"),
+    "Venus":  ("Kapha", "Phlegm/Water", "Kidney sensitivity, reproductive health"),
+    "Saturn": ("Vata", "Wind/Dryness", "Joint stiffness, fatigue, cold extremities"),
+    "Rahu":   ("Vata", "Wind", "Anxiety, nervous system, erratic energy"),
+    "Ketu":   ("Pitta-Vata", "Fire-Wind", "Sudden ailments, infections, detachment"),
+}
+
+DINA_DAY_LORD_DOMAIN = {
+    "Sun":     "Authority, government matters, father, status",
+    "Moon":    "Emotions, home, mother, public dealings, travel",
+    "Mars":    "Energy, competition, property, siblings, conflicts",
+    "Mercury": "Communication, trade, writing, analysis, intellect",
+    "Jupiter": "Wisdom, expansion, children, teachers, spiritual matters",
+    "Venus":   "Relationships, luxury, creativity, social gains, pleasure",
+    "Saturn":  "Discipline, service, slow work, elderly, long-term investments",
+}
+
+DINA_MOON_STATE_MOOD = {
+    1: ("Pravaas", "Restless — travel energy, unsettled focus", 45),
+    2: ("Nashta", "Cautious — prone to overspending, guarded decisions", 30),
+    3: ("Maran", "Heavy — avoid major commitments; rest and restore", 15),
+    4: ("Jaya", "Victorious — excellent for competitive action", 85),
+    5: ("Haasya", "Joyful — social, creative, lighthearted", 75),
+    6: ("Rati", "Indulgent — pleasure-seeking, romantic", 65),
+    7: ("Kreeda", "Playful — sports, fun, informal interactions", 70),
+    8: ("Prasupta", "Inert — low drive; better for planning than doing", 35),
+    9: ("Bhukta", "Fearful — anxiety-prone; avoid confrontations", 25),
+    10: ("Jwara", "Unwell — physical caution; rest recommended", 20),
+    11: ("Kampita", "Sorrowful — emotional weight; losses possible", 25),
+    12: ("Susthita", "Settled — calm, comfortable, good for steady work", 80),
+}
+
+def get_sunrise_jd(date_str: str, lat: float, lon: float) -> float:
+    """Get JD of sunrise for a given date and location."""
+    parts = date_str.split("-")
+    y, m, d = int(parts[0]), int(parts[1]), int(parts[2])
+    jd_noon = swe.julday(y, m, d, 12.0)
+    try:
+        geopos = (lon, lat, 0.0)
+        ret = swe.rise_trans(jd_noon - 0.5, swe.SUN, geopos,
+                             swe.CALC_RISE | swe.BIT_DISC_CENTER)
+        return ret[1][0]
+    except Exception:
+        return swe.julday(y, m, d, 6.0)  # fallback: 6 AM
+
+
+def compute_dina_lord(daily_lagna_si: int, muntha_si: int, birth_lagna_si: int,
+                      planets: dict, is_day: bool, harsha_bala: dict) -> str:
+    """5-way Day Lord selection — same logic as Maas-Adhipati."""
+    contestants = set()
+    contestants.add(SIGN_LORDS_LIST[daily_lagna_si])
+    contestants.add(SIGN_LORDS_LIST[muntha_si])
+    contestants.add(SIGN_LORDS_LIST[birth_lagna_si])
+    sun_si  = int(planets.get("Sun",  {}).get("longitude", 0) / 30) % 12
+    moon_si = int(planets.get("Moon", {}).get("longitude", 0) / 30) % 12
+    contestants.add(SIGN_LORDS_LIST[sun_si]  if is_day else SIGN_LORDS_LIST[moon_si])
+    contestants.add("Sun" if is_day else "Moon")
+    return max(contestants, key=lambda p: harsha_bala.get(p, {}).get("biswas", 0))
+
+
+def compute_moon_phase(moon_lon: float, sun_lon: float) -> dict:
+    """Moon phase: Full (180° from Sun), New (0°), Waxing/Waning."""
+    elongation = (moon_lon - sun_lon + 360) % 360
+    if elongation >= 165:
+        phase = "Full Moon"; illumination = 100; quality = "Sound health and vitality"
+    elif elongation >= 90:
+        phase = "Waxing Gibbous"; illumination = int(elongation / 180 * 100)
+        quality = "Increasing strength"
+    elif elongation >= 45:
+        phase = "First Quarter"; illumination = 50; quality = "Building momentum"
+    elif elongation >= 15:
+        phase = "Waxing Crescent"; illumination = 25; quality = "New beginnings"
+    elif elongation <= 15:
+        phase = "New Moon"; illumination = 0; quality = "Introspection; avoid new ventures"
+    elif elongation <= 90:
+        phase = "Waning Gibbous"; illumination = int((360-elongation)/180*100)
+        quality = "Releasing and consolidating"
+    else:
+        phase = "Last Quarter"; illumination = 50; quality = "Reflection; caution in action"
+    is_strong = illumination >= 60
+    return {"phase": phase, "illumination": illumination,
+            "quality": quality, "is_strong": is_strong}
+
+
+def compute_capture_metric(planets: dict, lagna_si: int) -> dict:
+    """Hunting/competition success: Mars+Mercury strength + Lagna/7th lords in Kendra."""
+    MALEFICS = {"Sun","Mars","Saturn","Rahu","Ketu"}
+    mars_sign  = planets.get("Mars",  {}).get("sign_index", -1)
+    merc_sign  = planets.get("Mercury",{}).get("sign_index", -1)
+    mars_own   = mars_sign  in [0, 7]
+    merc_own   = merc_sign  in [2, 5]
+    prey_avail = mars_own or merc_own or (mars_sign == 9) or (merc_sign == 5)  # exalt/own
+
+    h7_si      = (lagna_si + 6) % 12
+    lg_lord    = SIGN_LORDS_LIST[lagna_si]
+    h7_lord    = SIGN_LORDS_LIST[h7_si]
+    lg_lord_si = int(planets.get(lg_lord, {}).get("longitude", 0) / 30) % 12
+    h7_lord_si = int(planets.get(h7_lord,{}).get("longitude", 0) / 30) % 12
+    KENDRAS    = {lagna_si, (lagna_si+3)%12, (lagna_si+6)%12, (lagna_si+9)%12}
+    in_kendra  = lg_lord_si in KENDRAS and h7_lord_si in KENDRAS
+
+    score = (40 if prey_avail else 20) + (40 if in_kendra else 15)
+    return {"prey_available": prey_avail, "lords_in_kendra": in_kendra, "score": score,
+            "verdict": "High" if score >= 65 else "Moderate" if score >= 40 else "Low"}
+
+
+def compute_vitality_score(planets: dict, lagna_si: int) -> dict:
+    """Humors of planets in Lagna house."""
+    lagna_planets = [p for p,d in planets.items()
+                     if not p.startswith("_") and int(d.get("longitude",0)/30)%12 == lagna_si]
+    if not lagna_planets:
+        lagna_planets = [SIGN_LORDS_LIST[lagna_si]]  # use lagna lord if empty
+
+    humor_totals = {"Pitta":0, "Kapha":0, "Vata":0}
+    alerts = []
+    for p in lagna_planets:
+        h = DINA_HUMOR.get(p)
+        if h:
+            primary = h[0].split("-")[0]
+            humor_totals[primary] = humor_totals.get(primary, 0) + 1
+            alerts.append(h[2])
+
+    dominant = max(humor_totals, key=lambda k: humor_totals[k]) if any(humor_totals.values()) else "Balanced"
+    score = 70 - (10 if dominant == "Vata" else 5 if dominant == "Pitta" else 0)
+    return {"dominant_humor": dominant, "alerts": alerts[:2], "score": score,
+            "lagna_planets": lagna_planets}
+
+
+class DinaChartRequest(BaseModel):
+    natal_chart:  Dict[str, Any]
+    varsha_data:  Dict[str, Any]
+    date_str:     str    # YYYY-MM-DD
+    current_lat:  float
+    current_lon:  float
+
+
+@app.post("/dina_chart")
+def get_dina_chart(req: DinaChartRequest):
+    """Compute Tajik Dina Phala — daily precision pulse."""
+    try:
+        nc  = req.natal_chart
+        vd  = req.varsha_data
+        birth_lagna_si = int(nc.get("lagna", {}).get("sign_index", 0))
+        muntha_si      = int(vd.get("muntha", {}).get("sign_index", 0))
+        lat, lon       = req.current_lat, req.current_lon
+
+        # 1. Sunrise JD for the date
+        jd_sr   = get_sunrise_jd(req.date_str, lat, lon)
+        is_day  = True  # sunrise cast = daytime chart
+
+        # 2. Daily chart at sunrise
+        daily_lagna   = calc_lagna(jd_sr, lat, lon)
+        daily_lagna_si = daily_lagna["sign_index"]
+        lagna_lon      = daily_lagna["longitude"]
+        daily_planets  = calc_all_planets(jd_sr, daily_lagna_si)
+
+        # 3. Harsha Bala
+        daily_hb = {}
+        for p in ["Sun","Moon","Mars","Mercury","Jupiter","Venus","Saturn"]:
+            pd     = daily_planets.get(p, {})
+            score  = (pd.get("dignity",{}).get("score",0)
+                      if isinstance(pd.get("dignity"),dict) else 0)
+            house0 = (pd.get("sign_index",0) - daily_lagna_si + 12) % 12
+            daily_hb[p] = calc_harsha_bala(p, pd.get("sign_index",0), house0, score, is_day)
+
+        # 4. Day Lord
+        dina_lord     = compute_dina_lord(daily_lagna_si, muntha_si, birth_lagna_si,
+                                           daily_planets, is_day, daily_hb)
+        dina_lord_hb  = daily_hb.get(dina_lord, {})
+        dina_lord_tier= dina_lord_hb.get("tier", "Weak")
+        dina_lord_pd  = daily_planets.get(dina_lord, {})
+        _dl_dign      = dina_lord_pd.get("dignity", "")
+        if isinstance(_dl_dign, dict):
+            dina_lord_dign = _dl_dign.get("label","Neutral") or "Neutral"
+        else:
+            dina_lord_dign = str(_dl_dign) if _dl_dign else "Neutral"
+
+        # 5. Lunar Quotient
+        moon_lon = daily_planets.get("Moon", {}).get("longitude", 0.0)
+        moon_deg = moon_lon % 30
+        lq_raw   = int((moon_deg * 2) / 5)
+        lq_state = max(1, min(12, lq_raw if lq_raw > 0 else 12))
+        lq_name, lq_mood, lq_pct = DINA_MOON_STATE_MOOD[lq_state]
+
+        # 6. Moon phase
+        sun_lon    = daily_planets.get("Sun", {}).get("longitude", 0.0)
+        moon_phase = compute_moon_phase(moon_lon, sun_lon)
+        moon_house = ((int(moon_lon/30)%12 - daily_lagna_si + 12) % 12) + 1
+
+        # 7. Kartari check
+        kartari = check_kartari(daily_planets, daily_lagna_si)
+
+        # 8. Day Lord receiving benefic Ithesal?
+        BENEFICS = ["Jupiter","Venus","Mercury","Moon"]
+        dl_lon   = dina_lord_pd.get("longitude", 0.0)
+        benefic_ithesal = False
+        for ben in BENEFICS:
+            if ben == dina_lord: continue
+            ben_lon = daily_planets.get(ben, {}).get("longitude", 0.0)
+            asp = _tajik_aspect_between(ben, ben_lon, dina_lord, dl_lon)
+            if asp.get("within_orb") and asp.get("ithesal"):
+                benefic_ithesal = True; break
+
+        # 9. Vitality + Capture
+        vitality = compute_vitality_score(daily_planets, daily_lagna_si)
+        capture  = compute_capture_metric(daily_planets, daily_lagna_si)
+
+        # 10. Go/Stop time windows (approximate based on Day Lord + Lunar state)
+        goodTiers = ["Very Strong","Medium"]
+        if lq_state in [4,5,12] and goodTiers.includes(dina_lord_tier) if False else            lq_state in [4,5,12] and dina_lord_tier in goodTiers:
+            go_time   = "08:00 AM – 11:00 AM (Morning power window)"
+            stop_time = "02:00 PM – 04:00 PM (Afternoon friction zone)"
+        elif lq_state in [3,9,10,11]:
+            go_time   = "No strong Go window today — prefer planning over action"
+            stop_time = "Avoid all major decisions; entire day requires caution"
+        else:
+            go_time   = "10:00 AM – 12:00 PM (Solar peak window)"
+            stop_time = "06:00 PM – 08:00 PM (Evening friction zone)"
+
+        # Format date label
+        MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
+        y_int, m_int, d_int, _ = swe.revjul(jd_sr)
+        date_label = f"{int(d_int)} {MONTHS[int(m_int)-1]} {int(y_int)}"
+
+        return {
+            "date_str":      req.date_str,
+            "date_label":    date_label,
+            "lagna":         daily_lagna,
+            "planets":       daily_planets,
+            "harsha_bala":   daily_hb,
+            "dina_lord": {
+                "planet":   dina_lord,
+                "tier":     dina_lord_tier,
+                "biswas":   dina_lord_hb.get("biswas", 0),
+                "dignity":  dina_lord_dign,
+                "sign":     dina_lord_pd.get("sign", ""),
+                "house":    dina_lord_pd.get("house", 0),
+                "domain":   DINA_DAY_LORD_DOMAIN.get(dina_lord, ""),
+                "benefic_ithesal": benefic_ithesal,
+            },
+            "lunar_quotient": {
+                "state_num":  lq_state,
+                "state_name": lq_name,
+                "mood":       lq_mood,
+                "success_pct": lq_pct,
+                "moon_degree": round(moon_deg, 2),
+            },
+            "moon_phase":    moon_phase,
+            "moon_house":    moon_house,
+            "kartari":       kartari,
+            "vitality":      vitality,
+            "capture":       capture,
+            "go_time":       go_time,
+            "stop_time":     stop_time,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Dina chart error: {str(e)}")
+
+
+class DinaReportRequest(BaseModel):
+    dina_brief:   Dict[str, Any]
+    varsha_brief: Dict[str, Any]
+    natal_brief:  Dict[str, Any]
+
+
+@app.post("/dinareport")
+def get_dina_report(req: DinaReportRequest):
+    """AI narrative for Dina Phala daily report."""
+    try:
+        db = req.dina_brief
+        prompt = f"""You are a Tajik Neelakanthi Varshaphal expert writing a daily cosmic weather forecast.
+
+Daily Data: {json.dumps(db, indent=2)}
+Annual Context: {json.dumps(req.varsha_brief, indent=2)}
+
+Write a concise daily briefing in plain English (no Sanskrit jargon). Bold headers. Maximum 200 words total.
+
+**Morning Briefing:**
+2-3 sentences. What is the dominant theme of this day based on the Lunar State and Day Lord combined? Name both planets/states. What does this mean for the person's immediate focus and energy level?
+
+**The Warning:**
+1-2 sentences. Name the specific risk or friction point for today (Kartari, weak Moon state, Day Lord in dusthana, etc.). Be direct — this is tactical intelligence, not philosophy.
+
+**The Opportunity:**
+1-2 sentences. What is the single best use of today's energy? Be specific to the actual chart data."""
+
+        api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+        response = requests.post(
+            "https://api.anthropic.com/v1/messages",
+            headers={"x-api-key": api_key, "anthropic-version": "2023-06-01",
+                     "content-type": "application/json"},
+            json={"model": "claude-sonnet-4-6", "max_tokens": 600,
+                  "messages": [{"role": "user", "content": prompt}]},
+            timeout=60
+        )
+        if response.status_code != 200:
+            raise HTTPException(status_code=500,
+                detail=f"API error {response.status_code}: {response.text[:300]}")
+        data = response.json()
+        text = "".join(b["text"] for b in data.get("content",[]) if b.get("type")=="text")
+        return {"report": text}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Dina report error: {str(e)}")
