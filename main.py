@@ -3577,7 +3577,23 @@ def get_maas_chart(req: MaasChartRequest):
         h6_si       = (monthly_lagna_si + 5) % 12
         h6_lord     = SIGN_LORDS_LIST[h6_si]
         h6_lord_pd  = monthly_planets.get(h6_lord, {})
-        h6_lord_dign = h6_lord_pd.get("dignity",{}).get("label","") if isinstance(h6_lord_pd.get("dignity"),dict) else "Unknown"
+        _h6_dign = h6_lord_pd.get("dignity", "")
+        if isinstance(_h6_dign, dict):
+            h6_lord_dign = _h6_dign.get("label") or _h6_dign.get("score","")
+            h6_lord_dign = str(h6_lord_dign) if h6_lord_dign else "Neutral"
+        elif isinstance(_h6_dign, str) and _h6_dign:
+            h6_lord_dign = _h6_dign
+        else:
+            # Fallback: derive from sign position
+            h6_si   = h6_lord_pd.get("sign_index", -1)
+            h6_lord_name = h6_lord
+            exalt = {"Sun":4,"Moon":1,"Mars":9,"Mercury":5,"Jupiter":3,"Venus":11,"Saturn":6}
+            own   = {"Sun":[4],"Moon":[3],"Mars":[0,7],"Mercury":[2,5],"Jupiter":[8,11],"Venus":[1,6],"Saturn":[9,10]}
+            debit = {"Sun":6,"Moon":7,"Mars":3,"Mercury":11,"Jupiter":9,"Venus":4,"Saturn":0}
+            if h6_si == exalt.get(h6_lord_name): h6_lord_dign = "Exalted"
+            elif h6_si in own.get(h6_lord_name, []): h6_lord_dign = "Own Sign"
+            elif h6_si == debit.get(h6_lord_name): h6_lord_dign = "Debilitated"
+            else: h6_lord_dign = "Neutral"
 
         # 10. Dietary
         h4_si  = (monthly_lagna_si + 3) % 12
