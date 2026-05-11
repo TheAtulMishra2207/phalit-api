@@ -3270,6 +3270,24 @@ Write EXACTLY these 3 sections in plain English (bold headers, no Sanskrit jargo
 **The Protective Note:**
 2-3 sentences. Address the Kartari risk if present. End with one tactical sentence: the single most important financial action for this year based on the chart.""",
 
+            "putra": f"""You are a Tajik Neelakanthi Varshaphal expert writing an annual progeny, fortune, and creative growth report.
+
+Data: {json.dumps(vb, indent=2)}
+Natal Context: {json.dumps(nb, indent=2)}
+
+STRICT ROLE MAP: {vb.get('role_map', 'See data')}
+
+Write EXACTLY these 3 sections in plain English (bold headers, no jargon):
+
+**The Narrative Arc:**
+3-4 sentences. State the Putra Saham house and what it means for children or creative projects this year. Name the 5th Lord and Lagna Lord relationship (friendly/inimical) and what this produces practically. If the natal promise gate is Confirmed, state it. Name the specific peak Punya window month from the data.
+
+**The Creative & Parental Strategy:**
+2-3 sentences. Based on the 5th house occupants and Jupiter's strength, name the specific focus — is this a year for actual child-related events, creative projects, or educational endeavours? If the Abortion Alert is active (retrograde Mars in 5th), state it plainly. Reference the Ithesal/Esrapha status of the 5th Lord.
+
+**The Merit & Protection Note:**
+2-3 sentences. If the Punya Shield is active (Punya Saham aspected by benefics in 5th), name it as a specific fortunate force. Address any educational warning (afflicted Mercury). End with one tactical sentence for the year.""",
+
             "arishta": f"""You are a Tajik Varshaphal analyst. Assess risk combinations for this annual chart.
 
 Chart Data: {json.dumps(vb, indent=2)}
