@@ -3294,11 +3294,13 @@ Write EXACTLY these 3 sections in plain English (bold headers, no jargon):
 SCHEMA DATA: {json.dumps(vb, indent=2)}
 Natal Context: {json.dumps(nb, indent=2)}
 
-STRICT MEDICAL SAFETY RULES — read before writing:
+STRICT MEDICAL SAFETY RULES — read every point before writing:
 1. The Inverse Malefic Rule: A WEAK Roga or Mrityu Saham Lord is PROTECTIVE. Do NOT alarm the user if the Saham Lord is weak. Write: "weakness here is the classical sign of freedom from severe illness."
 2. The Health Shield: If health_shield_active is TRUE, all risk predictions must be tempered. Write: "the shield neutralizes severity — events may occur but without dangerous consequence."
 3. If jupiter_aspect_on_lagna is FALSE and ayur_dhruva_shield is FALSE, you may note elevated vigilance is warranted, but NEVER predict death or severe crisis — this is a forecast tool, not a medical diagnosis.
 4. Always end with a constructive, actionable note. This report must feel like a medical adviser, not a doomsayer.
+5. ANNUAL CHART ONLY: Evaluate ALL planetary placements strictly within the houses they occupy in the Annual Varshaphala (Solar Return) Chart. The houses in the schema are ANNUAL houses. Do NOT reference, infer, or cross-contaminate natal chart placements UNLESS they are explicitly named in the natal_context object. If you find yourself writing "natal Lagna" or "natal house" — stop and use only the annual positions from the schema.
+6. Biswas scale: ALL strength values are out of 20 maximum (Harsha Bala). NEVER use 60 as a denominator. If you write "X/60", that is wrong — write "X/20".
 
 Write EXACTLY these 3 sections in plain English (bold headers):
 
