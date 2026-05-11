@@ -3276,6 +3276,7 @@ Data: {json.dumps(vb, indent=2)}
 Natal Context: {json.dumps(nb, indent=2)}
 
 STRICT ROLE MAP: {vb.get('role_map', 'See data')}
+PUNYA-YEAR LORD CONNECTION: {vb.get('punya_year_lord_bridge', 'Not applicable')}
 
 Write EXACTLY these 3 sections in plain English (bold headers, no jargon):
 
