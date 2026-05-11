@@ -3243,7 +3243,7 @@ CRITICAL FLAGS FROM DATA:
 If Saham Lord is combust (TRUE above), you MUST note this in the Narrative Arc: the timing window opens but the planet governing it is weakened by the Sun's proximity. Use language like "the window activates but the planet governing it is dimmed — events may occur but with complications or need for extra effort."
 
 **The Narrative Arc:**
-3-4 sentences. State which house the Vivaha Saham falls in and what this means for partnership energy this year (Central/Active/Submerged). Name the relationship between the Annual Lagna Lord and the 7th Lord (friendly/hostile/neutral) and what practical outcome this creates. If a specific month window is active (based on Patyayini Dasha), name it with a concrete prediction.
+3-4 sentences. State which house the Vivaha Saham falls in and what this means for partnership energy this year. The EXACT timing window is {vb.get('timing_calendar_month', 'unknown')} — use this specific month name in the narrative (e.g. 'September 2026 is your peak window') (Central/Active/Submerged). Name the relationship between the Annual Lagna Lord and the 7th Lord (friendly/hostile/neutral) and what practical outcome this creates. If a specific month window is active (based on Patyayini Dasha), name it with a concrete prediction.
 
 **The Harmony & Friction:**
 2-3 sentences. Based on Venus's Biswas score and the 7th house occupants, describe the actual emotional climate of partnerships this year. Name any specific planetary combination that creates friction (e.g. Mars near the Saham, Saturn in 7th) and any protective factor (Jupiter aspect, strong Venus) that nullifies or mitigates it. Be direct and specific.
