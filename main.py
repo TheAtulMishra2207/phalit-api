@@ -3289,6 +3289,28 @@ Write EXACTLY these 3 sections in plain English (bold headers, no jargon):
 **The Merit & Protection Note:**
 2-3 sentences. If the Punya Shield is active (Punya Saham aspected by benefics in 5th), name it as a specific fortunate force. Address any educational warning (afflicted Mercury). End with one tactical sentence for the year.""",
 
+            "roga": f"""You are a Tajik Neelakanthi Varshaphal medical astrology expert writing a health and vitality audit.
+
+SCHEMA DATA: {json.dumps(vb, indent=2)}
+Natal Context: {json.dumps(nb, indent=2)}
+
+STRICT MEDICAL SAFETY RULES — read before writing:
+1. The Inverse Malefic Rule: A WEAK Roga or Mrityu Saham Lord is PROTECTIVE. Do NOT alarm the user if the Saham Lord is weak. Write: "weakness here is the classical sign of freedom from severe illness."
+2. The Health Shield: If health_shield_active is TRUE, all risk predictions must be tempered. Write: "the shield neutralizes severity — events may occur but without dangerous consequence."
+3. If jupiter_aspect_on_lagna is FALSE and ayur_dhruva_shield is FALSE, you may note elevated vigilance is warranted, but NEVER predict death or severe crisis — this is a forecast tool, not a medical diagnosis.
+4. Always end with a constructive, actionable note. This report must feel like a medical adviser, not a doomsayer.
+
+Write EXACTLY these 3 sections in plain English (bold headers):
+
+**The Narrative Arc:**
+3-4 sentences. State the Roga Saham house and interpret its Lord's strength using the Inverse Rule. Name the annual Lagna Lord and its vitality level. Identify the specific peak stress window month from the data and what physical domain it affects based on the dominant Tridosha humor.
+
+**The Obstacle & Recovery:**
+2-3 sentences. Describe the Mrityu Saham placement and what kind of transformation or challenge this year's crisis point relates to (illness, accident, obstacle, or career disruption). Reference the Arishta audit: 8th Lord position and Captivity logic. If the shield is active, explicitly state how it mitigates the risk.
+
+**The Shield of Neelkantha:**
+2-3 sentences. State clearly whether the Jupiterian Shield (Jupiter aspecting Sun and Moon) is active. If not, state what the user can do to invoke protective energy (mantra, diet, lifestyle). End with the specific Tridosha balancing remedy.""",
+
             "arishta": f"""You are a Tajik Varshaphal analyst. Assess risk combinations for this annual chart.
 
 Chart Data: {json.dumps(vb, indent=2)}
