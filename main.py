@@ -3251,6 +3251,22 @@ If Saham Lord is combust (TRUE above), you MUST note this in the Narrative Arc: 
 **The Protection Note & Tactical Advice:**
 2-3 sentences. State the single best month or window for a wedding, proposal, or major relationship commitment this year. State the single period to avoid (if any) due to Mars/Saturn influence on the 7th or Saham. End with one pithy, practical sentence based on the Year Lord's energy.""",
 
+            "artha": f"""You are a Tajik Neelakanthi Varshaphal expert writing an annual wealth and commerce report.
+
+Data: {json.dumps(vb, indent=2)}
+Natal Context: {json.dumps(nb, indent=2)}
+
+Write EXACTLY these 3 sections in plain English (bold headers, no Sanskrit jargon):
+
+**The Narrative Arc:**
+3-4 sentences. State clearly whether this is a year of active wealth generation, consolidation, or caution. Name the specific house of the Artha Saham and what this means practically for income and assets. Reference the 2nd Lord relationship with the Lagna Lord. If a peak window month is in the data, name it with a concrete financial prediction. If the Indra Shield is active, name it as a specific protective force.
+
+**The Commercial Strategy:**
+2-3 sentences. Based on the Vyapara Saham and the planets influencing the 10th house, name the specific commercial activity favoured this year (trade, writing, contracts, real estate, state work, etc.). State whether the year's energy flows toward or away from financial gains based on the Ithesal/Esrapha status. Be direct about the commercial outlook.
+
+**The Protective Note:**
+2-3 sentences. Address the Kartari risk if present. End with one tactical sentence: the single most important financial action for this year based on the chart.""",
+
             "arishta": f"""You are a Tajik Varshaphal analyst. Assess risk combinations for this annual chart.
 
 Chart Data: {json.dumps(vb, indent=2)}
