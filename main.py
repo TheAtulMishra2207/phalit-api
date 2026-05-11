@@ -3236,6 +3236,12 @@ Natal Context: {json.dumps(nb, indent=2)}
 
 Write EXACTLY these 3 sections in plain English (bold headers, no Sanskrit jargon, no generic filler):
 
+CRITICAL FLAGS FROM DATA:
+- Saham Lord Combust: {vb.get('saham_lord_combust', False)}
+- Dasa Conflict: {vb.get('dasa_conflict', 'FALSE')}
+
+If Saham Lord is combust (TRUE above), you MUST note this in the Narrative Arc: the timing window opens but the planet governing it is weakened by the Sun's proximity. Use language like "the window activates but the planet governing it is dimmed — events may occur but with complications or need for extra effort."
+
 **The Narrative Arc:**
 3-4 sentences. State which house the Vivaha Saham falls in and what this means for partnership energy this year (Central/Active/Submerged). Name the relationship between the Annual Lagna Lord and the 7th Lord (friendly/hostile/neutral) and what practical outcome this creates. If a specific month window is active (based on Patyayini Dasha), name it with a concrete prediction.
 
