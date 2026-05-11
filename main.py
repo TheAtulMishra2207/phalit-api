@@ -3256,6 +3256,9 @@ If Saham Lord is combust (TRUE above), you MUST note this in the Narrative Arc: 
 Data: {json.dumps(vb, indent=2)}
 Natal Context: {json.dumps(nb, indent=2)}
 
+STRICT PLANETARY ROLE MAP (do not deviate — use this to name planets in the narrative):
+{vb.get('role_map', 'See data above')}
+
 Write EXACTLY these 3 sections in plain English (bold headers, no Sanskrit jargon):
 
 **The Narrative Arc:**
