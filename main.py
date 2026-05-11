@@ -3229,21 +3229,21 @@ Name the specific risk area and the specific protective planet/placement. If the
 
 Write only these 3 paragraphs with bold headers. Plain English throughout.""",
 
-            "vivaha": f"""You are a Tajik Neelakanthi Varshaphal expert writing a marriage and relationship report.
+            "vivaha": f"""You are a Tajik Neelakanthi Varshaphal expert writing a detailed annual relationship and union forecast.
 
 Data: {json.dumps(vb, indent=2)}
 Natal Context: {json.dumps(nb, indent=2)}
 
-Write 3 plain-English paragraphs (bold headers, no Sanskrit jargon):
+Write EXACTLY these 3 sections in plain English (bold headers, no Sanskrit jargon, no generic filler):
 
-**The Marriage Window:**
-State clearly whether this year favours union, deepening of existing partnerships, or neither. Reference the Primary Vivaha Saham house placement and Venus strength. If Vartaman Ithesal is active, use definite language. Name the actual house and what it means for relationships.
+**The Narrative Arc:**
+3-4 sentences. State which house the Vivaha Saham falls in and what this means for partnership energy this year (Central/Active/Submerged). Name the relationship between the Annual Lagna Lord and the 7th Lord (friendly/hostile/neutral) and what practical outcome this creates. If a specific month window is active (based on Patyayini Dasha), name it with a concrete prediction.
 
-**The Harmony Check:**
-Analyse the Secondary Vivaha Saham (partnership harmony). If it conflicts with the Primary, explain the tension plainly. If both are well-placed, describe the nature of the relationship energy this year.
+**The Harmony & Friction:**
+2-3 sentences. Based on Venus's Biswas score and the 7th house occupants, describe the actual emotional climate of partnerships this year. Name any specific planetary combination that creates friction (e.g. Mars near the Saham, Saturn in 7th) and any protective factor (Jupiter aspect, strong Venus) that nullifies or mitigates it. Be direct and specific.
 
-**The Action Guidance:**
-One paragraph of practical, plain-language advice on timing a commitment, deepening a relationship, or navigating friction in an existing one.""",
+**The Protection Note & Tactical Advice:**
+2-3 sentences. State the single best month or window for a wedding, proposal, or major relationship commitment this year. State the single period to avoid (if any) due to Mars/Saturn influence on the 7th or Saham. End with one pithy, practical sentence based on the Year Lord's energy.""",
 
             "arishta": f"""You are a Tajik Varshaphal analyst. Assess risk combinations for this annual chart.
 
