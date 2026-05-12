@@ -580,6 +580,22 @@ AVASTHA_PRECEDENCE = [
     'Supta',       # Enemy's sign
 ]
 
+# Auspiciousness scale — distinct from precedence. Used for "which planet is stronger"
+# decisions (e.g. Q5 of the multi-query anchor rotation). Higher score = more auspicious.
+AVASTHA_AUSPICIOUSNESS = {
+    'Deepta':     10,   # Exaltation — total success
+    'Suveerya':    8,   # Following exaltation — gains
+    'Swastha':     7,   # Own sign — fame/wealth
+    'Adhiveerya':  6,   # Benefic Navamsa — government/friend gains
+    'Mudita':      5,   # Friend's sign — great pleasure
+    'Neutral':     3,   # No state qualified
+    'Supta':       2,   # Enemy's sign — fear/enemies
+    'Peedita':     1,   # Conquered by malefics — loss of wealth
+    'Pariheena':   0,   # Preceding debility — failure
+    'Deena':      -1,   # Debility — sorrows
+    'Mushita':    -2,   # Combust — loss of wealth (worst)
+}
+
 
 def compute_avasthas(chart_data: Dict) -> Dict[str, Dict]:
     """
@@ -825,8 +841,444 @@ def compute_bhava_bala(chart_data: Dict, house_num: int) -> Dict:
 
 # =================================================================
 # END OF PHASE 1A–1E
+# =================================================================
+
+
+# =================================================================
+# SECTION 1F: TAJIK ASPECT ENGINE (PRASHNA-FLAVORED)
+# =================================================================
+# Detects Ithesal / Esrapha / Ikkavala / Nakta / Kambool yogas
+# between planets using the HARDCODED CLASSICAL VELOCITY HIERARCHY
+# (locked decision #4) — NOT instantaneous ephemeris speeds.
+#
+# Yoga summary:
+#   Ithesal (Muthasila):  faster planet BEHIND slower, within orb (applying).
+#                         Auspicious — manifestation of result.
+#   Esrapha (Musarif):    faster planet AHEAD of slower, within orb (separating).
+#                         Result has passed; opportunity lost.
+#   Ikkavala / Vartaman:  near-exact conjunction (within ~1°).
+#                         Use definite language — event is "now".
+#   Nakta:                no direct aspect, but a faster bridge planet sits
+#                         between the two longitudes. Mediated success.
+#   Kambool:              Moon in Ithesal with a target planet. Moon's blessing.
+# =================================================================
+
+VARTAMAN_ORB = 1.0  # degrees — used for Ikkavala / "exact" classification
+
+
+def get_faster_planet(p_a: str, p_b: str) -> Optional[str]:
+    """Return the faster of two planets per VELOCITY_HIERARCHY, or None if either is unknown."""
+    if p_a not in VELOCITY_HIERARCHY or p_b not in VELOCITY_HIERARCHY:
+        return None
+    return p_a if VELOCITY_HIERARCHY.index(p_a) < VELOCITY_HIERARCHY.index(p_b) else p_b
+
+
+def signed_separation(lon_faster: float, lon_slower: float) -> float:
+    """
+    Signed angular separation: faster − slower, mapped to (−180, +180].
+    Negative ⇒ faster is BEHIND slower (will catch up) → applying / Ithesal.
+    Positive ⇒ faster is AHEAD of slower (has already passed) → separating / Esrapha.
+    """
+    d = (lon_faster - lon_slower) % 360.0
+    if d > 180.0:
+        d -= 360.0
+    return d
+
+
+def pairwise_aspect(p_a: str, p_b: str, chart_data: Dict) -> Dict:
+    """
+    Compute the Tajik aspect between two named planets in a given chart.
+
+    Returns dict:
+        planet_a, planet_b:      original names
+        faster, slower:          per hierarchy
+        signed_separation:       degrees (−180, +180], faster − slower
+        absolute_separation:     |signed|
+        within_orb:              bool — within max(Deeptamsha) of the two
+        orb_used:                the larger Deeptamsha
+        yoga:                    'Ithesal' | 'Esrapha' | 'Ikkavala' | 'None'
+        is_vartaman:             True if abs sep ≤ VARTAMAN_ORB (use definite language)
+        narrative:               short human description
+    """
+    planets = chart_data.get('planets', {})
+    if p_a not in planets or p_b not in planets:
+        return {'error': f'Planet(s) not in chart: {p_a}, {p_b}'}
+
+    lon_a = planets[p_a].get('longitude')
+    lon_b = planets[p_b].get('longitude')
+    if lon_a is None or lon_b is None:
+        return {'error': f'Missing longitudes for {p_a}/{p_b}'}
+
+    faster = get_faster_planet(p_a, p_b)
+    if faster is None:
+        return {'error': f'Velocity hierarchy unknown for {p_a}/{p_b}'}
+    slower = p_b if faster == p_a else p_a
+
+    lon_faster = planets[faster]['longitude']
+    lon_slower = planets[slower]['longitude']
+    sep = signed_separation(lon_faster, lon_slower)
+    abs_sep = abs(sep)
+    orb = max(DEEPTAMSHA.get(p_a, 8.0), DEEPTAMSHA.get(p_b, 8.0))
+
+    within = abs_sep <= orb
+    is_vartaman = abs_sep <= VARTAMAN_ORB
+
+    if not within:
+        yoga = 'None'
+        narrative = (f"{faster} and {slower} are {abs_sep:.1f}° apart — "
+                     f"outside the {orb:.1f}° orb. No direct aspect.")
+    elif is_vartaman:
+        yoga = 'Ikkavala'
+        narrative = (f"{faster} and {slower} are within {abs_sep:.2f}° — "
+                     f"Ikkavala / Vartaman (effectively conjunct). "
+                     f"Event is unfolding now.")
+    elif sep < 0:
+        yoga = 'Ithesal'
+        narrative = (f"{faster} ({abs_sep:.1f}° behind {slower}) is applying to {slower} "
+                     f"within orb. Ithesal — result will manifest.")
+    else:
+        yoga = 'Esrapha'
+        narrative = (f"{faster} ({abs_sep:.1f}° past {slower}) has separated from {slower}. "
+                     f"Esrapha — opportunity is in the past.")
+
+    return {
+        'planet_a': p_a,
+        'planet_b': p_b,
+        'faster': faster,
+        'slower': slower,
+        'signed_separation': round(sep, 4),
+        'absolute_separation': round(abs_sep, 4),
+        'within_orb': within,
+        'orb_used': orb,
+        'yoga': yoga,
+        'is_vartaman': is_vartaman,
+        'narrative': narrative,
+    }
+
+
+def detect_nakta(p_a: str, p_b: str, chart_data: Dict) -> Optional[Dict]:
+    """
+    Detect Nakta yoga between p_a and p_b: when they are NOT in direct aspect,
+    but a third planet (faster than both) sits at a longitude BETWEEN theirs
+    and is in Ithesal-range with both. The bridge planet mediates the result.
+
+    Returns dict if Nakta found, else None.
+    """
+    planets = chart_data.get('planets', {})
+    if p_a not in planets or p_b not in planets:
+        return None
+
+    direct = pairwise_aspect(p_a, p_b, chart_data)
+    if direct.get('within_orb'):
+        return None  # Direct aspect exists — Nakta is for non-aspecting pairs
+
+    lon_a = planets[p_a].get('longitude')
+    lon_b = planets[p_b].get('longitude')
+    if lon_a is None or lon_b is None:
+        return None
+
+    # Sort by longitude for the "between" check
+    if lon_a <= lon_b:
+        lo_planet, lo_lon = p_a, lon_a
+        hi_planet, hi_lon = p_b, lon_b
+    else:
+        lo_planet, lo_lon = p_b, lon_b
+        hi_planet, hi_lon = p_a, lon_a
+
+    # Examine if the arc (hi - lo) is the "short way"; otherwise wrap-around is the short way.
+    short_arc_is_direct = (hi_lon - lo_lon) <= 180.0
+
+    a_idx = VELOCITY_HIERARCHY.index(p_a) if p_a in VELOCITY_HIERARCHY else 99
+    b_idx = VELOCITY_HIERARCHY.index(p_b) if p_b in VELOCITY_HIERARCHY else 99
+    min_idx = min(a_idx, b_idx)  # bridge must be FASTER than both
+
+    bridge_candidates = []
+    for bridge in VELOCITY_HIERARCHY[:min_idx]:
+        if bridge in (p_a, p_b):
+            continue
+        b_lon = planets.get(bridge, {}).get('longitude')
+        if b_lon is None:
+            continue
+        # Check if bridge is between lo and hi
+        if short_arc_is_direct:
+            between = lo_lon <= b_lon <= hi_lon
+        else:
+            between = (b_lon >= hi_lon) or (b_lon <= lo_lon)
+        if not between:
+            continue
+        # Bridge must be in Ithesal range (applying) with BOTH
+        asp_with_a = pairwise_aspect(bridge, p_a, chart_data)
+        asp_with_b = pairwise_aspect(bridge, p_b, chart_data)
+        if asp_with_a.get('within_orb') and asp_with_b.get('within_orb'):
+            bridge_candidates.append({
+                'bridge': bridge,
+                'bridge_lon': b_lon,
+                'aspect_with_a': asp_with_a['yoga'],
+                'aspect_with_b': asp_with_b['yoga'],
+            })
+
+    if not bridge_candidates:
+        return None
+
+    # Pick the fastest qualifying bridge (first in hierarchy)
+    bridge_candidates.sort(key=lambda x: VELOCITY_HIERARCHY.index(x['bridge']))
+    primary = bridge_candidates[0]
+
+    return {
+        'planet_a': p_a,
+        'planet_b': p_b,
+        'bridge': primary['bridge'],
+        'bridge_lon': primary['bridge_lon'],
+        'all_bridges': bridge_candidates,
+        'narrative': (f"Nakta — {p_a} and {p_b} have no direct aspect, but "
+                      f"{primary['bridge']} bridges them. Result reaches the querent "
+                      f"through a mediator."),
+    }
+
+
+def is_kambool(target_planet: str, chart_data: Dict) -> Dict:
+    """
+    Kambool: Moon in Ithesal (applying within orb) with a target planet.
+    Granted regardless of which planet is faster — but the canonical
+    Tajik form requires Moon to be the faster (it always is, by hierarchy).
+
+    Returns dict:
+        active:   bool — whether Kambool fires
+        aspect:   the underlying pairwise aspect data
+        narrative: short description
+    """
+    if target_planet == 'Moon':
+        return {
+            'active': False,
+            'narrative': 'Moon cannot Kambool with itself.',
+        }
+    pa = pairwise_aspect('Moon', target_planet, chart_data)
+    if 'error' in pa:
+        return {'active': False, 'narrative': pa['error']}
+    active = pa.get('yoga') == 'Ithesal'
+    return {
+        'active': active,
+        'aspect': pa,
+        'narrative': (f"Kambool active — Moon is applying to {target_planet} "
+                      f"within orb. Lunar blessing on the indication."
+                      if active else
+                      f"No Kambool — Moon is not in Ithesal with {target_planet}."),
+    }
+
+
+def detect_all_aspects(chart_data: Dict,
+                       include_nakta: bool = True,
+                       include_kambool: bool = True) -> Dict:
+    """
+    Enumerate every Tajik yoga in the chart in one pass.
+
+    Returns:
+        pairwise:  list of all pairwise aspect dicts (within_orb only)
+        nakta:     list of all Nakta detections
+        kambool:   list of all planets in Kambool with the Moon
+    """
+    classical = ['Sun', 'Moon', 'Mars', 'Mercury', 'Jupiter', 'Venus', 'Saturn']
+    present = [p for p in classical if p in chart_data.get('planets', {})]
+
+    pairwise = []
+    for i, p1 in enumerate(present):
+        for p2 in present[i + 1:]:
+            asp = pairwise_aspect(p1, p2, chart_data)
+            if 'error' not in asp and asp.get('within_orb'):
+                pairwise.append(asp)
+
+    nakta = []
+    if include_nakta:
+        for i, p1 in enumerate(present):
+            for p2 in present[i + 1:]:
+                n = detect_nakta(p1, p2, chart_data)
+                if n:
+                    nakta.append(n)
+
+    kambool = []
+    if include_kambool and 'Moon' in present:
+        for p in present:
+            if p == 'Moon':
+                continue
+            k = is_kambool(p, chart_data)
+            if k.get('active'):
+                kambool.append({
+                    'planet': p,
+                    'aspect': k['aspect'],
+                    'narrative': k['narrative'],
+                })
+
+    return {
+        'pairwise': pairwise,
+        'nakta': nakta,
+        'kambool': kambool,
+        'total_aspects': len(pairwise),
+        'total_nakta': len(nakta),
+        'total_kambool': len(kambool),
+    }
+
+
+# =================================================================
+# SECTION 1G: MULTI-QUERY ANCHOR RESOLVER
+# =================================================================
+# A single Prashna chart is valid for up to 5 questions in the same sitting.
+# Subsequent questions use shifting Lagna pivots:
+#   Q1 → Prashna Lagna (the chart's actual ascendant)
+#   Q2 → Moon's Sign as Lagna
+#   Q3 → Sun's Sign as Lagna
+#   Q4 → Jupiter's Sign as Lagna
+#   Q5 → Stronger of Mercury or Venus as Lagna
+#
+# "Stronger" for Q5 is resolved via Avastha priority (lower priority_index = stronger).
+# Tie goes to Mercury (alphabetical fallback). This default is documented and
+# can be swapped if Atul prefers a different strength metric (e.g. Bhava Bala).
+# =================================================================
+
+MAX_QUERIES_PER_CHART = 5
+
+QUERY_PIVOT_SOURCES = {
+    1: 'Prashna Lagna (chart ascendant)',
+    2: "Moon's Sign as Lagna",
+    3: "Sun's Sign as Lagna",
+    4: "Jupiter's Sign as Lagna",
+    5: 'Stronger of Mercury or Venus as Lagna',
+}
+
+
+def resolve_query_lagna(chart_data: Dict, question_index: int) -> Dict:
+    """
+    Resolve the effective Lagna sign for the Nth question in a multi-query session.
+
+    Args:
+        chart_data:      standard chart dict
+        question_index:  1–5
+
+    Returns dict:
+        question_index:        1–5
+        effective_lagna_sign:  0–11
+        effective_lagna_name:  sign name
+        source:                description of the pivot source
+        rationale:             additional context (e.g. which planet was chosen for Q5)
+    """
+    if question_index < 1 or question_index > MAX_QUERIES_PER_CHART:
+        return {
+            'error': f'question_index must be 1..{MAX_QUERIES_PER_CHART}, got {question_index}'
+        }
+
+    planets = chart_data.get('planets', {})
+    source = QUERY_PIVOT_SOURCES[question_index]
+    rationale = ''
+
+    if question_index == 1:
+        sign_idx = chart_data.get('lagna_sign', 0)
+
+    elif question_index == 2:
+        sign_idx = planets.get('Moon', {}).get('sign_index')
+        if sign_idx is None:
+            return {'error': 'Moon sign_index missing from chart_data'}
+
+    elif question_index == 3:
+        sign_idx = planets.get('Sun', {}).get('sign_index')
+        if sign_idx is None:
+            return {'error': 'Sun sign_index missing from chart_data'}
+
+    elif question_index == 4:
+        sign_idx = planets.get('Jupiter', {}).get('sign_index')
+        if sign_idx is None:
+            return {'error': 'Jupiter sign_index missing from chart_data'}
+
+    else:  # question_index == 5
+        avasthas = compute_avasthas(chart_data)
+        merc_state = avasthas.get('Mercury', {}).get('avastha', 'Neutral')
+        venus_state = avasthas.get('Venus', {}).get('avastha', 'Neutral')
+        merc_score = AVASTHA_AUSPICIOUSNESS.get(merc_state, 3)
+        venus_score = AVASTHA_AUSPICIOUSNESS.get(venus_state, 3)
+        if venus_score > merc_score:
+            stronger = 'Venus'
+        else:
+            stronger = 'Mercury'  # tie → Mercury (alphabetical)
+        sign_idx = planets.get(stronger, {}).get('sign_index')
+        if sign_idx is None:
+            return {'error': f'{stronger} sign_index missing from chart_data'}
+        rationale = (
+            f"{stronger} chosen by Avastha auspiciousness "
+            f"(Mercury: {merc_state}={merc_score}, Venus: {venus_state}={venus_score}; "
+            f"higher wins, ties → Mercury)."
+        )
+
+    return {
+        'question_index': question_index,
+        'effective_lagna_sign': sign_idx,
+        'effective_lagna_name': SIGNS[sign_idx],
+        'effective_lagna_sanskrit': SIGN_SANSKRIT[sign_idx],
+        'source': source,
+        'rationale': rationale,
+    }
+
+
+def rederive_houses_for_lagna(chart_data: Dict, new_lagna_sign: int) -> List[Dict]:
+    """
+    Re-derive whole-sign house occupants for a new Lagna sign without re-casting.
+    Used after resolve_query_lagna to give each multi-query question its own
+    house mapping while keeping the planetary positions identical.
+
+    Returns a fresh 12-element houses list with each entry containing:
+        house_num, sign, sign_sanskrit, sign_index, occupants
+    """
+    planets = chart_data.get('planets', {})
+    houses = []
+    for h in range(12):
+        sign_idx = (new_lagna_sign + h) % 12
+        occupants = []
+        for p_name, p_data in planets.items():
+            p_sign = p_data.get('sign_index')
+            if p_sign is None and p_data.get('longitude') is not None:
+                p_sign = int(p_data['longitude'] // 30) % 12
+            if p_sign == sign_idx:
+                occupants.append(p_name)
+        houses.append({
+            'house_num': h + 1,
+            'sign': SIGNS[sign_idx],
+            'sign_sanskrit': SIGN_SANSKRIT[sign_idx],
+            'sign_index': sign_idx,
+            'occupants': occupants,
+        })
+    return houses
+
+
+def build_query_chart(base_chart: Dict, question_index: int) -> Dict:
+    """
+    Convenience wrapper: given a base Prashna chart and a question index,
+    return a fresh chart_data dict with the effective Lagna and re-derived
+    houses ready to feed into compute_bhava_bala / compute_sincerity_score /
+    etc. Planetary positions are preserved unchanged.
+    """
+    anchor = resolve_query_lagna(base_chart, question_index)
+    if 'error' in anchor:
+        return {'error': anchor['error']}
+
+    new_lagna_sign = anchor['effective_lagna_sign']
+    new_houses = rederive_houses_for_lagna(base_chart, new_lagna_sign)
+
+    out = {
+        'lagna_sign': new_lagna_sign,
+        'lagna_name': SIGNS[new_lagna_sign],
+        'lagna_sanskrit': SIGN_SANSKRIT[new_lagna_sign],
+        'planets': base_chart['planets'],
+        'houses': new_houses,
+        'query_anchor': anchor,
+    }
+    # Carry over any other base-chart metadata (jd, location, etc.)
+    for k in ('jd_ut', 'lat', 'lon', 'datetime_local', 'timezone',
+              'sun_altitude', 'shadow_ratio', 'cast_mode'):
+        if k in base_chart:
+            out[k] = base_chart[k]
+    return out
+
+
+# =================================================================
+# END OF PHASE 1F + 1G
 # -----------------------------------------------------------------
-# Next push: 1F (Tajik aspect engine w/ velocity hierarchy),
-#            1G (multi-query anchor resolver),
-#            1H (/prashna_chart endpoint wiring).
+# Next: 1H — /prashna_chart FastAPI endpoint (delivered separately
+# as a paste-in block for main.py).
 # =================================================================
