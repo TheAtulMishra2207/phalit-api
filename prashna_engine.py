@@ -226,13 +226,121 @@ def phonetic_to_lagna_sign(query_text: str) -> Dict:
         planet, data, matched, idx = best
         return _resolve_phonetic_match(planet, data, matched, 'iast', idx)
 
-    # 3. Fallback: first character is a vowel → Sun → Leo
+    # 3. Roman first-consonant extraction.
+    #    Handles English/romanized input like "Melody", "Putra", "Vivah",
+    #    "Chocolaty" — where the first consonant determines the planetary group
+    #    and the IAST whole-syllable list misses (because the following vowel
+    #    isn't the default 'a').
+    roman_result = _try_roman_first_consonant(text)
+    if roman_result is not None:
+        return roman_result
+
+    # 4. Fallback: first character is a vowel → Sun → Leo
     if text_lower[0] in 'aeiou':
         return _resolve_phonetic_match('Sun', PAVARGA_TABLE['Sun'], text_lower[0], 'fallback', 0)
 
     return {
         'error': f"Could not parse first syllable of '{text[:10]}'",
         'confidence': 0.0,
+    }
+
+
+# Roman consonant → (planet, position_in_group) map.
+# Order matters in iteration: longer digraphs MUST be tried before single letters.
+# Position is 1-indexed (1, 3, 5 = odd sign; 2, 4 = even sign).
+ROMAN_PREFIX_MAP = [
+    # Aspirated digraphs first (longest prefix wins)
+    ('chh', 'Venus',   2),  # छ → Taurus (chha, even)
+    ('kh',  'Mars',    2),  # ख → Scorpio (kha, even)
+    ('gh',  'Mars',    4),  # घ → Scorpio (gha, even)
+    ('ng',  'Mars',    5),  # ङ → Aries  (nga, odd)
+    ('ch',  'Venus',   1),  # च → Libra  (cha — default for English 'ch')
+    ('jh',  'Venus',   4),  # झ → Taurus (jha, even)
+    ('th',  'Jupiter', 2),  # थ → Pisces (tha; ambiguous cerebral/dental — default to dental)
+    ('dh',  'Jupiter', 4),  # ध → Pisces (dha)
+    ('ph',  'Saturn',  2),  # फ → Capricorn (pha, even)
+    ('bh',  'Saturn',  4),  # भ → Capricorn (bha, even)
+    ('sh',  'Moon',    0),  # श → Cancer (single-lord)
+    # Single consonants
+    ('k',   'Mars',    1),  # क → Aries
+    ('g',   'Mars',    3),  # ग → Aries
+    ('c',   'Venus',   1),  # treat bare 'c' as cha → Libra
+    ('j',   'Venus',   3),  # ज → Libra
+    ('t',   'Jupiter', 1),  # त → Sagittarius (default dental for ambiguous English 't')
+    ('d',   'Jupiter', 3),  # द → Sagittarius
+    ('n',   'Jupiter', 5),  # न → Sagittarius
+    ('p',   'Saturn',  1),  # प → Aquarius
+    ('f',   'Saturn',  2),  # f as variant of ph → Capricorn
+    ('b',   'Saturn',  3),  # ब → Aquarius
+    ('m',   'Saturn',  5),  # म → Aquarius
+    ('y',   'Moon',    0),  # य → Cancer
+    ('r',   'Moon',    0),  # र → Cancer
+    ('l',   'Moon',    0),  # ल → Cancer
+    ('v',   'Moon',    0),  # व → Cancer
+    ('w',   'Moon',    0),  # w as variant of v → Cancer
+    ('s',   'Moon',    0),  # स → Cancer
+    ('h',   'Moon',    0),  # ह → Cancer
+    ('z',   'Moon',    0),  # z as variant of sa/sha → Cancer
+    ('q',   'Mars',    1),  # q as variant of k → Aries
+    ('x',   'Mars',    1),  # x as variant of k → Aries
+]
+
+
+def _try_roman_first_consonant(text: str) -> Optional[Dict]:
+    """
+    Extract the first consonant (or aspirated digraph) from a romanized string
+    and resolve to a Lagna sign per the Pavarga rules.
+    Returns None if the first letter is a vowel or no consonant match is found.
+    """
+    text_lower = text.lower().strip()
+    # Skip any leading non-letters (punctuation, digits, whitespace)
+    while text_lower and not text_lower[0].isalpha():
+        text_lower = text_lower[1:]
+    if not text_lower:
+        return None
+    # Vowels are handled by the vowel fallback elsewhere
+    if text_lower[0] in 'aeiou':
+        return None
+
+    for prefix, planet, position in ROMAN_PREFIX_MAP:
+        if text_lower.startswith(prefix):
+            return _resolve_position(planet, prefix, 'roman-consonant', position)
+
+    return None
+
+
+def _resolve_position(planet: str, matched_letter: str,
+                      method: str, position: int) -> Dict:
+    """
+    Resolve a planet + position-in-group to a Lagna sign.
+    Bypasses _resolve_phonetic_match for cases where we know the position
+    directly (e.g. roman-consonant lookup) rather than from list-index.
+    """
+    if planet in SINGLE_LORD_SIGN:
+        sign_idx = SINGLE_LORD_SIGN[planet]
+        return {
+            'sign_index': sign_idx,
+            'sign_name': SIGNS[sign_idx],
+            'sign_sanskrit': SIGN_SANSKRIT[sign_idx],
+            'ruling_planet': planet,
+            'position_in_group': None,
+            'matched_letter': matched_letter,
+            'method': method,
+            'confidence': 1.0,
+        }
+
+    is_odd = (position % 2 == 1)
+    odd_sign, even_sign = DUAL_LORD_SIGN_MAP[planet]
+    sign_idx = odd_sign if is_odd else even_sign
+    return {
+        'sign_index': sign_idx,
+        'sign_name': SIGNS[sign_idx],
+        'sign_sanskrit': SIGN_SANSKRIT[sign_idx],
+        'ruling_planet': planet,
+        'position_in_group': position,
+        'matched_letter': matched_letter,
+        'method': method,
+        'confidence': 1.0,
     }
 
 
