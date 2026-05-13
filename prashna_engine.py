@@ -1386,7 +1386,526 @@ def build_query_chart(base_chart: Dict, question_index: int) -> Dict:
 
 # =================================================================
 # END OF PHASE 1F + 1G
-# -----------------------------------------------------------------
-# Next: 1H — /prashna_chart FastAPI endpoint (delivered separately
-# as a paste-in block for main.py).
+# =================================================================
+
+
+# =================================================================
+# SECTION 1H: KARYA SUCCESS CHAIN
+# =================================================================
+# 4-rule logic from Prashna corpus determining whether the querent's
+# objective will materialise. Rules 1-3 are POSITIVE (success indicators),
+# Rule 4 is NEGATIVE (failure/obstacle indicator).
+#
+#   Rule 1 — Lord Aspect:      L1 ↔ L{target} aspect each other.
+#   Rule 2 — Mutual Exchange:  Both lords in mutual aspect AND Moon
+#                              aspects at least one.
+#   Rule 3 — Speed Factor:     L1 and L{target} in Ithesal (applying).
+#   Rule 4 — Combustion/Aff.:  Either lord combust OR conjoined within
+#                              orb of a natural malefic (Mars/Saturn).
+# =================================================================
+
+
+def karya_success_chain(chart_data: Dict, target_house_num: int) -> Dict:
+    """
+    Evaluate the 4-rule Karya logic between the Lagna Lord and the lord
+    of `target_house_num` (e.g. 7 for marriage, 11 for gains, 5 for progeny).
+
+    Returns:
+        querent_lord:        name of Lagna Lord
+        quesited_lord:       name of target-house lord
+        rules:               list of 4 dicts, each {rule, satisfied, narrative}
+        positive_satisfied:  0–3 (rules 1-3 fired)
+        rule4_fired:         bool (the negative rule)
+        verdict_primitive:   'failure' | 'conditional' | 'success' | 'confirmed'
+        verdict_modifier:    'with_delays' | None
+    """
+    planets = chart_data.get('planets', {})
+    lagna_sign_idx = chart_data.get('lagna_sign', 0)
+    lagna_lord = SIGN_LORDS[lagna_sign_idx]
+    target_sign_idx = (lagna_sign_idx + target_house_num - 1) % 12
+    target_lord = SIGN_LORDS[target_sign_idx]
+
+    # If Lagna Lord IS the target lord (e.g. Mercury rules both 3rd and 6th
+    # for some Lagnas), Karya is self-referential — flag as failure.
+    if lagna_lord == target_lord:
+        return {
+            'querent_lord': lagna_lord,
+            'quesited_lord': target_lord,
+            'rules': [
+                {'rule': 'Self-reference', 'satisfied': False,
+                 'narrative': f"Both Lagna and {target_house_num}th house are ruled "
+                              f"by {lagna_lord}; Karya chain cannot evaluate a "
+                              f"separate querent-quesited dynamic."}
+            ],
+            'positive_satisfied': 0,
+            'rule4_fired': False,
+            'verdict_primitive': 'conditional',
+            'verdict_modifier': None,
+        }
+
+    asp = pairwise_aspect(lagna_lord, target_lord, chart_data)
+    moon_aspect_a = pairwise_aspect('Moon', lagna_lord, chart_data)
+    moon_aspect_b = pairwise_aspect('Moon', target_lord, chart_data)
+
+    rules = []
+
+    # --- Rule 1: Lord Aspect (L1 and L{target} in any Tajik aspect within orb) ---
+    rule1_sat = asp.get('within_orb', False) and asp.get('yoga') != 'None'
+    rules.append({
+        'rule': 'Lord Aspect',
+        'satisfied': rule1_sat,
+        'narrative': (asp.get('narrative')
+                      if rule1_sat else
+                      f"{lagna_lord} and {target_lord} are outside Deeptamsha orb — "
+                      f"no direct Tajik aspect.")
+    })
+
+    # --- Rule 2: Mutual Exchange + Moon aspect ---
+    moon_in = (moon_aspect_a.get('within_orb', False)
+               or moon_aspect_b.get('within_orb', False))
+    rule2_sat = rule1_sat and moon_in
+    rules.append({
+        'rule': 'Mutual Exchange + Moon',
+        'satisfied': rule2_sat,
+        'narrative': (
+            f"L1 ↔ L{target_house_num} are in aspect AND Moon aspects "
+            f"{lagna_lord if moon_aspect_a.get('within_orb') else target_lord} — "
+            f"Moon validates the connection."
+            if rule2_sat else
+            "Moon is not aspecting either significator within orb; the connection "
+            "lacks lunar witness."
+        )
+    })
+
+    # --- Rule 3: Speed Factor — Ithesal applying ---
+    rule3_sat = asp.get('yoga') == 'Ithesal'
+    rules.append({
+        'rule': 'Speed Factor (Ithesal)',
+        'satisfied': rule3_sat,
+        'narrative': (
+            f"{asp.get('faster')} is applying to {asp.get('slower')} — "
+            f"momentum is building toward the result."
+            if rule3_sat else
+            (f"The aspect is {asp.get('yoga')}, not Ithesal — "
+             f"no active momentum." if asp.get('within_orb') else
+             "No aspect within orb to evaluate momentum.")
+        )
+    })
+
+    # --- Rule 4: Combustion / Affliction (NEGATIVE) ---
+    q_combust = _is_combust(planets, lagna_lord)
+    t_combust = _is_combust(planets, target_lord)
+    # Check malefic conjunction within orb
+    def _afflicted(planet_name):
+        p_lon = planets.get(planet_name, {}).get('longitude')
+        if p_lon is None:
+            return None
+        for mal in ['Mars', 'Saturn']:
+            if mal == planet_name:
+                continue
+            m_lon = planets.get(mal, {}).get('longitude')
+            if m_lon is None:
+                continue
+            if _angular_diff(p_lon, m_lon) <= max(
+                    DEEPTAMSHA.get(planet_name, 8.0), DEEPTAMSHA.get(mal, 8.0)):
+                return mal
+        return None
+    q_afflictor = _afflicted(lagna_lord)
+    t_afflictor = _afflicted(target_lord)
+    rule4_sat = bool(q_combust or t_combust or q_afflictor or t_afflictor)
+    rule4_narr_parts = []
+    if q_combust:
+        rule4_narr_parts.append(f"{lagna_lord} (querent lord) is combust")
+    if t_combust:
+        rule4_narr_parts.append(f"{target_lord} (quesited lord) is combust")
+    if q_afflictor:
+        rule4_narr_parts.append(f"{lagna_lord} is conjoined with malefic {q_afflictor}")
+    if t_afflictor:
+        rule4_narr_parts.append(f"{target_lord} is conjoined with malefic {t_afflictor}")
+    rules.append({
+        'rule': 'Combustion / Affliction',
+        'satisfied': rule4_sat,
+        'narrative': ('; '.join(rule4_narr_parts) + '.' if rule4_sat else
+                      "Both significators are clean of combustion and malefic conjunction.")
+    })
+
+    positive_count = sum(1 for r in rules[:3] if r['satisfied'])
+
+    # Verdict primitive
+    if rule4_sat and positive_count == 0:
+        verdict_primitive = 'failure'
+    elif positive_count == 0:
+        verdict_primitive = 'failure'
+    elif positive_count == 1:
+        verdict_primitive = 'conditional'
+    elif positive_count == 2:
+        verdict_primitive = 'success'
+    else:
+        verdict_primitive = 'confirmed'
+
+    verdict_modifier = 'with_delays' if (rule4_sat and positive_count >= 1) else None
+
+    return {
+        'querent_lord': lagna_lord,
+        'quesited_lord': target_lord,
+        'rules': rules,
+        'positive_satisfied': positive_count,
+        'rule4_fired': rule4_sat,
+        'verdict_primitive': verdict_primitive,
+        'verdict_modifier': verdict_modifier,
+    }
+
+
+# =================================================================
+# SECTION 1I: STRENGTH SCALING / CERTAINTY SCORE
+# =================================================================
+# Per Prashna corpus's "Probability Weightage" table:
+#   1/4 Strength: No aspect of benefics to the Lagna
+#   1/2 Strength: Benefics aspect Lagna Lord only
+#   3/4 Strength: Benefics aspect Lagna itself
+#   Full Strength: Lagna + Lagna Lord + Moon all benefic-aspected, no malefic
+# Independent dimension from the Karya verdict — gives the certainty %.
+# =================================================================
+
+
+def compute_strength_scaling(chart_data: Dict) -> Dict:
+    """
+    Compute the Tajik certainty score for the chart on the corpus's
+    25 / 50 / 75 / 100 scale.
+
+    Returns:
+        score:    25 | 50 | 75 | 100
+        band:     '1/4 Strength' | '1/2 Strength' | '3/4 Strength' | 'Full Strength'
+        narrative: descriptive text
+    """
+    planets = chart_data.get('planets', {})
+    lagna_sign_idx = chart_data.get('lagna_sign', 0)
+    lagna_lord = SIGN_LORDS[lagna_sign_idx]
+    lagna_cusp_lon = lagna_sign_idx * 30.0
+    lagna_lord_lon = planets.get(lagna_lord, {}).get('longitude')
+    moon_lon = planets.get('Moon', {}).get('longitude')
+
+    def _benefic_touches(target_lon):
+        if target_lon is None:
+            return []
+        out = []
+        for b in BENEFICS:
+            p_lon = planets.get(b, {}).get('longitude')
+            if p_lon is None:
+                continue
+            if _within_aspect_orb(p_lon, target_lon, DEEPTAMSHA.get(b, 7.0)):
+                out.append(b)
+        return out
+
+    def _malefic_touches(target_lon):
+        if target_lon is None:
+            return []
+        out = []
+        for m in ['Mars', 'Saturn']:
+            p_lon = planets.get(m, {}).get('longitude')
+            if p_lon is None:
+                continue
+            if _within_aspect_orb(p_lon, target_lon, DEEPTAMSHA.get(m, 8.0)):
+                out.append(m)
+        return out
+
+    ben_to_lagna = _benefic_touches(lagna_cusp_lon)
+    ben_to_lord = _benefic_touches(lagna_lord_lon) if lagna_lord != 'Moon' else _benefic_touches(lagna_lord_lon)
+    ben_to_moon = [b for b in _benefic_touches(moon_lon) if b != 'Moon']
+    mal_anywhere = (_malefic_touches(lagna_cusp_lon)
+                    + _malefic_touches(lagna_lord_lon)
+                    + _malefic_touches(moon_lon))
+
+    if ben_to_lagna and ben_to_lord and ben_to_moon and not mal_anywhere:
+        score = 100
+        band = 'Full Strength'
+        narrative = ("Lagna, Lagna Lord, and Moon are all touched by benefics with "
+                     "zero malefic interference — the result is assured.")
+    elif ben_to_lagna and ben_to_lord:
+        score = 75
+        band = '3/4 Strength'
+        narrative = (f"Benefic(s) {', '.join(set(ben_to_lagna) & set(ben_to_lord)) or 'separately'} "
+                     f"aspect both the Lagna and its Lord — the result will manifest.")
+    elif ben_to_lord:
+        score = 50
+        band = '1/2 Strength'
+        narrative = (f"Benefic(s) {', '.join(ben_to_lord)} aspect the Lagna Lord but not "
+                     f"the Lagna itself — partial support.")
+    elif ben_to_lagna:
+        score = 25
+        band = '1/4 Strength'
+        narrative = (f"Benefic(s) {', '.join(ben_to_lagna)} touch the Lagna but not its Lord — "
+                     f"minimal support.")
+    else:
+        score = 25
+        band = '1/4 Strength'
+        narrative = ("No benefic aspects to Lagna or Lagna Lord — the chart offers "
+                     "weak structural support.")
+
+    return {
+        'score': score,
+        'band': band,
+        'narrative': narrative,
+        'benefics_to_lagna': ben_to_lagna,
+        'benefics_to_lord': ben_to_lord,
+        'benefics_to_moon': ben_to_moon,
+        'malefic_interference': mal_anywhere,
+    }
+
+
+# =================================================================
+# SECTION 1J: HORARY-TO-NATAL SHIFT
+# =================================================================
+
+
+HOUSE_FLOURISH_LABEL = {
+    1:  ('Vitality Zone',           'no physical ailments; the inquiry directly impacts personal health.'),
+    2:  ('Wealth Zone',              'financial gains; the outcome activates personal liquidity.'),
+    3:  ('Effort Zone',              'progress through one\'s own initiative; the result depends on action.'),
+    4:  ('Flourishing Zone',         'long-term domestic peace and core security are activated.'),
+    5:  ('Creativity Zone',          'creative or progeny-related rewards; the result enriches one\'s legacy.'),
+    6:  ('Defeat-of-Enemies Zone',   'obstacles weaken; the outcome neutralises adversaries.'),
+    7:  ('Partnership Zone',         'relationships are activated; the outcome reshapes alliances.'),
+    8:  ('Friction Zone',            'caution required; the outcome may bring transformative loss.'),
+    9:  ('Fortune Zone',             'higher fortune and dharma activate; the result expands one\'s arc.'),
+    10: ('Karma Zone',               'public reputation and career trajectory are activated.'),
+    11: ('Gains Zone',               'accumulation of wealth and fulfilment of desires.'),
+    12: ('Expenditure Zone',         'outflow of resources; the result may cost more than it gains.'),
+}
+
+
+def horary_to_natal_shift(prashna_lagna_sign: int,
+                          natal_lagna_sign: Optional[int]) -> Dict:
+    """
+    Compute the house-distance from the natal Lagna to the Prashna Lagna.
+    The activated natal house indicates which life-area is energised by the query.
+
+    Returns dict (or {error} if natal is missing):
+        shift:                   1–12 (house distance, 1-indexed)
+        activated_natal_house:   1–12
+        zone_label:              short descriptor
+        zone_narrative:          longer descriptor
+    """
+    if natal_lagna_sign is None:
+        return {'error': 'natal_lagna_sign not provided'}
+
+    shift = ((prashna_lagna_sign - natal_lagna_sign) % 12) + 1  # 1–12
+    activated = shift  # same number, 1-indexed
+    label, narrative = HOUSE_FLOURISH_LABEL.get(activated, ('Neutral Zone', 'no specific activation.'))
+    return {
+        'shift': shift,
+        'activated_natal_house': activated,
+        'zone_label': label,
+        'zone_narrative': narrative,
+    }
+
+
+# =================================================================
+# SECTION 1K: VIVAHA JUDGMENT MODULE
+# =================================================================
+# Marriage-specific judgment per corpus:
+#   - Karya chain (general)
+#   - Match type: effortless / effort-based / failure
+#   - Third-party interference (malefic 8L/3L/4L in 7th)
+#   - Emotional reciprocity (Ithesal quality between L1 and L7)
+# =================================================================
+
+
+def _planet_house(chart_data: Dict, planet_name: str) -> Optional[int]:
+    """Return the 1-12 house position of a planet under the chart's Whole-Sign Lagna."""
+    p_sign = chart_data.get('planets', {}).get(planet_name, {}).get('sign_index')
+    if p_sign is None:
+        return None
+    lagna_sign = chart_data.get('lagna_sign', 0)
+    return ((p_sign - lagna_sign) % 12) + 1
+
+
+def vivaha_judgment(chart_data: Dict,
+                    natal_lagna_sign: Optional[int] = None) -> Dict:
+    """
+    Full Vivaha (Marriage) judgment package. Bundles Karya chain output with
+    marriage-specific match-type detection, third-party interference scan, and
+    emotional reciprocity reading.
+
+    Args:
+        chart_data:        Prashna chart dict (from build_query_chart or base_chart)
+        natal_lagna_sign:  Optional 0-11 sign index of the user's natal Lagna
+
+    Returns the full Vivaha verdict package consumed by the AI narrative + UI.
+    """
+    planets = chart_data.get('planets', {})
+    lagna_sign = chart_data.get('lagna_sign', 0)
+    lagna_lord = SIGN_LORDS[lagna_sign]
+    seventh_sign = (lagna_sign + 6) % 12
+    seventh_lord = SIGN_LORDS[seventh_sign]
+
+    # 1. Karya chain (target = 7th)
+    karya = karya_success_chain(chart_data, 7)
+
+    # 2. Strength scaling → certainty score
+    strength = compute_strength_scaling(chart_data)
+
+    # 3. Bhava Bala for the 7th
+    bhava_7 = compute_bhava_bala(chart_data, 7)
+
+    # 4. Avasthas for both significators
+    avasthas = compute_avasthas(chart_data)
+    querent_avastha = avasthas.get(lagna_lord, {'avastha': 'Neutral', 'condition': '—'})
+    quesited_avastha = avasthas.get(seventh_lord, {'avastha': 'Neutral', 'condition': '—'})
+
+    # 5. Match type
+    asp_l1_l7 = pairwise_aspect(lagna_lord, seventh_lord, chart_data)
+    asp_l7_moon = pairwise_aspect(seventh_lord, 'Moon', chart_data)
+    l1_in_7th = _planet_house(chart_data, lagna_lord) == 7
+    moon_in_7th = _planet_house(chart_data, 'Moon') == 7
+
+    if karya['rule4_fired'] and karya['positive_satisfied'] == 0:
+        match_type = 'failure'
+        match_narrative = ("Significators are afflicted or combust with no positive Karya "
+                           "support — the proposal is unlikely to materialise.")
+    elif asp_l1_l7.get('yoga') == 'Ithesal' or asp_l7_moon.get('yoga') == 'Ithesal':
+        match_type = 'effortless'
+        match_narrative = (f"{seventh_lord} (7th lord) is in Ithesal with "
+                           f"{'Lagna Lord' if asp_l1_l7.get('yoga') == 'Ithesal' else 'the Moon'} — "
+                           "the match materialises without strenuous effort.")
+    elif l1_in_7th or moon_in_7th:
+        match_type = 'effort_based'
+        match_narrative = (f"{'Lagna Lord' if l1_in_7th else 'The Moon'} occupies the 7th house — "
+                           "the match materialises only after a formal request or sustained effort.")
+    else:
+        match_type = 'conditional'
+        match_narrative = ("No effortless or effort-based trigger fires; the result depends "
+                           "on circumstantial factors (Nakta bridges, transits).")
+
+    # 6. Third-party interference
+    interference = []
+    for house_num, label in [(8, 'Female rival / other partner'),
+                              (3, 'Sibling interference'),
+                              (4, 'Parental interference')]:
+        h_sign = (lagna_sign + house_num - 1) % 12
+        h_lord = SIGN_LORDS[h_sign]
+        # Is h_lord a malefic AND placed in 7th?
+        if h_lord in ['Sun', 'Mars', 'Saturn'] and _planet_house(chart_data, h_lord) == 7:
+            interference.append({
+                'type': label,
+                'trigger': f"Malefic {house_num}th lord ({h_lord}) occupies the 7th house",
+            })
+
+    # 7. Emotional reciprocity
+    if asp_l1_l7.get('within_orb'):
+        if asp_l1_l7.get('yoga') == 'Ithesal':
+            reciprocity = 'mutual_love'
+            recip_narrative = ("Lagna Lord and 7th Lord are in Ithesal — mutual attraction "
+                               "and active emotional engagement.")
+        elif asp_l1_l7.get('yoga') == 'Esrapha':
+            reciprocity = 'past_engagement'
+            recip_narrative = ("Lagna Lord and 7th Lord are in Esrapha — the emotional "
+                               "energy is in the past; the connection is fading.")
+        elif planets.get(lagna_lord, {}).get('sign_index') == planets.get(seventh_lord, {}).get('sign_index'):
+            reciprocity = 'discord_short'
+            recip_narrative = ("Both lords occupy the same sign — short-lived friction, "
+                               "quickly resolved.")
+        else:
+            reciprocity = 'neutral'
+            recip_narrative = "Active aspect but neither applying nor separating — neutral engagement."
+    else:
+        reciprocity = 'disengaged'
+        recip_narrative = ("Lagna Lord and 7th Lord do not aspect each other within orb — "
+                           "emotional disengagement or blind spot between partners.")
+
+    # 8. Nakta bridge (if no direct aspect, is there a bridge planet?)
+    nakta = detect_nakta(lagna_lord, seventh_lord, chart_data)
+
+    # 9. Verdict synthesis
+    primitive = karya['verdict_primitive']
+    modifier = karya['verdict_modifier']
+
+    if primitive == 'failure' and not nakta:
+        verdict = 'NO'
+        verdict_text = 'No — the proposal will not materialise'
+    elif primitive == 'failure' and nakta:
+        verdict = 'CONDITIONAL'
+        verdict_text = f'Conditional — only via {nakta["bridge"]} as intermediary'
+    elif primitive == 'conditional':
+        verdict = 'CONDITIONAL'
+        verdict_text = 'Conditional — depends on circumstantial support'
+    elif primitive == 'success' and modifier == 'with_delays':
+        verdict = 'YES_WITH_DELAYS'
+        verdict_text = 'Yes — with initial delays or obstacles'
+    elif primitive == 'success':
+        verdict = 'YES'
+        verdict_text = 'Yes — the proposal will materialise'
+    elif primitive == 'confirmed' and modifier == 'with_delays':
+        verdict = 'YES_WITH_DELAYS'
+        verdict_text = 'Yes — confirmed, with initial delays'
+    else:  # confirmed
+        verdict = 'YES'
+        verdict_text = 'Yes — strongly confirmed'
+
+    # Core catalyst — the most decisive single yoga/factor
+    if karya['positive_satisfied'] >= 2:
+        core_catalyst = {
+            'yoga': asp_l1_l7.get('yoga', 'Aspect'),
+            'between': [f"Lagna Lord ({lagna_lord})", f"7th Lord ({seventh_lord})"],
+            'narrative': asp_l1_l7.get('narrative', match_narrative),
+        }
+    elif nakta:
+        core_catalyst = {
+            'yoga': 'Nakta',
+            'between': [f"Lagna Lord ({lagna_lord})", f"7th Lord ({seventh_lord})"],
+            'narrative': nakta.get('narrative', ''),
+            'bridge': nakta.get('bridge'),
+        }
+    else:
+        core_catalyst = {
+            'yoga': 'None',
+            'between': [f"Lagna Lord ({lagna_lord})", f"7th Lord ({seventh_lord})"],
+            'narrative': 'No decisive Tajik connection between the two significators.',
+        }
+
+    # Horary-to-natal
+    h2n = horary_to_natal_shift(lagna_sign, natal_lagna_sign)
+
+    return {
+        'sub_module': 'vivaha',
+        'verdict': verdict,
+        'verdict_text': verdict_text,
+        'certainty_score': strength['score'],
+        'certainty_band': strength['band'],
+        'certainty_narrative': strength['narrative'],
+        'core_catalyst': core_catalyst,
+        'querent_lord': {
+            'name': lagna_lord,
+            'avastha': querent_avastha.get('avastha'),
+            'condition': querent_avastha.get('condition'),
+            'outcome': querent_avastha.get('outcome'),
+            'is_combust': _is_combust(planets, lagna_lord),
+            'sign': planets.get(lagna_lord, {}).get('sign'),
+            'house': _planet_house(chart_data, lagna_lord),
+        },
+        'quesited_lord': {
+            'name': seventh_lord,
+            'avastha': quesited_avastha.get('avastha'),
+            'condition': quesited_avastha.get('condition'),
+            'outcome': quesited_avastha.get('outcome'),
+            'is_combust': _is_combust(planets, seventh_lord),
+            'sign': planets.get(seventh_lord, {}).get('sign'),
+            'house': _planet_house(chart_data, seventh_lord),
+        },
+        'aspect_l1_l7': asp_l1_l7,
+        'nakta_bridge': nakta,
+        'match_type': match_type,
+        'match_narrative': match_narrative,
+        'third_party_interference': interference,
+        'emotional_reciprocity': reciprocity,
+        'reciprocity_narrative': recip_narrative,
+        'karya_chain': karya,
+        'strength_scaling': strength,
+        'bhava_bala_7th': bhava_7,
+        'horary_to_natal': h2n,
+    }
+
+
+# =================================================================
+# END OF PHASE 1H + 1I + 1J + 1K (Vivaha)
 # =================================================================
