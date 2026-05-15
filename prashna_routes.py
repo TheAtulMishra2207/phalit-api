@@ -128,6 +128,13 @@ class PrashnaVivahaRequest(PrashnaChartRequest):
         description="User's natal Lagna sign (0=Aries..11=Pisces). "
                     "If provided, enables Horary-to-Natal Shift in the validation bar."
     )
+    full_query: Optional[str] = Field(
+        None,
+        description="The complete question text (used for long-horizon keyword "
+                    "detection). When mode='phonetic', query_text holds just the "
+                    "first crystallised word for Lagna derivation, while full_query "
+                    "holds the full sentence. When omitted, falls back to query_text."
+    )
 
 
 class PrashnaReportRequest(BaseModel):
@@ -482,6 +489,7 @@ def prashna_vivaha(req: PrashnaVivahaRequest) -> Dict:
         lagna_sign = int(req.lagna_override) % 12
         lagna_lon = lagna_sign * 30.0
         casting_note = f"Manual Lagna override: {SIGNS[lagna_sign]}"
+        phon = None
     elif req.mode == 'phonetic':
         if not req.query_text:
             raise HTTPException(status_code=400,
@@ -492,18 +500,21 @@ def prashna_vivaha(req: PrashnaVivahaRequest) -> Dict:
             lagna_sign = int(lagna_lon // 30) % 12
             casting_note = (f"Phonetic parsing failed ('{phon['error']}'). "
                             f"Fell back to time-based Lagna: {SIGNS[lagna_sign]}.")
+            phon = None
         else:
             lagna_sign = phon['sign_index']
             lagna_lon = lagna_sign * 30.0
+            single_lord_note = " (single-lord varga)" if phon.get('single_lord') else ""
             casting_note = (f"Phonetic Lagna from '{phon['matched_letter']}' "
                             f"(via {phon['ruling_planet']}, "
-                            f"position {phon['position_in_group']}, "
+                            f"position {phon['position_in_group']}{single_lord_note}, "
                             f"method {phon['method']}) → {SIGNS[lagna_sign]}")
     else:
         lagna_lon = _compute_ascendant(jd_ut, req.lat, req.lon)
         lagna_sign = int(lagna_lon // 30) % 12
         casting_note = (f"Time-based Lagna: {SIGNS[lagna_sign]} "
                         f"({lagna_lon - lagna_sign*30:.2f}° into sign)")
+        phon = None
 
     houses = _build_whole_sign_houses(lagna_sign, planets)
     sun_alt = compute_sun_altitude(jd_ut, req.lat, req.lon, planets['Sun']['longitude'])
@@ -541,7 +552,13 @@ def prashna_vivaha(req: PrashnaVivahaRequest) -> Dict:
     }
 
     # ===== 3. Vivaha judgment =====
-    vivaha = vivaha_judgment(active_chart, natal_lagna_sign=req.natal_lagna_sign)
+    # Long-horizon detection uses the FULL question text. In phonetic mode,
+    # the frontend sends just the first word as query_text (for Lagna derivation)
+    # and the complete sentence as full_query. Fall back to query_text otherwise.
+    horizon_text = req.full_query or req.query_text
+    vivaha = vivaha_judgment(active_chart,
+                             natal_lagna_sign=req.natal_lagna_sign,
+                             query_text=horizon_text)
 
     return {
         'base_chart': base_chart,
@@ -557,6 +574,7 @@ def prashna_vivaha(req: PrashnaVivahaRequest) -> Dict:
             'datetime_local_iso': jd_info['datetime_local_iso'],
             'timezone_used': jd_info['timezone_used'],
             'casting_note': casting_note,
+            'phonetic_match': phon,  # vibrational_accuracy + accuracy_note (None if not phonetic)
             'ayanamsha': 'Lahiri',
             'house_system': 'Whole Sign',
             'nodes': 'Mean',
