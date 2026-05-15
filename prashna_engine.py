@@ -184,6 +184,140 @@ DUAL_LORD_SIGN_MAP = {
 
 
 # =================================================================
+# SECTION 1A.5: DEGREE-BAND, LONG-HORIZON, SIGN-LORD UTILITIES
+# (Added in Phase 2 per Atul's audit — universal helpers used across
+#  Avastha enrichment, Pariheena nuance, and verdict framing.)
+# =================================================================
+
+
+# Per Atul's "Master Design for degree_position_band":
+#   0°–1°    Mrityu Bhaga / Sadyo-Gata     — Infantile / Extreme Weakness
+#   1°–10°   Udaya (Forming)               — Emergent, building narrative
+#   10°–20°  Pragalbha (Mature)            — Peak Utility, full Bala
+#   20°–28°  Culminating / Pariheena Band  — Intense / Fading, brittle
+#   28°–30°  Sandhi (Edge of Abyss)        — Functional Failure
+def compute_degree_band(longitude_or_degree_in_sign: float) -> Dict:
+    """
+    Resolve a planet's degree-within-sign to one of the 5 classical bands.
+
+    Accepts either a zodiacal longitude (0–360) or a degree-in-sign (0–30);
+    the function modulos by 30 either way.
+
+    Returns dict:
+        deg_in_sign:    float (0–30)
+        band_key:       'sadyo_gata' | 'udaya' | 'pragalbha' | 'culminating' | 'sandhi'
+        band_name:      Sanskrit label
+        band_english:   English label
+        narrative:      one-line outcome signature
+    """
+    deg = float(longitude_or_degree_in_sign) % 30.0
+
+    if deg < 1.0:
+        return {
+            'deg_in_sign': round(deg, 4),
+            'band_key': 'sadyo_gata',
+            'band_name': 'Mrityu Bhaga / Sadyo-Gata',
+            'band_english': 'Infantile · Extreme Weakness',
+            'narrative': ("The planet has just entered the sign; its energy is "
+                          "unfamiliar. Results are delayed or phantom."),
+        }
+    if deg < 10.0:
+        return {
+            'deg_in_sign': round(deg, 4),
+            'band_key': 'udaya',
+            'band_name': 'Udaya',
+            'band_english': 'Emergent · Forming',
+            'narrative': ("The planet is building its narrative — active but "
+                          "requires external support (aspects) to succeed."),
+        }
+    if deg < 20.0:
+        return {
+            'deg_in_sign': round(deg, 4),
+            'band_key': 'pragalbha',
+            'band_name': 'Pragalbha',
+            'band_english': 'Mature · Peak Utility',
+            'narrative': ("Full Bala — this is the only band where a YES verdict "
+                          "is truly reliable."),
+        }
+    if deg < 28.0:
+        return {
+            'deg_in_sign': round(deg, 4),
+            'band_key': 'culminating',
+            'band_name': 'Culminating / Pariheena Band',
+            'band_english': 'Intense · Fading',
+            'narrative': ("The planet is desperate to finish its task — high effort, "
+                          "but results are brittle."),
+        }
+    return {
+        'deg_in_sign': round(deg, 4),
+        'band_key': 'sandhi',
+        'band_name': 'Sandhi',
+        'band_english': 'Edge of Abyss · Functional Failure',
+        'narrative': ("The planet is drowning between two elements (Gandanta) and "
+                      "cannot fulfil the Karya."),
+    }
+
+
+# Long-horizon keywords — queries about life-long themes that exceed
+# Prashna's classical 6–12 month horizon. Triggers a disclaimer card.
+LONG_HORIZON_PATTERNS = [
+    'old age', 'oldage',
+    'lifelong', 'life-long', 'life long',
+    'all my life', 'rest of my life', 'rest of life',
+    'till death', 'until death', 'until i die', 'till i die',
+    'forever', 'permanent', 'permanently',
+    'whole life', 'entire life',
+    'next decade', 'decade', 'decades',
+    'ten years from now', 'twenty years',
+    'retirement', 'retired life',
+    'final years', 'last years',
+    'peaceful old age', 'happy old age', 'comfortable old age',
+    'shanti in old age',
+]
+
+
+def detect_long_horizon_query(query_text: Optional[str]) -> Dict:
+    """
+    Scan a query for long-horizon keywords. Returns whether Prashna's
+    6-12 month window is mathematically appropriate for the question.
+
+    Returns dict:
+        is_long_horizon:  bool
+        matched_keyword:  str | None
+        disclaimer:       str | None
+    """
+    if not query_text:
+        return {'is_long_horizon': False, 'matched_keyword': None, 'disclaimer': None}
+    q = query_text.lower()
+    for kw in LONG_HORIZON_PATTERNS:
+        if kw in q:
+            return {
+                'is_long_horizon': True,
+                'matched_keyword': kw,
+                'disclaimer': (
+                    f"This question concerns a multi-decade horizon "
+                    f"(\"{kw}\"). Prashna shows current momentum within a 6–12 "
+                    f"month window — it is not the appropriate sastra for "
+                    f"lifelong themes. For multi-decade questions about marriage "
+                    f"quality, consult your natal D-9 Navamsha and D-30 "
+                    f"Trishamsha. The Prashna verdict below addresses only the "
+                    f"immediate trajectory of the matter."
+                ),
+            }
+    return {'is_long_horizon': False, 'matched_keyword': None, 'disclaimer': None}
+
+
+def _sign_lord_signs(planet_name: str) -> List[int]:
+    """Return the sign indices ruled by a planet. Moon→[Cancer], Sun→[Leo],
+    others→both signs they rule (e.g. Mars→[Aries, Scorpio])."""
+    out = []
+    for s_idx, lord in enumerate(SIGN_LORDS):
+        if lord == planet_name:
+            out.append(s_idx)
+    return out
+
+
+# =================================================================
 # SECTION 1B: PRE-CAST HELPERS
 # =================================================================
 
@@ -316,6 +450,22 @@ def _resolve_position(planet: str, matched_letter: str,
     Bypasses _resolve_phonetic_match for cases where we know the position
     directly (e.g. roman-consonant lookup) rather than from list-index.
     """
+    # Pancha-Varga (strict 5-grid) belongs to Ka/Cha/Ta/ta/Pa-vargas → Mars/Venus/Mercury/Jupiter/Saturn
+    # Extended (Ya/Sha + vowels) → Moon/Sun. Atul's "Hybrid" labels:
+    pancha_planets = {'Mars', 'Venus', 'Mercury', 'Jupiter', 'Saturn'}
+    if planet in pancha_planets:
+        vibrational_accuracy = 'pancha-varga-high'
+        accuracy_note = ("First letter falls inside the strict 5x5 Pavarga grid — "
+                         "high vibrational accuracy.")
+    elif planet == 'Moon':
+        vibrational_accuracy = 'extended-sibilant'
+        accuracy_note = ("First letter falls in the Ya/Sha extended varga (Moon-ruled) — "
+                         "valid, but check Moon's sign for volatility.")
+    else:  # Sun (vowels)
+        vibrational_accuracy = 'extended-vowel'
+        accuracy_note = ("First letter is a vowel (Sun-ruled varga) — "
+                         "valid; vowel queries reflect raw intention.")
+
     if planet in SINGLE_LORD_SIGN:
         sign_idx = SINGLE_LORD_SIGN[planet]
         return {
@@ -323,10 +473,13 @@ def _resolve_position(planet: str, matched_letter: str,
             'sign_name': SIGNS[sign_idx],
             'sign_sanskrit': SIGN_SANSKRIT[sign_idx],
             'ruling_planet': planet,
-            'position_in_group': None,
+            'position_in_group': position,  # ALWAYS set — Moon's varga has positions too
             'matched_letter': matched_letter,
             'method': method,
             'confidence': 1.0,
+            'vibrational_accuracy': vibrational_accuracy,
+            'accuracy_note': accuracy_note,
+            'single_lord': True,
         }
 
     is_odd = (position % 2 == 1)
@@ -341,12 +494,42 @@ def _resolve_position(planet: str, matched_letter: str,
         'matched_letter': matched_letter,
         'method': method,
         'confidence': 1.0,
+        'vibrational_accuracy': vibrational_accuracy,
+        'accuracy_note': accuracy_note,
+        'single_lord': False,
     }
 
 
 def _resolve_phonetic_match(planet: str, data: Dict, matched_letter: str,
                             method: str, iast_idx: Optional[int] = None) -> Dict:
     """Resolve a matched letter to its Lagna sign per Pavarga rules."""
+
+    # Determine position-in-group consistently (1-indexed) for ALL planets,
+    # including single-lord (Moon, Sun) where Atul's audit specifies:
+    # "The Moon always has a position."
+    if method == 'devanagari':
+        try:
+            position = data['devanagari'].index(matched_letter) + 1
+        except ValueError:
+            position = 1
+    else:
+        position = (iast_idx if iast_idx is not None else 0) + 1
+
+    # Vibrational accuracy classification (Atul's Hybrid Approach):
+    pancha_planets = {'Mars', 'Venus', 'Mercury', 'Jupiter', 'Saturn'}
+    if planet in pancha_planets:
+        vibrational_accuracy = 'pancha-varga-high'
+        accuracy_note = ("First letter falls inside the strict 5x5 Pavarga grid — "
+                         "high vibrational accuracy.")
+    elif planet == 'Moon':
+        vibrational_accuracy = 'extended-sibilant'
+        accuracy_note = ("First letter falls in the Ya/Sha extended varga (Moon-ruled) — "
+                         "valid, but check Moon's sign for volatility.")
+    else:  # Sun
+        vibrational_accuracy = 'extended-vowel'
+        accuracy_note = ("First letter is a vowel (Sun-ruled varga) — "
+                         "valid; vowel queries reflect raw intention.")
+
     if data.get('single_lord'):
         sign_idx = SINGLE_LORD_SIGN[planet]
         return {
@@ -354,18 +537,16 @@ def _resolve_phonetic_match(planet: str, data: Dict, matched_letter: str,
             'sign_name': SIGNS[sign_idx],
             'sign_sanskrit': SIGN_SANSKRIT[sign_idx],
             'ruling_planet': planet,
-            'position_in_group': None,
+            'position_in_group': position,  # ALWAYS set
             'matched_letter': matched_letter,
             'method': method,
             'confidence': 1.0 if method != 'fallback' else 0.5,
+            'vibrational_accuracy': vibrational_accuracy,
+            'accuracy_note': accuracy_note,
+            'single_lord': True,
         }
 
-    # Dual-lord: determine position in group
-    if method == 'devanagari':
-        position = data['devanagari'].index(matched_letter) + 1
-    else:
-        position = (iast_idx if iast_idx is not None else 0) + 1
-
+    # Dual-lord: determine odd/even sign
     is_odd = (position % 2 == 1)
     odd_sign, even_sign = DUAL_LORD_SIGN_MAP[planet]
     sign_idx = odd_sign if is_odd else even_sign
@@ -379,6 +560,9 @@ def _resolve_phonetic_match(planet: str, data: Dict, matched_letter: str,
         'matched_letter': matched_letter,
         'method': method,
         'confidence': 1.0,
+        'vibrational_accuracy': vibrational_accuracy,
+        'accuracy_note': accuracy_note,
+        'single_lord': False,
     }
 
 
@@ -535,15 +719,25 @@ def compute_sincerity_score(chart_data: Dict) -> Dict:
     """
     Evaluate querent sincerity per the Prashna Ethical Filter.
 
+    Rebalanced per Atul's Master Tajik audit (Option C):
+      - Soften the benefic-aspect-on-7th-cusp penalty: -10 → -4
+      - Add classical Moon-in-Kendra sincere trigger: +12
+      - Add classical Saturn-in-Lagna insincere trigger: -15
+      - Add classical Saturn-in-7th insincere trigger: -12
+
     Insincere triggers (each reduces score):
-      - Moon in Lagna AND (Saturn or combust-Mercury) in any angular house
-      - Mars AND Mercury both aspect the Moon
-      - Jupiter or Mercury cast inimical aspect (square/opposition) on the 7th cusp
+      - Moon in Lagna AND (Saturn or combust-Mercury) in any angular house  (-20 / -20)
+      - Mars AND Mercury both aspect the Moon                                (-15)
+      - Saturn in Lagna (querent is testing the astrologer)                  (-15)
+      - Saturn in 7th house                                                  (-12)
+      - Jupiter or Mercury cast inimical aspect (square/opposition) on 7th   (-4)
 
     Sincere triggers (each increases score):
-      - Lagna conjoined with Jupiter / Venus / unafflicted Mercury
-      - Moon aspected by Jupiter
-      - Mercury or Jupiter in Lagna or 7th house
+      - Lagna conjoined with Jupiter / Venus                                 (+12 each)
+      - Lagna conjoined with unafflicted Mercury                             (+8)
+      - Moon in any Kendra (1/4/7/10) — classical "Mind in seat of action"   (+12)
+      - Moon aspected by Jupiter                                             (+15)
+      - Mercury or Jupiter in Lagna or 7th house                             (+8)
 
     Returns dict with score (0–100), verdict, triggers, narrative_lead.
     """
@@ -591,9 +785,19 @@ def compute_sincerity_score(chart_data: Dict) -> Dict:
             triggers_insincere.append("Mars and Mercury both aspect the Moon")
             score -= 15
 
-    # -- INSINCERE 3: Jupiter or Mercury inimical aspect (square/opposition) on 7th cusp
-    # Only counts when the planet sits elsewhere — occupation of Lagna or 7th supersedes
-    # this aspect-from-elsewhere reading and is handled under SINCERE 3 instead.
+    # -- INSINCERE 3 [NEW per Atul]: Saturn in Lagna — querent is testing
+    if _planet_in_house(houses, 'Saturn', 1):
+        triggers_insincere.append("Saturn occupies the Lagna — the querent is testing the astrologer")
+        score -= 15
+
+    # -- INSINCERE 4 [NEW per Atul]: Saturn in 7th house
+    if _planet_in_house(houses, 'Saturn', 7):
+        triggers_insincere.append("Saturn occupies the 7th house — corruption of the judgment seat")
+        score -= 12
+
+    # -- INSINCERE 5 [SOFTENED]: Jupiter or Mercury inimical aspect on 7th cusp
+    # Reduced from -10 to -4 — benefics in challenging aspect are mildly,
+    # not strongly, adverse to query sincerity.
     seventh_cusp_lon = ((lagna_sign_idx + 6) % 12) * 30.0
     for p in ['Jupiter', 'Mercury']:
         if _planet_in_house(houses, p, 1) or _planet_in_house(houses, p, 7):
@@ -603,8 +807,10 @@ def compute_sincerity_score(chart_data: Dict) -> Dict:
             continue
         if _within_aspect_orb(p_lon, seventh_cusp_lon, DEEPTAMSHA[p],
                               aspect_angles=[90, 180, 270]):
-            triggers_insincere.append(f"{p} casts an inimical aspect on the 7th cusp")
-            score -= 10
+            triggers_insincere.append(
+                f"{p} casts a square/opposition on the 7th cusp (mild benefic friction)"
+            )
+            score -= 4
 
     # -- SINCERE 1: Lagna conjoined with natural benefics
     for b in ['Jupiter', 'Venus']:
@@ -616,7 +822,18 @@ def compute_sincerity_score(chart_data: Dict) -> Dict:
         triggers_sincere.append("Mercury (unafflicted) occupies the Lagna")
         score += 8
 
-    # -- SINCERE 2: Moon aspected by Jupiter
+    # -- SINCERE 2 [NEW per Atul]: Moon in any Kendra
+    # Classical principle: Moon (Mind) in 1/4/7/10 = mind firmly seated in
+    # the seat of action; the querent's intent is grounded.
+    for kendra in [1, 4, 7, 10]:
+        if _planet_in_house(houses, 'Moon', kendra):
+            triggers_sincere.append(
+                f"Moon is in Kendra ({kendra}th house) — the mind is firmly seated"
+            )
+            score += 12
+            break  # one bonus
+
+    # -- SINCERE 3: Moon aspected by Jupiter
     if moon_lon is not None:
         jup_lon = planets.get('Jupiter', {}).get('longitude')
         if jup_lon is not None and _within_aspect_orb(
@@ -624,7 +841,7 @@ def compute_sincerity_score(chart_data: Dict) -> Dict:
             triggers_sincere.append("Moon is aspected by Jupiter")
             score += 15
 
-    # -- SINCERE 3: Mercury or Jupiter in Lagna or 7th house
+    # -- SINCERE 4: Mercury or Jupiter in Lagna or 7th house
     for p in ['Mercury', 'Jupiter']:
         if _planet_in_house(houses, p, 1) or _planet_in_house(houses, p, 7):
             triggers_sincere.append(f"{p} occupies the Lagna or the 7th house")
@@ -797,16 +1014,47 @@ def compute_avasthas(chart_data: Dict) -> Dict[str, Dict]:
             if nl in BENEFICS:
                 qualifying.append('Adhiveerya')
 
+        # Compute degree band (Phase 2 enrichment)
+        p_lon = planets[planet_name].get('longitude')
+        deg_band = compute_degree_band(p_lon) if p_lon is not None else None
+
         # Resolve by precedence
         if qualifying:
             winning = min(qualifying, key=lambda s: AVASTHA_PRECEDENCE.index(s))
             cond, outcome = AVASTHA_OUTCOMES[winning]
+
+            # Pariheena receives degree-band nuance per Atul's audit
+            # (a 1° Pisces Saturn ≠ 29° Pisces Saturn).
+            condition_enriched = cond
+            if winning == 'Pariheena' and deg_band is not None:
+                band_key = deg_band['band_key']
+                if band_key in ('culminating', 'sandhi'):
+                    condition_enriched = (
+                        f"{cond} — Pariheena (Strong): "
+                        "the planet is frantically retreating before its fall."
+                    )
+                elif band_key == 'sadyo_gata':
+                    condition_enriched = (
+                        f"{cond} — Pariheena (Trace): "
+                        "fresh into the sign; the debility is a distant fear."
+                    )
+                elif band_key == 'udaya':
+                    condition_enriched = (
+                        f"{cond} — Pariheena (Forming): "
+                        "long road ahead; success is possible via patience."
+                    )
+                # Pragalbha case is theoretically impossible for Pariheena
+                # (Pariheena = sign-before-debility, which by definition is the
+                # whole sign — but Pragalbha 10-20° is the centre, where the
+                # nuance is genuinely weakest)
+
             result[planet_name] = {
                 'avastha': winning,
-                'condition': cond,
+                'condition': condition_enriched,
                 'outcome': outcome,
                 'priority_index': AVASTHA_PRECEDENCE.index(winning),
                 'all_qualifying': qualifying,
+                'degree_band': deg_band,
             }
         else:
             result[planet_name] = {
@@ -815,6 +1063,7 @@ def compute_avasthas(chart_data: Dict) -> Dict[str, Dict]:
                 'outcome': 'Mixed / Mediocre results',
                 'priority_index': 99,
                 'all_qualifying': [],
+                'degree_band': deg_band,
             }
 
     return result
@@ -1131,16 +1380,159 @@ def detect_nakta(p_a: str, p_b: str, chart_data: Dict) -> Optional[Dict]:
     # Pick the fastest qualifying bridge (first in hierarchy)
     bridge_candidates.sort(key=lambda x: VELOCITY_HIERARCHY.index(x['bridge']))
     primary = bridge_candidates[0]
+    bridge_planet = primary['bridge']
+
+    # Identify the bridge's classical role (Atul's enrichment).
+    # The role depends on the Lagna of the chart — what house does this
+    # bridge planet RULE relative to the Prashna Lagna?
+    lagna_sign_idx = chart_data.get('lagna_sign')
+    role_label = None
+    role_narrative = None
+    if lagna_sign_idx is not None:
+        # Find which houses this bridge planet rules
+        bridge_signs = _sign_lord_signs(bridge_planet)
+        bridge_houses_ruled = sorted({
+            ((s - lagna_sign_idx) % 12) + 1 for s in bridge_signs
+        })
+
+        # Map house rulership to relationship role
+        if 3 in bridge_houses_ruled:
+            role_label = 'Sibling / Neighbour Facilitator'
+            role_narrative = (
+                f"{bridge_planet} rules the 3rd house — a sibling, neighbour, "
+                "or peer-level mediator facilitates the matter."
+            )
+        elif 9 in bridge_houses_ruled:
+            role_label = 'Elder / Guru Bridge'
+            role_narrative = (
+                f"{bridge_planet} rules the 9th house — a parent, guru, or "
+                "elder figure bridges the gap between the parties."
+            )
+        elif bridge_planet == 'Venus':
+            role_label = 'Romantic Catalyst'
+            role_narrative = (
+                "Venus is the bridge — a common friend, romantic intermediary, "
+                "or social catalyst delivers the result."
+            )
+        elif 5 in bridge_houses_ruled:
+            role_label = 'Children / Counsel Mediator'
+            role_narrative = (
+                f"{bridge_planet} rules the 5th house — a child, advisor, or "
+                "person of confidence mediates."
+            )
+        elif 11 in bridge_houses_ruled:
+            role_label = 'Friend-Group / Network Mediator'
+            role_narrative = (
+                f"{bridge_planet} rules the 11th house — a friend-of-friend "
+                "or wider network connection delivers the result."
+            )
+        else:
+            houses_str = ', '.join(f'{h}th' for h in bridge_houses_ruled)
+            role_label = 'Generic Intermediary'
+            role_narrative = (
+                f"{bridge_planet} rules the {houses_str} house — an "
+                "intermediary from that life-area bridges the matter."
+            )
 
     return {
         'planet_a': p_a,
         'planet_b': p_b,
-        'bridge': primary['bridge'],
+        'bridge': bridge_planet,
         'bridge_lon': primary['bridge_lon'],
+        'bridge_role': role_label,
+        'bridge_role_narrative': role_narrative,
         'all_bridges': bridge_candidates,
         'narrative': (f"Nakta — {p_a} and {p_b} have no direct aspect, but "
-                      f"{primary['bridge']} bridges them. Result reaches the querent "
+                      f"{bridge_planet} bridges them. Result reaches the querent "
                       f"through a mediator."),
+    }
+
+
+# =================================================================
+# ABHARA YOGA — when malefics interfere with a positive L1↔L7 aspect
+# Per Atul's audit: even if the aspect mathematically exists, a malefic
+# sitting between or aspecting the link makes the cost too high, shifting
+# the verdict from YES → CONDITIONAL or "YES with extreme friction."
+# =================================================================
+
+def detect_abhara_yoga(p_a: str, p_b: str, chart_data: Dict) -> Optional[Dict]:
+    """
+    Detect Abhara Yoga between p_a and p_b: when they ARE in direct Tajik
+    aspect, but a malefic (Mars, Saturn, or Rahu) sits at a longitude
+    BETWEEN their arc OR within orb of either lord — interfering with
+    the otherwise valid connection.
+
+    Returns dict if Abhara found, else None.
+    """
+    planets = chart_data.get('planets', {})
+    if p_a not in planets or p_b not in planets:
+        return None
+
+    direct = pairwise_aspect(p_a, p_b, chart_data)
+    if not direct.get('within_orb'):
+        return None  # No direct aspect → Abhara doesn't apply (use Nakta instead)
+
+    lon_a = planets[p_a].get('longitude')
+    lon_b = planets[p_b].get('longitude')
+    if lon_a is None or lon_b is None:
+        return None
+
+    # Sort for arc check
+    if lon_a <= lon_b:
+        lo_lon, hi_lon = lon_a, lon_b
+    else:
+        lo_lon, hi_lon = lon_b, lon_a
+    short_arc_is_direct = (hi_lon - lo_lon) <= 180.0
+
+    blockers: List[Dict] = []
+    for mal in ['Mars', 'Saturn', 'Rahu']:
+        if mal in (p_a, p_b):
+            continue
+        m_lon = planets.get(mal, {}).get('longitude')
+        if m_lon is None:
+            continue
+
+        # Mode 1: malefic sits between the two lords
+        if short_arc_is_direct:
+            between = lo_lon <= m_lon <= hi_lon
+        else:
+            between = (m_lon >= hi_lon) or (m_lon <= lo_lon)
+
+        # Mode 2: malefic is in orb-aspect of either lord
+        asp_a = pairwise_aspect(mal, p_a, chart_data)
+        asp_b = pairwise_aspect(mal, p_b, chart_data)
+        aspects_either = (asp_a.get('within_orb') or asp_b.get('within_orb'))
+
+        if between or aspects_either:
+            mode = 'sits_between' if between else 'aspects_link'
+            blockers.append({
+                'malefic': mal,
+                'mode': mode,
+                'narrative': (
+                    f"{mal} sits in the arc between {p_a} and {p_b}, "
+                    "blocking the line of intent."
+                    if mode == 'sits_between' else
+                    f"{mal} aspects {p_a} and/or {p_b} from elsewhere — "
+                    "the link is contested."
+                ),
+            })
+
+    if not blockers:
+        return None
+
+    # Sort: sits_between blockers are harsher than aspects_link
+    blockers.sort(key=lambda b: 0 if b['mode'] == 'sits_between' else 1)
+
+    return {
+        'planet_a': p_a,
+        'planet_b': p_b,
+        'blockers': blockers,
+        'severity': 'high' if blockers[0]['mode'] == 'sits_between' else 'moderate',
+        'narrative': (
+            f"Abhara Yoga — the aspect between {p_a} and {p_b} is valid, "
+            f"but {len(blockers)} malefic interference(s) make the result "
+            "structurally costly. Verdict downgraded by one band."
+        ),
     }
 
 
@@ -1460,20 +1852,82 @@ def karya_success_chain(chart_data: Dict, target_house_num: int) -> Dict:
                       f"no direct Tajik aspect.")
     })
 
-    # --- Rule 2: Mutual Exchange + Moon aspect ---
-    moon_in = (moon_aspect_a.get('within_orb', False)
-               or moon_aspect_b.get('within_orb', False))
-    rule2_sat = rule1_sat and moon_in
+    # --- Rule 2: Mutual Sign Exchange (Rashi Parivartana) + Drishti gate ---
+    # Per Atul's Master Sootra: a true Rule-2 fire requires BOTH
+    #   (a) Rashi Parivartana — L1 occupies L7's natal sign AND L7 occupies L1's
+    #   (b) Drishti — they have a Tajik aspect (1/4/7/10 kendra, 3/5/9/11 trikona-sahaja).
+    # A 2/12 or 6/8 placement is "Andha Parivartana" (Blind Exchange) — Rule 2
+    # fires but the verdict primitive is held at CONDITIONAL, not SUCCESS.
+    # Moon Conjunction (Moon in same sign as either lord) is an independent
+    # weaker channel that still satisfies Rule 2.
+    l1_sign = planets.get(lagna_lord, {}).get('sign_index')
+    l7_sign = planets.get(target_lord, {}).get('sign_index')
+
+    l1_signs_natural = _sign_lord_signs(lagna_lord)
+    l7_signs_natural = _sign_lord_signs(target_lord)
+
+    rashi_parivartana = (
+        l1_sign is not None and l7_sign is not None and
+        l1_sign in l7_signs_natural and l7_sign in l1_signs_natural
+    )
+
+    # Drishti / Andha classification
+    andha_parivartana = False
+    parivartana_narr = None
+    if rashi_parivartana:
+        house_distance = ((l7_sign - l1_sign) % 12) + 1  # 1-indexed
+        FAVOURABLE_HOUSES = {1, 4, 7, 10, 3, 5, 9, 11}
+        ANDHA_HOUSES = {2, 12, 6, 8}
+        if house_distance in FAVOURABLE_HOUSES:
+            parivartana_narr = (
+                f"Rashi Parivartana — {lagna_lord} sits in {target_lord}'s sign "
+                f"AND {target_lord} sits in {lagna_lord}'s sign, with a "
+                f"favourable {house_distance}/{((1 - house_distance) % 12) + 1} "
+                "house relationship. Strong mutual exchange."
+            )
+        elif house_distance in ANDHA_HOUSES:
+            andha_parivartana = True
+            parivartana_narr = (
+                f"Andha Parivartana (Blind Exchange) — the exchange exists "
+                f"({lagna_lord} ↔ {target_lord}) but the {house_distance}/12 "
+                "relationship blocks the result. Verdict held at conditional."
+            )
+
+    # Independent Moon-conjunction channel
+    # NB: when the Moon IS one of the lords (Cancer Lagna → Lagna Lord = Moon),
+    # the Moon-with-itself check would trivially pass. Guard against that.
+    moon_sign = planets.get('Moon', {}).get('sign_index')
+    moon_with_l1 = (lagna_lord != 'Moon' and
+                    moon_sign is not None and moon_sign == l1_sign)
+    moon_with_l7 = (target_lord != 'Moon' and
+                    moon_sign is not None and moon_sign == l7_sign)
+    moon_conjunction = moon_with_l1 or moon_with_l7
+    if moon_conjunction and not parivartana_narr:
+        if moon_with_l1 and moon_with_l7:
+            parivartana_narr = (
+                f"Moon Conjunction — Moon sits in the same sign as both "
+                f"{lagna_lord} and {target_lord}. Strong lunar witness."
+            )
+        elif moon_with_l1:
+            parivartana_narr = (
+                f"Moon Conjunction — Moon sits in the same sign as {lagna_lord} "
+                "(querent lord). Moon validates the querent's intent."
+            )
+        else:
+            parivartana_narr = (
+                f"Moon Conjunction — Moon sits in the same sign as {target_lord} "
+                "(quesited lord). Moon validates the matter's reality."
+            )
+
+    rule2_sat = rashi_parivartana or moon_conjunction
     rules.append({
-        'rule': 'Mutual Exchange + Moon',
+        'rule': 'Mutual Exchange / Moon Conjunction',
         'satisfied': rule2_sat,
+        'andha': andha_parivartana,
         'narrative': (
-            f"L1 ↔ L{target_house_num} are in aspect AND Moon aspects "
-            f"{lagna_lord if moon_aspect_a.get('within_orb') else target_lord} — "
-            f"Moon validates the connection."
-            if rule2_sat else
-            "Moon is not aspecting either significator within orb; the connection "
-            "lacks lunar witness."
+            parivartana_narr if parivartana_narr else
+            f"No Rashi Parivartana between {lagna_lord} and {target_lord}, "
+            "and Moon does not conjoin either lord. Rule 2 not satisfied."
         )
     })
 
@@ -1531,6 +1985,9 @@ def karya_success_chain(chart_data: Dict, target_house_num: int) -> Dict:
 
     positive_count = sum(1 for r in rules[:3] if r['satisfied'])
 
+    # Detect Andha Parivartana from Rule 2 detail (caveat downgrade)
+    andha_parivartana = rules[1].get('andha', False) if len(rules) > 1 else False
+
     # Verdict primitive
     if rule4_sat and positive_count == 0:
         verdict_primitive = 'failure'
@@ -1543,7 +2000,15 @@ def karya_success_chain(chart_data: Dict, target_house_num: int) -> Dict:
     else:
         verdict_primitive = 'confirmed'
 
+    # Andha Parivartana ceiling — per Atul's audit, a 2/12 or 6/8 mutual
+    # exchange is structurally blind. Even with positive_count=2, the result
+    # is held at CONDITIONAL pending external resolution.
+    if andha_parivartana and verdict_primitive in ('success', 'confirmed'):
+        verdict_primitive = 'conditional'
+
     verdict_modifier = 'with_delays' if (rule4_sat and positive_count >= 1) else None
+    if andha_parivartana and not verdict_modifier:
+        verdict_modifier = 'andha_parivartana'
 
     return {
         'querent_lord': lagna_lord,
@@ -1551,6 +2016,7 @@ def karya_success_chain(chart_data: Dict, target_house_num: int) -> Dict:
         'rules': rules,
         'positive_satisfied': positive_count,
         'rule4_fired': rule4_sat,
+        'andha_parivartana': andha_parivartana,
         'verdict_primitive': verdict_primitive,
         'verdict_modifier': verdict_modifier,
     }
@@ -1721,15 +2187,18 @@ def _planet_house(chart_data: Dict, planet_name: str) -> Optional[int]:
 
 
 def vivaha_judgment(chart_data: Dict,
-                    natal_lagna_sign: Optional[int] = None) -> Dict:
+                    natal_lagna_sign: Optional[int] = None,
+                    query_text: Optional[str] = None) -> Dict:
     """
     Full Vivaha (Marriage) judgment package. Bundles Karya chain output with
-    marriage-specific match-type detection, third-party interference scan, and
-    emotional reciprocity reading.
+    marriage-specific match-type detection, third-party interference scan,
+    emotional reciprocity reading, Abhara Yoga (malefic interference on the
+    direct link), and long-horizon disclaimer detection.
 
     Args:
         chart_data:        Prashna chart dict (from build_query_chart or base_chart)
         natal_lagna_sign:  Optional 0-11 sign index of the user's natal Lagna
+        query_text:        Optional original question text for long-horizon detection
 
     Returns the full Vivaha verdict package consumed by the AI narrative + UI.
     """
@@ -1748,7 +2217,7 @@ def vivaha_judgment(chart_data: Dict,
     # 3. Bhava Bala for the 7th
     bhava_7 = compute_bhava_bala(chart_data, 7)
 
-    # 4. Avasthas for both significators
+    # 4. Avasthas for both significators (already includes degree_band)
     avasthas = compute_avasthas(chart_data)
     querent_avastha = avasthas.get(lagna_lord, {'avastha': 'Neutral', 'condition': '—'})
     quesited_avastha = avasthas.get(seventh_lord, {'avastha': 'Neutral', 'condition': '—'})
@@ -1813,8 +2282,11 @@ def vivaha_judgment(chart_data: Dict,
         recip_narrative = ("Lagna Lord and 7th Lord do not aspect each other within orb — "
                            "emotional disengagement or blind spot between partners.")
 
-    # 8. Nakta bridge (if no direct aspect, is there a bridge planet?)
+    # 8a. Nakta bridge (if no direct aspect, is there a bridge planet?)
     nakta = detect_nakta(lagna_lord, seventh_lord, chart_data)
+
+    # 8b. Abhara Yoga (if there IS a direct aspect, are malefics interfering?)
+    abhara = detect_abhara_yoga(lagna_lord, seventh_lord, chart_data)
 
     # 9. Verdict synthesis
     primitive = karya['verdict_primitive']
@@ -1828,7 +2300,10 @@ def vivaha_judgment(chart_data: Dict,
         verdict_text = f'Conditional — only via {nakta["bridge"]} as intermediary'
     elif primitive == 'conditional':
         verdict = 'CONDITIONAL'
-        verdict_text = 'Conditional — depends on circumstantial support'
+        if modifier == 'andha_parivartana':
+            verdict_text = 'Conditional — Andha Parivartana (blind exchange) blocks the resolution'
+        else:
+            verdict_text = 'Conditional — depends on circumstantial support'
     elif primitive == 'success' and modifier == 'with_delays':
         verdict = 'YES_WITH_DELAYS'
         verdict_text = 'Yes — with initial delays or obstacles'
@@ -1841,6 +2316,15 @@ def vivaha_judgment(chart_data: Dict,
     else:  # confirmed
         verdict = 'YES'
         verdict_text = 'Yes — strongly confirmed'
+
+    # Abhara downgrade — even a positive verdict gets one band of friction added
+    if abhara and verdict in ('YES', 'YES_WITH_DELAYS'):
+        if verdict == 'YES':
+            verdict = 'YES_WITH_DELAYS'
+            verdict_text = 'Yes — but with malefic friction (Abhara Yoga)'
+        else:
+            # Already with delays; preserve but extend the text
+            verdict_text = 'Yes — with delays AND malefic friction (Abhara Yoga)'
 
     # Core catalyst — the most decisive single yoga/factor
     if karya['positive_satisfied'] >= 2:
@@ -1855,6 +2339,8 @@ def vivaha_judgment(chart_data: Dict,
             'between': [f"Lagna Lord ({lagna_lord})", f"7th Lord ({seventh_lord})"],
             'narrative': nakta.get('narrative', ''),
             'bridge': nakta.get('bridge'),
+            'bridge_role': nakta.get('bridge_role'),
+            'bridge_role_narrative': nakta.get('bridge_role_narrative'),
         }
     else:
         core_catalyst = {
@@ -1865,6 +2351,9 @@ def vivaha_judgment(chart_data: Dict,
 
     # Horary-to-natal
     h2n = horary_to_natal_shift(lagna_sign, natal_lagna_sign)
+
+    # Long-horizon disclaimer (Atul's mandatory safety rail)
+    long_horizon = detect_long_horizon_query(query_text)
 
     return {
         'sub_module': 'vivaha',
@@ -1879,6 +2368,7 @@ def vivaha_judgment(chart_data: Dict,
             'avastha': querent_avastha.get('avastha'),
             'condition': querent_avastha.get('condition'),
             'outcome': querent_avastha.get('outcome'),
+            'degree_band': querent_avastha.get('degree_band'),
             'is_combust': _is_combust(planets, lagna_lord),
             'sign': planets.get(lagna_lord, {}).get('sign'),
             'house': _planet_house(chart_data, lagna_lord),
@@ -1888,12 +2378,14 @@ def vivaha_judgment(chart_data: Dict,
             'avastha': quesited_avastha.get('avastha'),
             'condition': quesited_avastha.get('condition'),
             'outcome': quesited_avastha.get('outcome'),
+            'degree_band': quesited_avastha.get('degree_band'),
             'is_combust': _is_combust(planets, seventh_lord),
             'sign': planets.get(seventh_lord, {}).get('sign'),
             'house': _planet_house(chart_data, seventh_lord),
         },
         'aspect_l1_l7': asp_l1_l7,
         'nakta_bridge': nakta,
+        'abhara_yoga': abhara,
         'match_type': match_type,
         'match_narrative': match_narrative,
         'third_party_interference': interference,
@@ -1903,6 +2395,7 @@ def vivaha_judgment(chart_data: Dict,
         'strength_scaling': strength,
         'bhava_bala_7th': bhava_7,
         'horary_to_natal': h2n,
+        'long_horizon': long_horizon,
     }
 
 
