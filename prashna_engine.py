@@ -317,6 +317,134 @@ def _sign_lord_signs(planet_name: str) -> List[int]:
     return out
 
 
+def compute_avastha_band_synthesis(avastha_state: str, band_key: Optional[str]) -> Dict:
+    """
+    Per Atul's audit: resolve the contradiction between an Avastha (a strength
+    classification) and a degree-band (also a strength classification) when they
+    point in opposite directions. Returns a synthesized label that the narrative
+    AI must use to avoid contradictions like "Peak Utility but Conquered".
+
+    The cross-product gives 5 bands × 10 Avasthas = 50 cases, collapsed into
+    7 archetypes:
+        - Full Power         (auspicious + peak/late band)
+        - Thwarted Power     (inauspicious + Pragalbha — the audit case)
+        - Building Power     (auspicious + Udaya — growing strength)
+        - Forming Weakness   (inauspicious + Udaya — worsening)
+        - Brittle Failure    (inauspicious + Culminating — desperate end-game)
+        - Last Hurrah        (auspicious + Culminating — declining but effective)
+        - Functional Failure (Sandhi — drowned regardless of Avastha)
+        - Phantom            (Sadyo-Gata — too fresh; results unstable)
+    """
+    auspiciousness = AVASTHA_AUSPICIOUSNESS.get(avastha_state, 3)
+    is_inauspicious = auspiciousness < 3
+    is_auspicious = auspiciousness >= 5
+
+    if band_key == 'sandhi':
+        return {
+            'synthesis_label': 'Functional Failure',
+            'synthesis_narrative': (
+                "Drowning in Gandanta (sign-junction). Avastha is moot — the "
+                "planet cannot deliver, even with strong dignity elsewhere."
+            ),
+        }
+    if band_key == 'sadyo_gata':
+        return {
+            'synthesis_label': 'Phantom',
+            'synthesis_narrative': (
+                "Just entered the sign — the energy is unfamiliar. Avastha "
+                "classifications are provisional; results remain phantom-like."
+            ),
+        }
+
+    if band_key == 'pragalbha':
+        if is_inauspicious:
+            return {
+                'synthesis_label': 'Thwarted Power',
+                'synthesis_narrative': (
+                    "Peak Bala (Pragalbha) — the planet has the raw capacity "
+                    f"to act decisively. But the {avastha_state} state binds its "
+                    "hands: it is strong enough to suffer fully, not strong "
+                    "enough to redirect the outcome. High-stakes struggle."
+                ),
+            }
+        if is_auspicious:
+            return {
+                'synthesis_label': 'Full Power',
+                'synthesis_narrative': (
+                    f"Pragalbha + {avastha_state} — full capacity AND favourable "
+                    "dignity. The planet delivers cleanly within its remit."
+                ),
+            }
+        return {
+            'synthesis_label': 'Standing Power',
+            'synthesis_narrative': (
+                f"Pragalbha + {avastha_state} — strong capacity, ambiguous "
+                "dignity. Outcome depends on which planet wins the support battle."
+            ),
+        }
+
+    if band_key == 'udaya':
+        if is_inauspicious:
+            return {
+                'synthesis_label': 'Forming Weakness',
+                'synthesis_narrative': (
+                    f"Udaya (still building) + {avastha_state} — the affliction "
+                    "is not yet at full force, but the trajectory worsens with "
+                    "time. Acting early may pre-empt the worst phase."
+                ),
+            }
+        if is_auspicious:
+            return {
+                'synthesis_label': 'Building Power',
+                'synthesis_narrative': (
+                    f"Udaya + {avastha_state} — momentum is gathering on the "
+                    "favourable side. Results materialise as the planet matures."
+                ),
+            }
+        return {
+            'synthesis_label': 'Forming Mediocrity',
+            'synthesis_narrative': (
+                "Udaya in a neutral state — no narrative pull either way; "
+                "outcomes hinge on environmental triggers."
+            ),
+        }
+
+    if band_key == 'culminating':
+        if is_inauspicious:
+            return {
+                'synthesis_label': 'Brittle Failure',
+                'synthesis_narrative': (
+                    f"Culminating + {avastha_state} — the planet is desperate "
+                    "to finish a losing fight. Late-stage effort produces "
+                    "brittle, costly results. Cut losses where possible."
+                ),
+            }
+        if is_auspicious:
+            return {
+                'synthesis_label': 'Last Hurrah',
+                'synthesis_narrative': (
+                    f"Culminating + {avastha_state} — fading favour, but "
+                    "enough strength remains for one decisive delivery. "
+                    "Time-bound window."
+                ),
+            }
+        return {
+            'synthesis_label': 'Fading Trace',
+            'synthesis_narrative': (
+                "Culminating in a neutral state — energy receding without a "
+                "clear directional pull."
+            ),
+        }
+
+    # No band info — fall back to Avastha-only label
+    return {
+        'synthesis_label': avastha_state,
+        'synthesis_narrative': (
+            f"{avastha_state} state — see Avastha column for outcome signature."
+        ),
+    }
+
+
 # =================================================================
 # SECTION 1B: PRE-CAST HELPERS
 # =================================================================
@@ -715,7 +843,8 @@ def _within_aspect_orb(planet_lon: float, target_lon: float,
     return False
 
 
-def compute_sincerity_score(chart_data: Dict) -> Dict:
+def compute_sincerity_score(chart_data: Dict,
+                            natal_lagna_sign: Optional[int] = None) -> Dict:
     """
     Evaluate querent sincerity per the Prashna Ethical Filter.
 
@@ -724,6 +853,10 @@ def compute_sincerity_score(chart_data: Dict) -> Dict:
       - Add classical Moon-in-Kendra sincere trigger: +12
       - Add classical Saturn-in-Lagna insincere trigger: -15
       - Add classical Saturn-in-7th insincere trigger: -12
+
+    Extended per audit round 2 — natal house match:
+      - When the Prashna Lagna falls in the user's natal Kendra (1/4/7/10) or
+        Trikona (5/9), the query is considered "loyal" to the natal axis: +10
 
     Insincere triggers (each reduces score):
       - Moon in Lagna AND (Saturn or combust-Mercury) in any angular house  (-20 / -20)
@@ -738,8 +871,10 @@ def compute_sincerity_score(chart_data: Dict) -> Dict:
       - Moon in any Kendra (1/4/7/10) — classical "Mind in seat of action"   (+12)
       - Moon aspected by Jupiter                                             (+15)
       - Mercury or Jupiter in Lagna or 7th house                             (+8)
+      - Prashna Lagna activates natal Kendra/Trikona (natal-axis match)      (+10)
 
-    Returns dict with score (0–100), verdict, triggers, narrative_lead.
+    Returns dict with score (0–100), verdict, triggers, narrative_lead,
+    natal_match (the natal house number activated, if any).
     """
     if 'planets' not in chart_data or 'houses' not in chart_data:
         return {
@@ -848,6 +983,29 @@ def compute_sincerity_score(chart_data: Dict) -> Dict:
             score += 8
             break  # one bonus per group
 
+    # -- SINCERE 5 [NEW per Atul audit r2]: Natal house match
+    # When the Prashna Lagna lands in a natal Kendra (1/4/7/10) or Trikona (5/9),
+    # the query is "loyal" to the user's life-axis — the question genuinely
+    # concerns a meaningful life-area, not idle curiosity.
+    natal_match = None
+    if natal_lagna_sign is not None:
+        shift_house = ((lagna_sign_idx - natal_lagna_sign) % 12) + 1
+        natal_match = shift_house
+        zone_labels = {
+            1: 'Tanu Bhava (Self / Life-Path)',
+            4: 'Sukha Bhava (Home / Foundation)',
+            5: 'Putra Bhava (Counsel / Creativity)',
+            7: 'Yuvati Bhava (Partnership)',
+            9: 'Dharma Bhava (Wisdom / Belief)',
+            10: 'Karma Bhava (Career / Status)',
+        }
+        if shift_house in zone_labels:
+            triggers_sincere.append(
+                f"Prashna Lagna activates natal {zone_labels[shift_house]} — "
+                "the query is loyal to your life-axis"
+            )
+            score += 10
+
     score = max(0, min(100, score))
 
     if score >= 60:
@@ -870,6 +1028,7 @@ def compute_sincerity_score(chart_data: Dict) -> Dict:
         'verdict': verdict,
         'triggers_insincere': triggers_insincere,
         'triggers_sincere': triggers_sincere,
+        'natal_match': natal_match,
         'narrative_lead': narrative_lead,
     }
 
@@ -1017,6 +1176,7 @@ def compute_avasthas(chart_data: Dict) -> Dict[str, Dict]:
         # Compute degree band (Phase 2 enrichment)
         p_lon = planets[planet_name].get('longitude')
         deg_band = compute_degree_band(p_lon) if p_lon is not None else None
+        band_key = deg_band['band_key'] if deg_band else None
 
         # Resolve by precedence
         if qualifying:
@@ -1027,7 +1187,6 @@ def compute_avasthas(chart_data: Dict) -> Dict[str, Dict]:
             # (a 1° Pisces Saturn ≠ 29° Pisces Saturn).
             condition_enriched = cond
             if winning == 'Pariheena' and deg_band is not None:
-                band_key = deg_band['band_key']
                 if band_key in ('culminating', 'sandhi'):
                     condition_enriched = (
                         f"{cond} — Pariheena (Strong): "
@@ -1043,10 +1202,9 @@ def compute_avasthas(chart_data: Dict) -> Dict[str, Dict]:
                         f"{cond} — Pariheena (Forming): "
                         "long road ahead; success is possible via patience."
                     )
-                # Pragalbha case is theoretically impossible for Pariheena
-                # (Pariheena = sign-before-debility, which by definition is the
-                # whole sign — but Pragalbha 10-20° is the centre, where the
-                # nuance is genuinely weakest)
+
+            # Avastha+Band cross-product synthesis (Atul's "Thwarted Power" fix)
+            synthesis = compute_avastha_band_synthesis(winning, band_key)
 
             result[planet_name] = {
                 'avastha': winning,
@@ -1055,8 +1213,11 @@ def compute_avasthas(chart_data: Dict) -> Dict[str, Dict]:
                 'priority_index': AVASTHA_PRECEDENCE.index(winning),
                 'all_qualifying': qualifying,
                 'degree_band': deg_band,
+                'synthesis_label': synthesis['synthesis_label'],
+                'synthesis_narrative': synthesis['synthesis_narrative'],
             }
         else:
+            synthesis = compute_avastha_band_synthesis('Neutral', band_key)
             result[planet_name] = {
                 'avastha': 'Neutral',
                 'condition': 'No specific state qualified',
@@ -1064,6 +1225,8 @@ def compute_avasthas(chart_data: Dict) -> Dict[str, Dict]:
                 'priority_index': 99,
                 'all_qualifying': [],
                 'degree_band': deg_band,
+                'synthesis_label': synthesis['synthesis_label'],
+                'synthesis_narrative': synthesis['synthesis_narrative'],
             }
 
     return result
@@ -1350,6 +1513,7 @@ def detect_nakta(p_a: str, p_b: str, chart_data: Dict) -> Optional[Dict]:
     min_idx = min(a_idx, b_idx)  # bridge must be FASTER than both
 
     bridge_candidates = []
+    near_misses = []  # Atul's audit: show why almost-bridges failed
     for bridge in VELOCITY_HIERARCHY[:min_idx]:
         if bridge in (p_a, p_b):
             continue
@@ -1373,8 +1537,75 @@ def detect_nakta(p_a: str, p_b: str, chart_data: Dict) -> Optional[Dict]:
                 'aspect_with_a': asp_with_a['yoga'],
                 'aspect_with_b': asp_with_b['yoga'],
             })
+        else:
+            # Near-miss: in the arc but failed the orb check on one side.
+            # Show our work so the user sees what was tried.
+            failed_a = not asp_with_a.get('within_orb')
+            failed_b = not asp_with_b.get('within_orb')
+            is_retrograde = planets.get(bridge, {}).get('retrograde', False)
+            reason_parts = []
+            if failed_a:
+                reason_parts.append(
+                    f"too far from {p_a} "
+                    f"({asp_with_a.get('absolute_separation', 0):.1f}° "
+                    f"vs orb {asp_with_a.get('orb_used', 0):.1f}°)"
+                )
+            if failed_b:
+                reason_parts.append(
+                    f"too far from {p_b} "
+                    f"({asp_with_b.get('absolute_separation', 0):.1f}° "
+                    f"vs orb {asp_with_b.get('orb_used', 0):.1f}°)"
+                )
+            if is_retrograde:
+                reason_parts.append("retrograde (advice would backfire)")
+
+            # Identify what this would-be bridge does narratively if it had qualified
+            bridge_role_hint = None
+            l_idx = chart_data.get('lagna_sign')
+            if l_idx is not None:
+                br_signs = _sign_lord_signs(bridge)
+                houses_ruled = sorted({((s - l_idx) % 12) + 1 for s in br_signs})
+                if 3 in houses_ruled:
+                    bridge_role_hint = "would have been a sibling/peer mediator"
+                elif 9 in houses_ruled:
+                    bridge_role_hint = "would have been an elder/guru bridge"
+                elif bridge == 'Venus':
+                    bridge_role_hint = "would have been a romantic catalyst"
+                elif 5 in houses_ruled:
+                    bridge_role_hint = "would have been an advisor mediator"
+                elif 11 in houses_ruled:
+                    bridge_role_hint = "would have been a friend-network bridge"
+
+            near_misses.append({
+                'candidate': bridge,
+                'candidate_lon': round(b_lon, 2),
+                'retrograde': is_retrograde,
+                'failure_reasons': reason_parts,
+                'would_have_been': bridge_role_hint,
+                'narrative': (
+                    f"{bridge} sits in the arc between {p_a} and {p_b} and "
+                    f"{bridge_role_hint or 'would have been a useful intermediary'}, "
+                    "but " + " AND ".join(reason_parts) + "."
+                ),
+            })
 
     if not bridge_candidates:
+        # Return near-miss info even when no qualifying bridge — Atul's transparency fix
+        if near_misses:
+            return {
+                'planet_a': p_a,
+                'planet_b': p_b,
+                'bridge': None,
+                'bridge_role': None,
+                'bridge_role_narrative': None,
+                'near_misses': near_misses,
+                'all_bridges': [],
+                'narrative': (
+                    f"No Nakta bridge qualified between {p_a} and {p_b}, but "
+                    f"{len(near_misses)} candidate(s) came close — see near_misses "
+                    "for the audit trail."
+                ),
+            }
         return None
 
     # Pick the fastest qualifying bridge (first in hierarchy)
@@ -1532,6 +1763,94 @@ def detect_abhara_yoga(p_a: str, p_b: str, chart_data: Dict) -> Optional[Dict]:
             f"Abhara Yoga — the aspect between {p_a} and {p_b} is valid, "
             f"but {len(blockers)} malefic interference(s) make the result "
             "structurally costly. Verdict downgraded by one band."
+        ),
+    }
+
+
+# =================================================================
+# YAMA YOGA — the "Binder". When L1 and L7 are OUTSIDE direct aspect orb,
+# a third planet sitting exactly at the midpoint of their arc creates a
+# structural compulsion ("forceful marriage" trigger). Distinct from Nakta
+# (which transfers light via aspects) and Abhara (which interferes with an
+# existing aspect). Yama produces results through external/structural force
+# rather than mutual aspiration.
+# =================================================================
+
+def detect_yama_yoga(p_a: str, p_b: str, chart_data: Dict,
+                      midpoint_tolerance_deg: float = 5.0) -> Optional[Dict]:
+    """
+    Detect Yama Yoga: when p_a and p_b are NOT in direct aspect, but a third
+    planet sits within `midpoint_tolerance_deg` of the exact arc midpoint
+    between them — binding the result through external compulsion.
+
+    Returns dict if Yama detected, else None.
+    """
+    planets = chart_data.get('planets', {})
+    if p_a not in planets or p_b not in planets:
+        return None
+
+    direct = pairwise_aspect(p_a, p_b, chart_data)
+    if direct.get('within_orb'):
+        return None  # In aspect already — Yama only fires for non-aspecting pairs
+
+    lon_a = planets[p_a].get('longitude')
+    lon_b = planets[p_b].get('longitude')
+    if lon_a is None or lon_b is None:
+        return None
+
+    # Determine the short arc and its midpoint
+    diff = abs(lon_a - lon_b)
+    if diff > 180.0:
+        diff = 360.0 - diff
+        # short arc wraps; midpoint is on the other side
+        midpoint = ((lon_a + lon_b) / 2.0 + 180.0) % 360.0
+    else:
+        midpoint = (lon_a + lon_b) / 2.0
+
+    # Check every other planet for proximity to the midpoint
+    binders: List[Dict] = []
+    for binder in VELOCITY_HIERARCHY:
+        if binder in (p_a, p_b):
+            continue
+        b_lon = planets.get(binder, {}).get('longitude')
+        if b_lon is None:
+            continue
+        offset = _angular_diff(b_lon, midpoint)
+        if offset <= midpoint_tolerance_deg:
+            # Identify the binder's nature
+            is_malefic = binder in ('Mars', 'Saturn', 'Sun', 'Rahu', 'Ketu')
+            binders.append({
+                'binder': binder,
+                'midpoint_offset_deg': round(offset, 2),
+                'midpoint_lon': round(midpoint, 2),
+                'is_malefic': is_malefic,
+                'narrative': (
+                    f"{binder} sits within {offset:.1f}° of the exact midpoint "
+                    f"between {p_a} and {p_b} — "
+                    + ("a malefic binder forces the matter through pressure or "
+                       "external compulsion (e.g. family pressure, financial necessity, "
+                       "obligation)."
+                       if is_malefic else
+                       "a benefic binder offers a structural bridge — circumstances "
+                       "conspire to bring the parties together gently.")
+                ),
+            })
+
+    if not binders:
+        return None
+
+    binders.sort(key=lambda b: b['midpoint_offset_deg'])
+    return {
+        'planet_a': p_a,
+        'planet_b': p_b,
+        'midpoint_lon': round(midpoint, 2),
+        'binders': binders,
+        'severity': 'high' if binders[0]['is_malefic'] else 'moderate',
+        'narrative': (
+            f"Yama Yoga — {p_a} and {p_b} have no direct aspect, but "
+            f"{binders[0]['binder']} binds the arc at its midpoint "
+            "(structural compulsion). Result occurs through external force "
+            "rather than mutual aspiration."
         ),
     }
 
@@ -2288,6 +2607,11 @@ def vivaha_judgment(chart_data: Dict,
     # 8b. Abhara Yoga (if there IS a direct aspect, are malefics interfering?)
     abhara = detect_abhara_yoga(lagna_lord, seventh_lord, chart_data)
 
+    # 8c. Yama Yoga (if no direct aspect, is a planet at the midpoint binding them?)
+    # Per Atul's audit — even without aspect or relay, a midpoint planet can
+    # force the matter through structural compulsion (family pressure etc.)
+    yama = detect_yama_yoga(lagna_lord, seventh_lord, chart_data)
+
     # 9. Verdict synthesis
     primitive = karya['verdict_primitive']
     modifier = karya['verdict_modifier']
@@ -2369,6 +2693,8 @@ def vivaha_judgment(chart_data: Dict,
             'condition': querent_avastha.get('condition'),
             'outcome': querent_avastha.get('outcome'),
             'degree_band': querent_avastha.get('degree_band'),
+            'synthesis_label': querent_avastha.get('synthesis_label'),
+            'synthesis_narrative': querent_avastha.get('synthesis_narrative'),
             'is_combust': _is_combust(planets, lagna_lord),
             'sign': planets.get(lagna_lord, {}).get('sign'),
             'house': _planet_house(chart_data, lagna_lord),
@@ -2379,6 +2705,8 @@ def vivaha_judgment(chart_data: Dict,
             'condition': quesited_avastha.get('condition'),
             'outcome': quesited_avastha.get('outcome'),
             'degree_band': quesited_avastha.get('degree_band'),
+            'synthesis_label': quesited_avastha.get('synthesis_label'),
+            'synthesis_narrative': quesited_avastha.get('synthesis_narrative'),
             'is_combust': _is_combust(planets, seventh_lord),
             'sign': planets.get(seventh_lord, {}).get('sign'),
             'house': _planet_house(chart_data, seventh_lord),
@@ -2386,6 +2714,7 @@ def vivaha_judgment(chart_data: Dict,
         'aspect_l1_l7': asp_l1_l7,
         'nakta_bridge': nakta,
         'abhara_yoga': abhara,
+        'yama_yoga': yama,
         'match_type': match_type,
         'match_narrative': match_narrative,
         'third_party_interference': interference,
