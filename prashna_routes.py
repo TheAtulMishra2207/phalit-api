@@ -544,7 +544,8 @@ def prashna_vivaha(req: PrashnaVivahaRequest) -> Dict:
     active_chart = base_chart
 
     # ===== 2. Diagnostic layers =====
-    sincerity = compute_sincerity_score(active_chart)
+    sincerity = compute_sincerity_score(active_chart,
+                                        natal_lagna_sign=req.natal_lagna_sign)
     avasthas = compute_avasthas(active_chart)
     aspects = detect_all_aspects(active_chart)
     bhava_bala = {
@@ -617,12 +618,19 @@ TONE & STYLE:
 - Action-oriented. Every observation must connect to "so what should you do."
 - Honest about negative indicators. If the verdict is NO or CONDITIONAL, do not soften it into false hope.
 
+CONSISTENCY REQUIREMENTS (per Atul's audit):
+1. PLANETARY STATE CONSISTENCY — If a planet's synthesis_label is "Thwarted Power" (raw strength + affliction), describe it as a high-stakes struggle, NOT as weakness or incapacity. If "Brittle Failure", describe as desperate end-game. If "Building Power", describe as gathering momentum. The synthesis_label IS the lens — do not contradict it with "weak/feeble" or "strong/competent" language that contradicts the label.
+
+2. TIMING COHERENCE — Use a SINGLE temporal framework across all three tranches. If the macro-horizon is a Saturn cycle (months-to-years), reference it consistently. Micro-checks (e.g. "re-evaluate in 4 months") must be explicitly nested under the macro-horizon, not presented as alternative timelines. Example of CORRECT framing: "While the structural matter won't resolve until [macro window] when Saturn shifts out of Pariheena, you should take an emotional pulse-check at [micro window] as the Moon re-crosses the natal angle." NEVER give two timelines that imply different end-points.
+
+3. NATAL-PRASHNA HANDSHAKE — If the judgment contains a horary_to_natal shift that activates a meaningful natal house, name it explicitly in the narrative (e.g. "This question lands in your natal 10th house — your career/status axis"). The Sincerity section already credits this; the Arc tranche must reinforce it.
+
 OUTPUT FORMAT:
 Return ONLY a single valid JSON object. No preamble, no markdown fences, no commentary outside the JSON. The JSON must have exactly these keys:
 {
-  "tranche_arc":       "150-200 word narrative of the relationship dynamic — who is putting in effort, what is the emotional state of each lord, the aspect/Nakta structure, and what story the chart tells. Combines the Karya success chain with Tajik aspect data.",
-  "tranche_strategy":  "150-200 word strategic guidance — how to handle the matchmaking / engagement / proposal process given the indicators. References the match_type, third_party_interference (if any), and emotional_reciprocity. Tells the querent what posture to adopt: assert, wait, mediate, withdraw.",
-  "tranche_timeline":  "100-150 word timeline using the actual planetary timing indicators. Reference the certainty score, the strength scaling, and any nakta_bridge timing. Give a directional window (e.g. 'next 3-4 months', 'this Saturn cycle') — do NOT invent specific dates unless the chart strongly indicates them.",
+  "tranche_arc":       "150-200 word narrative of the relationship dynamic — who is putting in effort, what is the emotional state of each lord (USE the synthesis_label, not the raw avastha), the aspect/Nakta/Yama/Abhara structure, and what story the chart tells. If the horary_to_natal shift activates a meaningful natal house, name it.",
+  "tranche_strategy":  "150-200 word strategic guidance — how to handle the matchmaking / engagement / proposal process given the indicators. References the match_type, third_party_interference (if any), and emotional_reciprocity. Tells the querent what posture to adopt: assert, wait, mediate, withdraw. Time-references must align with tranche_timeline.",
+  "tranche_timeline":  "100-150 word timeline using the actual planetary timing indicators. State the SINGLE macro-horizon (e.g. 'Saturn's traversal of Pisces, roughly through [date]') AND any nested micro-checks (e.g. 'Moon's monthly return to your natal angle around [date]'). NEVER contradict the strategy tranche's timing. Give directional windows, not exact dates unless the chart strongly indicates them.",
   "platinum_rule":     "30-50 word directive — the single most important thing the querent should DO. Action verb leading. Concrete.",
   "friction_gate":     "30-50 word warning — the single most important thing the querent should AVOID. Concrete trigger or behaviour.",
   "sensory_remedy":    "30-50 word grounding / remedial practice. Lifestyle, dietary, or temporal (auspicious day/hour). May reference a planet's day (Friday for Venus, etc.) but never prescribe gems or expensive remedies."
@@ -665,28 +673,62 @@ def _build_vivaha_user_prompt(judgment: Dict,
         f"- Certainty Score: {judgment.get('certainty_score')}% ({judgment.get('certainty_band')})",
         f"- Certainty Narrative: {judgment.get('certainty_narrative')}",
         f"",
-        f"## Significators",
-        f"- **Querent (Lagna Lord)**: {q.get('name')} in {q.get('sign')} (house {q.get('house')}). "
-        f"Avastha: {q.get('avastha')} — {q.get('condition')}. "
-        f"Outcome: {q.get('outcome')}. Combust: {q.get('is_combust')}.",
-        f"- **Quesited (7th Lord)**: {qs.get('name')} in {qs.get('sign')} (house {qs.get('house')}). "
-        f"Avastha: {qs.get('avastha')} — {qs.get('condition')}. "
-        f"Outcome: {qs.get('outcome')}. Combust: {qs.get('is_combust')}.",
+        f"## Significators (USE synthesis_label as the dominant frame — do not contradict it)",
+        f"- **Querent (Lagna Lord)**: {q.get('name')} in {q.get('sign')} (house {q.get('house')}).",
+        f"  - Avastha: {q.get('avastha')} — {q.get('condition')}",
+        f"  - Degree band: {(q.get('degree_band') or {}).get('band_name', '—')} ({(q.get('degree_band') or {}).get('band_english', '—')})",
+        f"  - **Synthesis (use this frame): {q.get('synthesis_label')}** — {q.get('synthesis_narrative')}",
+        f"  - Outcome signature: {q.get('outcome')}. Combust: {q.get('is_combust')}.",
+        f"- **Quesited (7th Lord)**: {qs.get('name')} in {qs.get('sign')} (house {qs.get('house')}).",
+        f"  - Avastha: {qs.get('avastha')} — {qs.get('condition')}",
+        f"  - Degree band: {(qs.get('degree_band') or {}).get('band_name', '—')} ({(qs.get('degree_band') or {}).get('band_english', '—')})",
+        f"  - **Synthesis (use this frame): {qs.get('synthesis_label')}** — {qs.get('synthesis_narrative')}",
+        f"  - Outcome signature: {qs.get('outcome')}. Combust: {qs.get('is_combust')}.",
         f"",
         f"## Tajik Aspect (Lagna Lord ↔ 7th Lord)",
         f"- Yoga: {asp.get('yoga', 'None')}",
         f"- Within orb: {asp.get('within_orb', False)}",
-        f"- Orb: {asp.get('orb_used', '—')}°, separation {asp.get('separation', '—')}",
+        f"- Orb: {asp.get('orb_used', '—')}°, separation {asp.get('absolute_separation', '—')}°",
         f"- Aspect narrative: {asp.get('narrative', '—')}",
     ]
 
     if nakta:
+        bridge_label = nakta.get('bridge') or '(no qualifying bridge)'
         lines += [
             f"",
-            f"## Nakta Bridge",
-            f"- Bridge planet: {nakta.get('bridge')}",
+            f"## Nakta Bridge (third-planet relay)",
+            f"- Bridge planet: {bridge_label}",
+            f"- Bridge role: {nakta.get('bridge_role') or '—'}",
+            f"- Role narrative: {nakta.get('bridge_role_narrative') or '—'}",
             f"- Narrative: {nakta.get('narrative')}",
         ]
+        near_misses = nakta.get('near_misses') or []
+        if near_misses:
+            lines.append(f"- Near-misses (candidates that almost qualified):")
+            for nm in near_misses:
+                lines.append(f"  - {nm.get('narrative', '—')}")
+
+    abhara = judgment.get('abhara_yoga')
+    if abhara:
+        lines += [
+            f"",
+            f"## Abhara Yoga (malefic interference on a valid link)",
+            f"- Severity: {abhara.get('severity')}",
+            f"- Narrative: {abhara.get('narrative')}",
+        ]
+        for b in (abhara.get('blockers') or [])[:3]:
+            lines.append(f"  - {b.get('malefic')} ({b.get('mode')}): {b.get('narrative')}")
+
+    yama = judgment.get('yama_yoga')
+    if yama:
+        lines += [
+            f"",
+            f"## Yama Yoga (midpoint binder — forceful/structural compulsion)",
+            f"- Severity: {yama.get('severity')}",
+            f"- Narrative: {yama.get('narrative')}",
+        ]
+        for b in (yama.get('binders') or [])[:2]:
+            lines.append(f"  - {b.get('binder')} at midpoint offset {b.get('midpoint_offset_deg')}°: {b.get('narrative')}")
 
     lines += [
         f"",
@@ -718,11 +760,23 @@ def _build_vivaha_user_prompt(judgment: Dict,
     if h2n and 'error' not in h2n:
         lines += [
             f"",
-            f"## Horary-to-Natal Shift",
+            f"## Horary-to-Natal Shift (NAME THIS NATAL HOUSE in tranche_arc per consistency rule #3)",
             f"- House shift: {h2n.get('shift')} houses",
             f"- Activated natal house: {h2n.get('activated_natal_house')}",
             f"- Flourishing zone: {h2n.get('zone_label')}",
             f"- Zone narrative: {h2n.get('zone_narrative')}",
+        ]
+
+    lh = judgment.get('long_horizon') or {}
+    if lh.get('is_long_horizon'):
+        lines += [
+            f"",
+            f"## Horizon Boundary (CRITICAL — incorporate into tranche_timeline)",
+            f"- Long-horizon keyword matched: \"{lh.get('matched_keyword')}\"",
+            f"- The question implies a multi-decade horizon; Prashna's 6-12 month window",
+            f"  cannot answer it on its own. Acknowledge this boundary explicitly in",
+            f"  tranche_timeline. Frame the verdict as 'current trajectory' rather than",
+            f"  'lifelong forecast'. Recommend D-9/D-30 follow-up for the full horizon.",
         ]
 
     lines += [
