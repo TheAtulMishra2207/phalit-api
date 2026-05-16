@@ -69,6 +69,15 @@ from prashna_topics import (
     PRASHNA_TOPICS,
 )
 
+# Phase 4C — AI narrative dispatcher
+from prashna_narratives import (
+    generate_narrative,
+    NarrativeError,
+    NARRATIVE_TONES,
+    USER_PROMPT_BUILDERS,
+    PRASHNA_AI_MODEL,
+)
+
 router = APIRouter(prefix="", tags=["prashna"])
 
 
@@ -261,25 +270,42 @@ class PrashnaTopicRequest(BaseModel):
 class PrashnaReportRequest(BaseModel):
     """
     Request body for /prashnareport. Accepts a complete judgment package
-    (the dict returned by /prashna_vivaha or /prashna_garbha) plus optional
-    persona context, and returns a 3-tranche narrative + 3 action cards via
-    the LLM.
+    (the dict returned by /prashna_vivaha, /prashna_garbha, or /prashna_topic)
+    plus optional persona context, and returns a 3-tranche narrative + 3
+    action cards via the LLM.
+
+    Topic dispatch (Phase 4C):
+      - 'topic_id' is the canonical field; pass it from /prashna_topic clients
+      - 'sub_module' is the legacy field; preserved for /prashna_vivaha and
+        /prashna_garbha clients. If both are supplied, topic_id wins.
     """
-    sub_module: Literal['vivaha', 'garbha'] = Field(
-        'vivaha',
-        description="Which Vaivahika sub-module produced the judgment. "
-                    "Routes to the matching system prompt + user-prompt builder."
+    topic_id: Optional[str] = Field(
+        None,
+        description="Canonical topic identifier from PRASHNA_TOPICS. "
+                    "When omitted, falls back to sub_module."
+    )
+    sub_module: Optional[str] = Field(
+        None,
+        description="Legacy alias for topic_id. Accepted for backward compat "
+                    "with /prashna_vivaha and /prashna_garbha clients."
     )
     judgment: Dict = Field(
         ...,
-        description="The full judgment dict — from /prashna_vivaha's 'vivaha' key, "
-                    "or /prashna_garbha's 'garbha' key."
+        description="The full judgment dict — either the canonical shape from "
+                    "/prashna_topic's 'judgment' key, or the legacy flat shape "
+                    "from /prashna_vivaha's 'vivaha' / /prashna_garbha's 'garbha' key."
     )
     query_text: Optional[str] = Field(
         None, description="The original question text (for narrative context)"
     )
     cast_meta: Optional[Dict] = Field(
         None, description="Cast metadata (JD, datetime, place_name) for narrative context"
+    )
+    topic_inputs: Optional[Dict] = Field(
+        None,
+        description="Topic-specific inputs (e.g. querent_gender for Garbha). "
+                    "Required only when the judgment came from /prashna_topic and "
+                    "the prompt builder needs inputs not present in overlay data."
     )
 
 
@@ -669,24 +695,36 @@ def _flatten_to_legacy_vivaha(judgment: Dict) -> Dict:
     Keeps /prashnareport and any client code reading req.judgment.<key>
     fields working without modification. Phase 4C may eliminate this when
     the AI narrative builder reads from overlay_findings directly.
+
+    Phase 4D: replicates the legacy vivaha_judgment decision tree for
+    verdict_text + match_type + match_narrative + reciprocity_narrative
+    so the equivalence gate produces byte-identical output for the four
+    fields Atul flagged.
     """
     findings = judgment.get('overlay_findings', {})
-
-    def _data(name: str, key: str, default=None):
-        return (findings.get(name, {}).get('data') or {}).get(key, default)
-
     nakta_data = findings.get('nakta_abhara_scan', {}).get('data') or {}
+    karya = judgment.get('karya_chain') or {}
 
+    # Topic-faithful derivation of match_type + match_narrative + verdict_text
+    match_type, match_narrative = _vivaha_derive_match(judgment, nakta_data, karya)
+    verdict_text, verdict_final = _vivaha_derive_verdict_text(judgment, nakta_data, karya)
+
+    # Strip the canonical-only `source_overlay` metadata field from core_catalyst
+    # so the legacy shape matches byte-for-byte.
+    catalyst = judgment.get('core_catalyst')
+    if catalyst and 'source_overlay' in catalyst:
+        catalyst = {k: v for k, v in catalyst.items() if k != 'source_overlay'}
+
+    # Vivaha legacy did NOT include target_house/target_role in its dict
+    # (they were inferred). Preserve that to keep the equivalence gate clean.
     return {
         'sub_module':           'vivaha',
-        'verdict':              judgment.get('verdict'),
-        'verdict_text':         judgment.get('verdict_text'),
+        'verdict':              verdict_final,
+        'verdict_text':         verdict_text,
         'certainty_score':      judgment.get('certainty_score'),
         'certainty_band':       judgment.get('certainty_band'),
         'certainty_narrative':  judgment.get('certainty_narrative'),
-        'target_house':         judgment.get('target_house'),
-        'target_role':          judgment.get('target_role'),
-        'core_catalyst':        judgment.get('core_catalyst'),
+        'core_catalyst':        catalyst,
         'querent_lord':         judgment.get('querent_lord'),
         'quesited_lord':        judgment.get('quesited_lord'),
         # Tajik aspect + yogas (lifted from overlay data)
@@ -695,41 +733,129 @@ def _flatten_to_legacy_vivaha(judgment: Dict) -> Dict:
         'abhara_yoga':          nakta_data.get('abhara_yoga'),
         'yama_yoga':            nakta_data.get('yama_yoga'),
         # Vivaha-specific overlays
-        'third_party_interference': _data('third_party_interference', 'third_party_interference', []),
-        'emotional_reciprocity':    _data('emotional_reciprocity', 'emotional_reciprocity'),
-        'reciprocity_narrative':    _data('emotional_reciprocity', 'reciprocity_narrative'),
+        'third_party_interference': (findings.get('third_party_interference', {}).get('data') or {}).get('third_party_interference', []),
+        'emotional_reciprocity':    (findings.get('emotional_reciprocity', {}).get('data') or {}).get('emotional_reciprocity'),
+        'reciprocity_narrative':    _vivaha_derive_reciprocity_narrative(judgment, nakta_data),
         # Core layers
-        'karya_chain':          judgment.get('karya_chain'),
+        'karya_chain':          karya,
         'strength_scaling':     judgment.get('strength_scaling'),
         'bhava_bala_7th':       judgment.get('bhava_bala_target'),  # legacy key name
         'horary_to_natal':      judgment.get('horary_to_natal'),
         'long_horizon':         judgment.get('long_horizon'),
-        # Match-type derived from verdict primitive + asp_l1_l7
-        'match_type':           _vivaha_match_type(judgment, nakta_data),
-        'match_narrative':      _vivaha_match_narrative(judgment, nakta_data),
+        # Legacy match-type derivation (matches vivaha_judgment decision tree)
+        'match_type':           match_type,
+        'match_narrative':      match_narrative,
     }
 
 
-def _vivaha_match_type(judgment: Dict, nakta_data: Dict) -> str:
-    """Derive legacy match_type from new orchestrator output."""
-    verdict = judgment.get('verdict')
-    if verdict == 'NO': return 'failure'
-    if verdict == 'YES_WITH_DELAYS': return 'effort_based'
-    if verdict == 'CONDITIONAL': return 'conditional'
-    if nakta_data.get('aspect_l1_lt', {}).get('within_orb'):
-        return 'effortless'
-    return 'effort_based'
+# -----------------------------------------------------------------
+# Legacy vivaha_judgment decision-tree replicas — exact strings
+# -----------------------------------------------------------------
+
+def _vivaha_derive_match(judgment, nakta_data, karya):
+    """
+    Replica of vivaha_judgment's match_type / match_narrative decision tree.
+    Decision precedence:
+      1. Karya rule 4 fired AND positive_satisfied == 0 → 'failure'
+      2. L1↔L7 Ithesal OR L7↔Moon Ithesal              → 'effortless'
+      3. L1 in 7th OR Moon in 7th                       → 'effort_based'
+      4. otherwise                                       → 'conditional'
+    """
+    lagna_lord_name  = (judgment.get('querent_lord')  or {}).get('name', 'Lagna Lord')
+    target_lord_name = (judgment.get('quesited_lord') or {}).get('name', '7th Lord')
+
+    asp_l1_l7   = nakta_data.get('aspect_l1_lt') or {}
+    asp_l7_moon = nakta_data.get('aspect_lt_moon') or {}
+    l1_in_7th   = bool(nakta_data.get('l1_in_target'))
+    moon_in_7th = bool(nakta_data.get('moon_in_target'))
+
+    if karya.get('rule4_fired') and karya.get('positive_satisfied') == 0:
+        return ('failure',
+                'Significators are afflicted or combust with no positive Karya '
+                'support — the proposal is unlikely to materialise.')
+
+    if asp_l1_l7.get('yoga') == 'Ithesal' or asp_l7_moon.get('yoga') == 'Ithesal':
+        if asp_l1_l7.get('yoga') == 'Ithesal':
+            partner = f'{lagna_lord_name} (Lagna Lord)'
+        else:
+            partner = 'the Moon'
+        return ('effortless',
+                f"{target_lord_name} (7th lord) is in Ithesal with {partner} — "
+                "the match materialises without strenuous effort.")
+
+    if l1_in_7th or moon_in_7th:
+        who = 'Lagna Lord' if l1_in_7th else 'The Moon'
+        return ('effort_based',
+                f"{who} occupies the 7th house — the match materialises only "
+                "after a formal request or sustained effort.")
+
+    return ('conditional',
+            'No effortless or effort-based trigger fires; the result depends '
+            'on circumstantial factors (Nakta bridges, transits).')
 
 
-def _vivaha_match_narrative(judgment: Dict, nakta_data: Dict) -> str:
-    """Single-sentence summary of match type."""
-    mt = _vivaha_match_type(judgment, nakta_data)
-    return {
-        'effortless':   'Direct applying aspect between the lords — the match comes without strain.',
-        'effort_based': 'No direct aspect — fruition requires sustained effort or formal request.',
-        'conditional':  'Significators meet only through a third planet — outcome depends on circumstantial support.',
-        'failure':      'Significators are afflicted or fail the Karya chain — the match is not indicated.',
-    }.get(mt, '')
+def _vivaha_derive_verdict_text(judgment, nakta_data, karya):
+    """
+    Replica of vivaha_judgment's verdict_text decision tree, including the
+    nakta-rewrites-failure-to-conditional path and the Abhara downgrade band.
+
+    Returns (verdict_text, final_verdict) — final_verdict may differ from
+    judgment['verdict'] if Abhara forces a YES → YES_WITH_DELAYS downgrade
+    that wasn't captured in the orchestrator's generic synthesis.
+    """
+    primitive = karya.get('verdict_primitive')
+    modifier  = karya.get('verdict_modifier')
+    verdict   = judgment.get('verdict')
+    nakta     = nakta_data.get('nakta_bridge')
+    abhara    = nakta_data.get('abhara_yoga')
+
+    # Base verdict_text from primitive
+    if primitive == 'failure' and not nakta:
+        text = 'No — the proposal will not materialise'
+        verdict = 'NO'
+    elif primitive == 'failure' and nakta:
+        text = f'Conditional — only via {nakta["bridge"]} as intermediary'
+        verdict = 'CONDITIONAL'
+    elif primitive == 'conditional':
+        verdict = 'CONDITIONAL'
+        if modifier == 'andha_parivartana':
+            text = 'Conditional — Andha Parivartana (blind exchange) blocks the resolution'
+        else:
+            text = 'Conditional — depends on circumstantial support'
+    elif primitive == 'success' and modifier == 'with_delays':
+        verdict = 'YES_WITH_DELAYS'
+        text = 'Yes — with initial delays or obstacles'
+    elif primitive == 'success':
+        verdict = 'YES'
+        text = 'Yes — the proposal will materialise'
+    elif primitive == 'confirmed' and modifier == 'with_delays':
+        verdict = 'YES_WITH_DELAYS'
+        text = 'Yes — confirmed, with initial delays'
+    else:  # confirmed
+        verdict = 'YES'
+        text = 'Yes — strongly confirmed'
+
+    # Abhara downgrade band — preserves legacy quirk
+    if abhara and verdict in ('YES', 'YES_WITH_DELAYS'):
+        if verdict == 'YES':
+            verdict = 'YES_WITH_DELAYS'
+            text = 'Yes — but with malefic friction (Abhara Yoga)'
+        else:
+            text = 'Yes — with delays AND malefic friction (Abhara Yoga)'
+
+    return text, verdict
+
+
+def _vivaha_derive_reciprocity_narrative(judgment, nakta_data):
+    """
+    Topic-faithful reciprocity narrative based on the Vivaha-specific overlay.
+    Falls back to the overlay's stock text when no Lagna data is available.
+    """
+    findings = judgment.get('overlay_findings', {})
+    overlay = findings.get('emotional_reciprocity', {}) or {}
+    data = overlay.get('data') or {}
+    # The overlay already produces topic-faithful narrative — use it directly
+    return data.get('reciprocity_narrative') or overlay.get('narrative')
 
 
 def _flatten_to_legacy_garbha(judgment: Dict, querent_gender: Optional[str]) -> Dict:
@@ -1097,518 +1223,56 @@ def _get_anthropic_client():
 
 
 # Locked AI model per Atul's stack-wide decision
-PRASHNA_AI_MODEL = "claude-sonnet-4-6"
-
-
-VIVAHA_NARRATIVE_SYSTEM_PROMPT = """You are Phalit, a senior Vedic Jyotisha consultant trained in the Tajik (Prashna) school. You are advising a sincere, professional querent in their 30s-40s — not someone seeking entertainment or daily horoscopes. They face a real life-relationship decision and need an honest, structured, action-oriented reading.
-
-TONE & STYLE:
-- Professional, dignified, never melodramatic. No "destiny," no "cosmic," no "the universe is telling you."
-- Translate every Sanskrit term inline the first time you use it (e.g. "Ithesal — an applying aspect within orb").
-- Cite the actual planets and houses from the chart — never speak in generalities.
-- Address the querent directly in second person ("you", "your partner"), but never name them.
-- Action-oriented. Every observation must connect to "so what should you do."
-- Honest about negative indicators. If the verdict is NO or CONDITIONAL, do not soften it into false hope.
-
-CONSISTENCY REQUIREMENTS (per Atul's audit):
-1. PLANETARY STATE CONSISTENCY — If a planet's synthesis_label is "Thwarted Power" (raw strength + affliction), describe it as a high-stakes struggle, NOT as weakness or incapacity. If "Brittle Failure", describe as desperate end-game. If "Building Power", describe as gathering momentum. The synthesis_label IS the lens — do not contradict it with "weak/feeble" or "strong/competent" language that contradicts the label.
-
-2. TIMING COHERENCE — Use a SINGLE temporal framework across all three tranches. If the macro-horizon is a Saturn cycle (months-to-years), reference it consistently. Micro-checks (e.g. "re-evaluate in 4 months") must be explicitly nested under the macro-horizon, not presented as alternative timelines. Example of CORRECT framing: "While the structural matter won't resolve until [macro window] when Saturn shifts out of Pariheena, you should take an emotional pulse-check at [micro window] as the Moon re-crosses the natal angle." NEVER give two timelines that imply different end-points.
-
-3. NATAL-PRASHNA HANDSHAKE — If the judgment contains a horary_to_natal shift that activates a meaningful natal house, name it explicitly in the narrative (e.g. "This question lands in your natal 10th house — your career/status axis"). The Sincerity section already credits this; the Arc tranche must reinforce it.
-
-OUTPUT FORMAT:
-Return ONLY a single valid JSON object. No preamble, no markdown fences, no commentary outside the JSON. The JSON must have exactly these keys:
-{
-  "tranche_arc":       "150-200 word narrative of the relationship dynamic — who is putting in effort, what is the emotional state of each lord (USE the synthesis_label, not the raw avastha), the aspect/Nakta/Yama/Abhara structure, and what story the chart tells. If the horary_to_natal shift activates a meaningful natal house, name it.",
-  "tranche_strategy":  "150-200 word strategic guidance — how to handle the matchmaking / engagement / proposal process given the indicators. References the match_type, third_party_interference (if any), and emotional_reciprocity. Tells the querent what posture to adopt: assert, wait, mediate, withdraw. Time-references must align with tranche_timeline.",
-  "tranche_timeline":  "100-150 word timeline using the actual planetary timing indicators. State the SINGLE macro-horizon (e.g. 'Saturn's traversal of Pisces, roughly through [date]') AND any nested micro-checks (e.g. 'Moon's monthly return to your natal angle around [date]'). NEVER contradict the strategy tranche's timing. Give directional windows, not exact dates unless the chart strongly indicates them.",
-  "platinum_rule":     "30-50 word directive — the single most important thing the querent should DO. Action verb leading. Concrete.",
-  "friction_gate":     "30-50 word warning — the single most important thing the querent should AVOID. Concrete trigger or behaviour.",
-  "sensory_remedy":    "30-50 word grounding / remedial practice. Lifestyle, dietary, or temporal (auspicious day/hour). May reference a planet's day (Friday for Venus, etc.) but never prescribe gems or expensive remedies."
-}
-
-Do not include any other keys. Do not nest. Do not use markdown inside string values."""
-
-
-def _build_vivaha_user_prompt(judgment: Dict,
-                              query_text: Optional[str],
-                              cast_meta: Optional[Dict]) -> str:
-    """Compose the user prompt for the Vivaha narrative. Inlines all judgment data."""
-
-    q = judgment.get('querent_lord', {})
-    qs = judgment.get('quesited_lord', {})
-    asp = judgment.get('aspect_l1_l7', {})
-    nakta = judgment.get('nakta_bridge')
-    karya = judgment.get('karya_chain', {})
-    strength = judgment.get('strength_scaling', {})
-    bhava7 = judgment.get('bhava_bala_7th', {})
-    h2n = judgment.get('horary_to_natal', {})
-    catalyst = judgment.get('core_catalyst', {})
-    interference = judgment.get('third_party_interference', [])
-
-    place = (cast_meta or {}).get('place_name') or 'the querent\'s location'
-    when_local = (cast_meta or {}).get('datetime_local_iso', 'now')
-
-    lines = [
-        f"# VIVAHA PRASHNA — JUDGMENT PACKAGE",
-        f"",
-        f"## Querent's Question",
-        f"\"{query_text or '(no text provided)'}\"",
-        f"",
-        f"## Cast Context",
-        f"- Cast at: {when_local}",
-        f"- Place: {place}",
-        f"",
-        f"## Verdict (already computed by engine)",
-        f"- Verdict: **{judgment.get('verdict')}** — {judgment.get('verdict_text')}",
-        f"- Certainty Score: {judgment.get('certainty_score')}% ({judgment.get('certainty_band')})",
-        f"- Certainty Narrative: {judgment.get('certainty_narrative')}",
-        f"",
-        f"## Significators (USE synthesis_label as the dominant frame — do not contradict it)",
-        f"- **Querent (Lagna Lord)**: {q.get('name')} in {q.get('sign')} (house {q.get('house')}).",
-        f"  - Avastha: {q.get('avastha')} — {q.get('condition')}",
-        f"  - Degree band: {(q.get('degree_band') or {}).get('band_name', '—')} ({(q.get('degree_band') or {}).get('band_english', '—')})",
-        f"  - **Synthesis (use this frame): {q.get('synthesis_label')}** — {q.get('synthesis_narrative')}",
-        f"  - Outcome signature: {q.get('outcome')}. Combust: {q.get('is_combust')}.",
-        f"- **Quesited (7th Lord)**: {qs.get('name')} in {qs.get('sign')} (house {qs.get('house')}).",
-        f"  - Avastha: {qs.get('avastha')} — {qs.get('condition')}",
-        f"  - Degree band: {(qs.get('degree_band') or {}).get('band_name', '—')} ({(qs.get('degree_band') or {}).get('band_english', '—')})",
-        f"  - **Synthesis (use this frame): {qs.get('synthesis_label')}** — {qs.get('synthesis_narrative')}",
-        f"  - Outcome signature: {qs.get('outcome')}. Combust: {qs.get('is_combust')}.",
-        f"",
-        f"## Tajik Aspect (Lagna Lord ↔ 7th Lord)",
-        f"- Yoga: {asp.get('yoga', 'None')}",
-        f"- Within orb: {asp.get('within_orb', False)}",
-        f"- Orb: {asp.get('orb_used', '—')}°, separation {asp.get('absolute_separation', '—')}°",
-        f"- Aspect narrative: {asp.get('narrative', '—')}",
-    ]
-
-    if nakta:
-        bridge_label = nakta.get('bridge') or '(no qualifying bridge)'
-        lines += [
-            f"",
-            f"## Nakta Bridge (third-planet relay)",
-            f"- Bridge planet: {bridge_label}",
-            f"- Bridge role: {nakta.get('bridge_role') or '—'}",
-            f"- Role narrative: {nakta.get('bridge_role_narrative') or '—'}",
-            f"- Narrative: {nakta.get('narrative')}",
-        ]
-        near_misses = nakta.get('near_misses') or []
-        if near_misses:
-            lines.append(f"- Near-misses (candidates that almost qualified):")
-            for nm in near_misses:
-                lines.append(f"  - {nm.get('narrative', '—')}")
-
-    abhara = judgment.get('abhara_yoga')
-    if abhara:
-        lines += [
-            f"",
-            f"## Abhara Yoga (malefic interference on a valid link)",
-            f"- Severity: {abhara.get('severity')}",
-            f"- Narrative: {abhara.get('narrative')}",
-        ]
-        for b in (abhara.get('blockers') or [])[:3]:
-            lines.append(f"  - {b.get('malefic')} ({b.get('mode')}): {b.get('narrative')}")
-
-    yama = judgment.get('yama_yoga')
-    if yama:
-        lines += [
-            f"",
-            f"## Yama Yoga (midpoint binder — forceful/structural compulsion)",
-            f"- Severity: {yama.get('severity')}",
-            f"- Narrative: {yama.get('narrative')}",
-        ]
-        for b in (yama.get('binders') or [])[:2]:
-            lines.append(f"  - {b.get('binder')} at midpoint offset {b.get('midpoint_offset_deg')}°: {b.get('narrative')}")
-
-    lines += [
-        f"",
-        f"## Core Catalyst",
-        f"- Yoga: {catalyst.get('yoga')}",
-        f"- Between: {' & '.join(catalyst.get('between', []))}",
-        f"- Narrative: {catalyst.get('narrative')}",
-        f"",
-        f"## Karya Success Chain",
-        f"- Positive rules satisfied: {karya.get('positive_satisfied', 0)} / 3",
-        f"- Verdict primitive: {karya.get('verdict_primitive')}",
-        f"- Verdict modifier: {karya.get('verdict_modifier')}",
-        f"- Rule details: {karya.get('rule_detail', '—')}",
-        f"",
-        f"## Match Type & Reciprocity",
-        f"- Match type: {judgment.get('match_type')} — {judgment.get('match_narrative')}",
-        f"- Emotional reciprocity: {judgment.get('emotional_reciprocity')} — {judgment.get('reciprocity_narrative')}",
-        f"",
-        f"## Bhava Bala — 7th House",
-        f"- Net strength: {bhava7.get('net_strength_pct', '—')}% ({bhava7.get('verdict', '—')})",
-        f"- Gross: {bhava7.get('gross_strength_pct', '—')}%, afflictions: {len(bhava7.get('malefic_afflictions', []))}",
-    ]
-
-    if interference:
-        lines += [f"", f"## Third-Party Interference"]
-        for itf in interference:
-            lines.append(f"- {itf.get('type')}: {itf.get('trigger')}")
-
-    if h2n and 'error' not in h2n:
-        lines += [
-            f"",
-            f"## Horary-to-Natal Shift (NAME THIS NATAL HOUSE in tranche_arc per consistency rule #3)",
-            f"- House shift: {h2n.get('shift')} houses",
-            f"- Activated natal house: {h2n.get('activated_natal_house')}",
-            f"- Flourishing zone: {h2n.get('zone_label')}",
-            f"- Zone narrative: {h2n.get('zone_narrative')}",
-        ]
-
-    lh = judgment.get('long_horizon') or {}
-    if lh.get('is_long_horizon'):
-        lines += [
-            f"",
-            f"## Horizon Boundary (CRITICAL — incorporate into tranche_timeline)",
-            f"- Long-horizon keyword matched: \"{lh.get('matched_keyword')}\"",
-            f"- The question implies a multi-decade horizon; Prashna's 6-12 month window",
-            f"  cannot answer it on its own. Acknowledge this boundary explicitly in",
-            f"  tranche_timeline. Frame the verdict as 'current trajectory' rather than",
-            f"  'lifelong forecast'. Recommend D-9/D-30 follow-up for the full horizon.",
-        ]
-
-    lines += [
-        f"",
-        f"---",
-        f"",
-        f"Produce the 3-tranche narrative and 3 action cards now. JSON only, no other text.",
-    ]
-
-    return "\n".join(lines)
+# Locked AI model — imported from prashna_narratives via PRASHNA_AI_MODEL.
+# System prompts and per-topic user-prompt builders live in prashna_narratives.py
+# and are dispatched via generate_narrative(). See Phase 4C refactor.
 
 
 # -----------------------------------------------------------------
-# PHASE 3C — GARBHA AI NARRATIVE
-# Reference weighting hardcoded: Prashna Marga > Tajik Neelkanthi > Phaladeepika
-# Tonal shift from Vivaha: more tender, less transactional. The querent on a
-# fertility query is often emotionally vulnerable — the prompt must hold both
-# honesty about negative indicators AND empathy about the stakes.
+# PHASE 2 + 4C: AI NARRATIVE ENDPOINT
 # -----------------------------------------------------------------
-
-GARBHA_NARRATIVE_SYSTEM_PROMPT = """You are Phalit, a senior Vedic Jyotisha consultant trained in the Tajik (Prashna) school, advising a sincere querent on a question of conception. The querent is in their late 20s to early 40s and is asking about a real, often emotionally heavy life-area — fertility, pregnancy, or progeny. Your tone is gentler than for a marriage reading, but no less honest.
-
-REFERENCE WEIGHTING (when classical sources contradict, use this priority):
-1. **Prashna Marga** (Kerala school, ch. on Putra Prashna / Garbha Vichara) — absolute authority on biological viability and verdict states.
-2. **Tajik Neelkanthi** — authority for mathematical timing windows, Ithesal, Kamboola, Yama, and other Tajik yogas.
-3. **Phaladeepika** (Mantreswara) — used for translating the Avastha + Degree-Band synthesis into clear actionable text.
-
-TONE & STYLE:
-- Warm but honest. Use words like "gentle," "patient," "trust the body," "small steps" — not "destiny," "cosmic," or "the universe is telling you."
-- Translate every Sanskrit term inline the first time used (e.g. "Putra Bhava — the 5th house of progeny", "Beeja Sphuta — the male fertility coordinate").
-- Cite actual planets and houses from the chart. Never speak in generalities.
-- Address the querent directly in second person ("you", "your body", "your partner"), but never name them.
-- Do not soft-pedal negative indicators. If the verdict is NO, HIGH_RISK, or CONDITIONAL_MEDICAL, say so clearly — but lead with compassion before the news.
-- For HIGH_RISK or eclipse-shadowed cases, the medical-monitoring recommendation is mandatory.
-
-CONSISTENCY REQUIREMENTS (carried over from Vivaha, all mandatory):
-
-1. **PLANETARY STATE CONSISTENCY (synthesis_label is the lens)** — Each lord arrives with a synthesis_label (e.g. "Thwarted Power", "Building Power", "Brittle Failure"). The narrative MUST use this label as the dominant frame and never contradict it. A "Thwarted Power" 5th lord is NOT weak — it has full capacity but is bound by affliction. A "Building Power" 5th lord is gathering momentum, not yet at peak.
-
-2. **TIMING COHERENCE — single macro-horizon, nested micro-checks** — Use ONE temporal framework across all three tranches. Garbha questions usually have a 6–18 month outer horizon (Jupiter cycle, Saturn movement out of Pisces/Pariheena). Micro-cycles (Moon's monthly return, 27–28 day cellular window) are NESTED under the macro horizon, not presented as competing timelines. NEVER state two end-points that contradict each other.
-
-3. **NATAL-PRASHNA HANDSHAKE** — If the horary_to_natal data activates a meaningful natal house, name it explicitly in tranche_arc (e.g. "This question lands on your natal 5th — your own progeny axis").
-
-4. **INCONCLUSIVE MODIFIER HANDLING** — If the judgment's verdict_modifier is "INCONCLUSIVE_RECAST_REQUIRED" (fires for current_pregnancy_confirmation when Moon is void-of-course or 5th lord is heavily combust), the tone shifts to "next cellular window." Do NOT issue a YES or NO. Frame the verdict as "the chart cannot resolve this cleanly right now; recast in 27–28 days as the lunar cycle completes." Stress that this is cosmic indeterminacy, not denial. The clinical disclaimer is mandatory.
-
-5. **MEDICAL DISCLAIMER FOR PREGNANCY CONFIRMATION** — When intent is `current_pregnancy_confirmation`, every tranche must reinforce that Prashna is supplementary to a clinical pregnancy test. Phrase it as "the chart suggests direction; only a test confirms" — not "you should get tested" (which is intrusive).
-
-6. **SPHUTA INTERPRETATION** — Beeja and Kshetra Sphutas are biological-coordinate filters. When sphuta_effect is "bonus_15," frame as "the body's cellular configuration favours conception this cycle." When sphuta_effect is "cap_50" (Sphuta in Alpa-Putra sterile sign), frame as "physiological friction at the coordinate level — a gentle reset is needed, often through diet, stress reduction, or medical workup."
-
-7. **MARS-5TH POLARITY** — If mars_5th_risk is true, the narrative must flag miscarriage/surgical risk firmly. If mars_5th_vitality is true, frame Mars as "vital warmth, often signalling a strong male child" (Mangala Karaka).
-
-8. **HUSBAND-PIVOT ACKNOWLEDGMENT** — If is_husband_pivot is true, the querent is the husband. Address him directly. Mention that the chart was rotated to read the partner's progeny zone (11th from his Prashna Lagna).
-
-9. **LINEAGE-QUERY FRAMING** — If is_lineage_query is true, the question targets the 9th house (lineage/heir), not the 5th (progeny generally). The narrative must distinguish between "will a child be conceived" and "will the family line continue through this child."
-
-OUTPUT FORMAT:
-Return ONLY a single valid JSON object. No preamble, no markdown fences, no commentary outside the JSON. The JSON must have exactly these keys:
-{
-  "tranche_arc":       "150-200 word narrative of the fertility dynamic. USE synthesis_label for both lords. If horary_to_natal activates a meaningful natal house, name it. If husband-pivot, address the husband. If lineage-query, frame the 9th-house lens. Name the Sphuta coordinate and its effect (bonus or cap).",
-  "tranche_strategy":  "150-200 word strategic guidance. Reference the active yogas (Kamboola substitution, Gada compression, Abhara friction, sterile cusp downgrade) and any third-party signals (Rahu = assisted conception, Ketu = adoption path). Tell the querent what posture to adopt: try actively, wait, seek medical workup, or explore alternative paths. Timing-references must align with tranche_timeline.",
-  "tranche_timeline":  "100-150 word timeline. Use the conception window: state the macro horizon (Jupiter shift, Saturn movement out of Pariheena) AND nested micro-checks (Moon's monthly return). If verdict_modifier is INCONCLUSIVE_RECAST_REQUIRED, frame the 27-28 day window as primary. If eclipse_proximity is active, mention the shadow window and recommend deferring major decisions until it passes. NEVER contradict the strategy tranche's timing.",
-  "platinum_rule":     "30-50 word directive — the single most important thing the querent should DO. Action verb leading. Concrete. Tender phrasing for emotional weight.",
-  "friction_gate":     "30-50 word warning — the single most important thing the querent should AVOID. Concrete trigger or behaviour. For HIGH_RISK verdicts, this is where medical monitoring or activity restriction goes.",
-  "sensory_remedy":    "30-50 word grounding / remedial practice. Lifestyle, dietary, temporal (Thursday for Jupiter, Friday for Venus, Monday for Moon). Pregnancy-relevant practices: prenatal preparation, stress reduction, fertility-friendly diet. Never prescribe gems, expensive remedies, or specific medical interventions."
-}
-
-Do not include any other keys. Do not nest. Do not use markdown inside string values."""
-
-
-def _build_garbha_user_prompt(judgment: Dict,
-                              query_text: Optional[str],
-                              cast_meta: Optional[Dict]) -> str:
-    """Compose the user prompt for the Garbha narrative. Inlines all judgment data."""
-
-    q = judgment.get('querent_lord', {})
-    qs = judgment.get('quesited_lord', {})
-    asp = judgment.get('aspect_l1_lt', {})
-    nakta = judgment.get('nakta_bridge')
-    abhara = judgment.get('abhara_yoga')
-    yama = judgment.get('yama_yoga')
-    kamboola = judgment.get('kamboola_yoga')
-    gada = judgment.get('gada_yoga')
-    karya = judgment.get('karya_chain', {})
-    strength = judgment.get('strength_scaling', {})
-    bhava = judgment.get('bhava_bala_target', {})
-    h2n = judgment.get('horary_to_natal', {})
-    catalyst = judgment.get('core_catalyst', {})
-    eclipse = judgment.get('eclipse_proximity')
-
-    intent = judgment.get('intent', 'conception_possibility')
-    target_house = judgment.get('target_house', 5)
-    target_role = judgment.get('target_role', '5th — Putra Bhava')
-    is_husband_pivot = judgment.get('is_husband_pivot', False)
-    is_lineage_query = judgment.get('is_lineage_query', False)
-    querent_gender = judgment.get('querent_gender', 'female')
-    verdict_modifier = judgment.get('verdict_modifier')
-
-    sphuta_active = judgment.get('sphuta_active')
-    sphuta_effect = judgment.get('sphuta_effect')
-    mars_5th_risk = judgment.get('mars_5th_risk', False)
-    mars_5th_vitality = judgment.get('mars_5th_vitality', False)
-    target_cusp_sterile = judgment.get('target_cusp_sterile', False)
-    rahu_in_target = judgment.get('rahu_in_target', False)
-    ketu_in_target = judgment.get('ketu_in_target', False)
-
-    place = (cast_meta or {}).get('place_name') or "the querent's location"
-    when_local = (cast_meta or {}).get('datetime_local_iso', 'now')
-
-    lines = [
-        f"# GARBHA PRASHNA — JUDGMENT PACKAGE",
-        f"",
-        f"## Querent's Question",
-        f"\"{query_text or '(no text provided)'}\"",
-        f"",
-        f"## Querent Profile",
-        f"- Gender: {querent_gender}",
-        f"- Intent (classified): {intent}",
-        f"- Husband-pivot: {is_husband_pivot} (target rotated to 5th-from-7th when True)",
-        f"- Lineage-query: {is_lineage_query} (target on 9th house when True)",
-        f"",
-        f"## Cast Context",
-        f"- Cast at: {when_local}",
-        f"- Place: {place}",
-        f"- Target house: {target_house} ({target_role})",
-        f"",
-        f"## Verdict (already computed by engine)",
-        f"- Verdict: **{judgment.get('verdict')}** — {judgment.get('verdict_text')}",
-        f"- Verdict modifier: **{verdict_modifier or 'None'}**",
-        f"- Certainty Score: {judgment.get('certainty_score')}% ({judgment.get('certainty_band')})",
-        f"- Certainty narrative: {judgment.get('certainty_narrative')}",
-    ]
-
-    if verdict_modifier == 'INCONCLUSIVE_RECAST_REQUIRED':
-        lines += [
-            f"",
-            f"## ⚠ INCONCLUSIVE MODIFIER ACTIVE",
-            f"- The Moon is void-of-course OR the {target_house}th lord is heavily combust.",
-            f"- The narrative MUST frame the verdict as 'cosmic indeterminacy, not denial.'",
-            f"- Recommend recasting in 27-28 days as the lunar cycle completes.",
-            f"- Clinical disclaimer is mandatory in every tranche.",
-        ]
-
-    if intent == 'current_pregnancy_confirmation':
-        lines += [
-            f"",
-            f"## 🏥 MEDICAL DISCLAIMER REQUIRED",
-            f"- Intent is current_pregnancy_confirmation.",
-            f"- Every tranche must reinforce that Prashna is supplementary to a clinical test.",
-            f"- Frame as 'chart suggests direction; only a test confirms' — never 'you should get tested.'",
-        ]
-
-    lines += [
-        f"",
-        f"## Significators (USE synthesis_label as the dominant frame — do not contradict it)",
-        f"- **Querent (Lagna Lord)**: {q.get('name')} in {q.get('sign')} (house {q.get('house')}).",
-        f"  - Avastha: {q.get('avastha')} — {q.get('condition')}",
-        f"  - Degree band: {(q.get('degree_band') or {}).get('band_name', '—')} ({(q.get('degree_band') or {}).get('band_english', '—')})",
-        f"  - **Synthesis (use this frame): {q.get('synthesis_label')}** — {q.get('synthesis_narrative')}",
-        f"  - Outcome signature: {q.get('outcome')}. Combust: {q.get('is_combust')}.",
-        f"- **Quesited ({target_house}th Lord)**: {qs.get('name')} in {qs.get('sign')} (house {qs.get('house')}).",
-        f"  - Avastha: {qs.get('avastha')} — {qs.get('condition')}",
-        f"  - Degree band: {(qs.get('degree_band') or {}).get('band_name', '—')} ({(qs.get('degree_band') or {}).get('band_english', '—')})",
-        f"  - **Synthesis (use this frame): {qs.get('synthesis_label')}** — {qs.get('synthesis_narrative')}",
-        f"  - Outcome signature: {qs.get('outcome')}. Combust: {qs.get('is_combust')}. Heavily combust: {qs.get('is_heavily_combust')}.",
-        f"",
-        f"## Tajik Aspect (Lagna Lord ↔ {target_house}th Lord)",
-        f"- Yoga: {asp.get('yoga', 'None')}",
-        f"- Within orb: {asp.get('within_orb', False)}",
-        f"- Orb: {asp.get('orb_used', '—')}°, separation {asp.get('absolute_separation', '—')}°",
-        f"- Aspect narrative: {asp.get('narrative', '—')}",
-    ]
-
-    # Sphuta block
-    if sphuta_active:
-        lines += [
-            f"",
-            f"## Fertility Coordinate (Sphuta — Parashari biological filter)",
-            f"- Type: {sphuta_active.get('sphuta_type', '—').title()} Sphuta "
-            f"({'male' if sphuta_active.get('sphuta_type') == 'beeja' else 'female'} fertility point)",
-            f"- Computed longitude: {sphuta_active.get('longitude', '—')}° → "
-            f"{sphuta_active.get('sign_name', '—')} ({sphuta_active.get('deg_in_sign', '—')}°)",
-        ]
-        if sphuta_effect:
-            lines.append(f"- **Effect:** {sphuta_effect.get('type', '—')} — {sphuta_effect.get('narrative', '—')}")
-
-    # New yogas
-    if kamboola:
-        lines += [
-            f"",
-            f"## Kamboola Yoga (Moon as cosmic proxy — overrides primitive NO to YES_WITH_DELAYS)",
-            f"- Moon Vimshopaka: {kamboola.get('moon_vimshopaka_score')}/20",
-            f"- Narrative: {kamboola.get('narrative')}",
-        ]
-
-    if gada:
-        lines += [
-            f"",
-            f"## Gada Yoga (structural compression — forces resolution within 12 months)",
-            f"- Kendras occupied: {gada.get('kendras_occupied')}",
-            f"- Narrative: {gada.get('narrative')}",
-        ]
-
-    if nakta:
-        bridge_label = nakta.get('bridge') or '(no qualifying bridge)'
-        lines += [
-            f"",
-            f"## Nakta Bridge (third-planet relay)",
-            f"- Bridge planet: {bridge_label}",
-            f"- Bridge role: {nakta.get('bridge_role') or '—'}",
-            f"- Role narrative: {nakta.get('bridge_role_narrative') or '—'}",
-            f"- Narrative: {nakta.get('narrative')}",
-        ]
-        near = nakta.get('near_misses') or []
-        if near:
-            lines.append(f"- Near-misses checked:")
-            for nm in near:
-                lines.append(f"  - {nm.get('narrative', '—')}")
-
-    if abhara:
-        lines += [
-            f"",
-            f"## Abhara Yoga (malefic interference on a valid link)",
-            f"- Severity: {abhara.get('severity')}",
-            f"- Narrative: {abhara.get('narrative')}",
-        ]
-        for b in (abhara.get('blockers') or [])[:3]:
-            lines.append(f"  - {b.get('malefic')} ({b.get('mode')}): {b.get('narrative')}")
-
-    if yama:
-        lines += [
-            f"",
-            f"## Yama Yoga (midpoint binder — structural / forced conception)",
-            f"- Severity: {yama.get('severity')}",
-            f"- Narrative: {yama.get('narrative')}",
-        ]
-
-    # Garbha-specific structural flags
-    lines += [
-        f"",
-        f"## Garbha Structural Indicators",
-    ]
-    if target_cusp_sterile:
-        lines.append(f"- ⚠ **Sterile cusp (Alpa-Putra):** {target_house}th cusp falls in Gemini/Leo/Virgo/Scorpio. Conception structurally promised but the cellular runway requires preparation.")
-    if mars_5th_risk:
-        lines.append(f"- 🩸 **Mars in target (risk group — Aries/Cancer/Leo/Libra/Capricorn):** miscarriage / surgical-intervention flag. The narrative must mention medical monitoring.")
-    if mars_5th_vitality:
-        lines.append(f"- 🟢 **Mars in target (vitality group — Sagittarius/Pisces/etc.):** Mars's heat is tempered. If Jupiter aspects, signals a strong male child (Mangala Karaka).")
-    if rahu_in_target:
-        lines.append(f"- 🌙 **Rahu in {target_house}th house:** Modern Tajik reading — assisted conception (IVF/IUI/surrogacy). Frame as a viable, modern path, NOT 'demonic affliction.'")
-    if ketu_in_target:
-        lines.append(f"- 🍃 **Ketu in {target_house}th house:** Spiritual detachment from biological conception — adoption path may be indicated.")
-    if not (target_cusp_sterile or mars_5th_risk or mars_5th_vitality or rahu_in_target or ketu_in_target):
-        lines.append(f"- No special structural indicators — verdict driven by Karya chain + Sphuta + Bhava Bala only.")
-
-    # Eclipse
-    if eclipse:
-        lines += [
-            f"",
-            f"## ⚠ Eclipse Proximity (sincerity hard-capped at 45/100)",
-            f"- Eclipse type: {eclipse.get('eclipse_type')}",
-            f"- Days from cast: {eclipse.get('days_from_cast')}",
-            f"- Axis hit: {eclipse.get('axis_hit')}",
-            f"- Narrative: {eclipse.get('narrative')}",
-            f"- The tranche_timeline must mention the shadow window and recommend deferring major decisions until it passes.",
-        ]
-
-    # Core catalyst + Karya
-    lines += [
-        f"",
-        f"## Core Catalyst",
-        f"- Yoga: {catalyst.get('yoga')}",
-        f"- Between: {' & '.join(catalyst.get('between', []))}",
-        f"- Narrative: {catalyst.get('narrative')}",
-        f"",
-        f"## Karya Success Chain",
-        f"- Positive rules satisfied: {karya.get('positive_satisfied', 0)} / 3",
-        f"- Rule 4 fired (combustion/affliction): {karya.get('rule4_fired', False)}",
-        f"- Verdict primitive: {karya.get('verdict_primitive')}",
-        f"- Verdict modifier: {karya.get('verdict_modifier')}",
-        f"- Andha Parivartana: {karya.get('andha_parivartana', False)}",
-        f"",
-        f"## Bhava Bala — {target_house}th House (progeny axis)",
-        f"- Net strength: {bhava.get('net_strength_pct', '—')}% ({bhava.get('verdict', '—')})",
-        f"- Sphuta cap applied: {bhava.get('sphuta_cap_applied', False)}",
-        f"- Sphuta bonus applied: {bhava.get('sphuta_bonus_applied', False)}",
-    ]
-
-    # H2N
-    if h2n and 'error' not in h2n:
-        lines += [
-            f"",
-            f"## Horary-to-Natal Shift (NAME THIS NATAL HOUSE in tranche_arc per consistency rule #3)",
-            f"- House shift: {h2n.get('shift')} houses",
-            f"- Activated natal house: {h2n.get('activated_natal_house')}",
-            f"- Flourishing zone: {h2n.get('zone_label')}",
-            f"- Zone narrative: {h2n.get('zone_narrative')}",
-        ]
-
-    # Long horizon
-    lh = judgment.get('long_horizon') or {}
-    if lh.get('is_long_horizon'):
-        lines += [
-            f"",
-            f"## Horizon Boundary (CRITICAL — incorporate into tranche_timeline)",
-            f"- Long-horizon keyword matched: \"{lh.get('matched_keyword')}\"",
-            f"- The question implies a multi-decade horizon; Prashna's 6-12 month window",
-            f"  cannot answer it on its own. Acknowledge this boundary explicitly in",
-            f"  tranche_timeline. Recommend D-7 Saptamsha follow-up for the full horizon.",
-        ]
-
-    lines += [
-        f"",
-        f"---",
-        f"",
-        f"Produce the 3-tranche narrative and 3 action cards now. JSON only, no other text.",
-    ]
-
-    return "\n".join(lines)
-
+# Topic dispatch: reads narrative_tone from PRASHNA_TOPICS[topic_id],
+# pairs with the user-prompt builder registered in
+# prashna_narratives.USER_PROMPT_BUILDERS, generates the 3-tranche
+# narrative + 3 action cards via Claude.
+#
+# Accepts both the canonical `topic_id` field and the legacy
+# `sub_module` field for backward compatibility with existing
+# /prashna_vivaha and /prashna_garbha clients.
+# -----------------------------------------------------------------
 
 @router.post("/prashnareport")
 def prashnareport(req: PrashnaReportRequest) -> Dict:
     """
-    Generate the AI narrative for a Vaivahika judgment package.
+    Generate the AI narrative for any Prashna sub-module judgment.
 
-    Takes the judgment block from /prashna_vivaha or /prashna_garbha and
-    produces a structured 3-tranche narrative (Arc / Strategy / Timeline)
-    plus 3 action cards (Platinum Rule / Friction Gate / Sensory Remedy)
-    using claude-sonnet-4-6 with a sub-module-specific system prompt.
-
-    Dispatch:
-      sub_module='vivaha' → VIVAHA_NARRATIVE_SYSTEM_PROMPT + _build_vivaha_user_prompt
-      sub_module='garbha' → GARBHA_NARRATIVE_SYSTEM_PROMPT + _build_garbha_user_prompt
+    Dispatches via prashna_narratives.generate_narrative() which:
+      1. Reads the narrative_tone from PRASHNA_TOPICS[topic_id]
+      2. Looks up the matching system prompt in NARRATIVE_TONES
+      3. Invokes the topic's registered user-prompt builder
+      4. Calls Claude, parses the JSON response, validates required keys
     """
-
-    if req.sub_module not in ('vivaha', 'garbha'):
+    # Resolve topic_id from either field (topic_id wins if both provided)
+    topic_id = req.topic_id or req.sub_module
+    if topic_id is None:
         raise HTTPException(
             status_code=400,
-            detail=f"sub_module '{req.sub_module}' not supported. "
-                   f"Available: 'vivaha', 'garbha'."
+            detail="Must provide either 'topic_id' or 'sub_module'."
+        )
+
+    if topic_id not in PRASHNA_TOPICS:
+        raise HTTPException(
+            status_code=400,
+            detail=(f"Unknown topic_id/sub_module '{topic_id}'. "
+                    f"Registered: {sorted(PRASHNA_TOPICS)}")
+        )
+
+    if topic_id not in USER_PROMPT_BUILDERS:
+        raise HTTPException(
+            status_code=501,
+            detail=(f"Topic '{topic_id}' is registered in PRASHNA_TOPICS but has no "
+                    f"narrative builder yet. Add an entry to "
+                    f"prashna_narratives.USER_PROMPT_BUILDERS.")
         )
 
     if not os.environ.get("ANTHROPIC_API_KEY"):
@@ -1626,77 +1290,31 @@ def prashnareport(req: PrashnaReportRequest) -> Dict:
                    "Add 'anthropic' to requirements.txt and redeploy."
         )
 
-    # Dispatch on sub_module
-    if req.sub_module == 'vivaha':
-        system_prompt = VIVAHA_NARRATIVE_SYSTEM_PROMPT
-        user_prompt = _build_vivaha_user_prompt(req.judgment, req.query_text, req.cast_meta)
-    else:  # 'garbha'
-        system_prompt = GARBHA_NARRATIVE_SYSTEM_PROMPT
-        user_prompt = _build_garbha_user_prompt(req.judgment, req.query_text, req.cast_meta)
-
     try:
-        msg = client.messages.create(
-            model=PRASHNA_AI_MODEL,
-            max_tokens=2000,
-            system=system_prompt,
-            messages=[
-                {"role": "user", "content": user_prompt}
-            ],
+        result = generate_narrative(
+            anthropic_client=client,
+            topic_id=topic_id,
+            judgment=req.judgment,
+            query_text=req.query_text,
+            cast_meta=req.cast_meta,
+            topic_inputs=req.topic_inputs,
         )
+    except NarrativeError as exc:
+        raise HTTPException(status_code=502, detail=str(exc))
     except Exception as exc:
         raise HTTPException(
             status_code=502,
             detail=f"LLM call failed: {type(exc).__name__}: {str(exc)[:300]}"
         )
 
-    # Extract text from response
-    raw_text = ""
-    for block in msg.content:
-        if getattr(block, 'type', None) == 'text':
-            raw_text += block.text
-
-    # Strip any accidental markdown fences
-    cleaned = raw_text.strip()
-    if cleaned.startswith("```"):
-        # Drop the first fence line
-        cleaned = cleaned.split("\n", 1)[1] if "\n" in cleaned else cleaned[3:]
-        # Drop trailing fence
-        if cleaned.endswith("```"):
-            cleaned = cleaned[:-3]
-        # Drop leading "json" tag if present
-        if cleaned.lstrip().startswith("json"):
-            cleaned = cleaned.lstrip()[4:]
-    cleaned = cleaned.strip()
-
-    try:
-        parsed = _json.loads(cleaned)
-    except _json.JSONDecodeError as exc:
-        raise HTTPException(
-            status_code=502,
-            detail=f"LLM returned non-JSON: {str(exc)[:200]}. "
-                   f"First 200 chars of response: {raw_text[:200]}"
-        )
-
-    # Validate required keys
-    required = {'tranche_arc', 'tranche_strategy', 'tranche_timeline',
-                'platinum_rule', 'friction_gate', 'sensory_remedy'}
-    missing = required - set(parsed.keys())
-    if missing:
-        raise HTTPException(
-            status_code=502,
-            detail=f"LLM response missing required keys: {sorted(missing)}. "
-                   f"Got: {sorted(parsed.keys())}"
-        )
-
     return {
-        'sub_module': req.sub_module,
-        'narrative': parsed,
-        'model': PRASHNA_AI_MODEL,
-        'usage': {
-            'input_tokens': getattr(msg.usage, 'input_tokens', None),
-            'output_tokens': getattr(msg.usage, 'output_tokens', None),
-        },
+        "topic_id":   topic_id,
+        "sub_module": topic_id,  # legacy echo for backward compat
+        "narrative":  result["narrative"],
+        "model":      result["model"],
+        "usage":      result["usage"],
     }
+
 
 
 # -----------------------------------------------------------------
