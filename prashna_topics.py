@@ -22,7 +22,7 @@
 # utilities from prashna_engine.py into a parameterized framework.
 # =================================================================
 
-from typing import Dict, List, Optional, Any, Callable
+from typing import Dict, List, Optional, Any, Callable, Tuple
 from copy import deepcopy
 
 from prashna_engine import (
@@ -49,6 +49,161 @@ from prashna_engine import (
     # Constants
     GARBHA_LONG_HORIZON_EXTRAS,
 )
+
+
+# =================================================================
+# PHASE 4D · INTENT ROUTING HELPERS (generic)
+# =================================================================
+
+# Putra sub-intent: child-development markers.
+# Highest-priority signal that the query is about an EXISTING child's
+# health/development/wellbeing, NOT about progeny capacity or family-size.
+PUTRA_CHILD_DEV_KEYWORDS = (
+    # Possessive references to an existing child
+    'my child', 'my son', 'my daughter', 'my kid', 'my baby',
+    'my children', 'our child', 'our son', 'our daughter', 'our kid',
+    # Speech / verbal development
+    'speech', 'speaking', 'talk ', 'talking', 'verbal', 'language ',
+    'pronounce', 'pronunciation', 'stutter', 'speaking skills',
+    # Cognitive / developmental
+    'development', 'developmental', 'milestone', 'milestones',
+    'cognition', 'cognitive', 'autism', 'autistic',
+    'adhd', 'asperger', 'special needs', 'developmental delay',
+    'iep', 'therapy', 'speech therapy', 'occupational therapy',
+    # Education / learning (about an existing child)
+    'school', 'studies', 'learning', 'study', 'grades',
+    'tuition', 'academic',
+    # Motor skills
+    'walk', 'walking', 'crawl', 'crawling', 'motor skills',
+    'fine motor', 'gross motor',
+    # General wellbeing of a known child
+    'health of my child', 'health of my son', 'health of my daughter',
+    'recover', 'recovery', 'illness',
+    # Generic developmental verbs in context
+    'develop normal', 'develop normally', 'develop properly',
+    'normal speech', 'normal development', 'on schedule',
+)
+
+
+# Putra · child_acute_illness route markers
+PUTRA_CHILD_ILLNESS_KEYWORDS = (
+    'my child sick', 'my son sick', 'my daughter sick',
+    'my child ill', 'my son ill', 'my daughter ill',
+    'fever', 'hospital', 'hospitalized', 'icu', 'admitted',
+    'diagnosed', 'diagnosis', 'cancer', 'chronic',
+    'will my child recover', 'will my son recover', 'will my daughter recover',
+    'will my child get well', 'will my child be okay',
+    "child's illness", "kid's illness", "son's illness", "daughter's illness",
+    'serious illness',
+)
+
+# Putra · runaway_estranged_child route markers
+PUTRA_RUNAWAY_KEYWORDS = (
+    'my child ran away', 'son ran away', 'daughter ran away',
+    'child is missing', 'son is missing', 'daughter is missing',
+    'estranged child', 'estranged son', 'estranged daughter',
+    'child left home', 'son left home', 'daughter left home',
+    'no contact with my child', 'cut me off', 'cut us off',
+    'when will my child return', 'when will my son return',
+    'when will my daughter return', 'will my child come back',
+    'will my son come back', 'will my daughter come back',
+    'reconcile with my child', 'reconcile with my son',
+    'reconcile with my daughter',
+)
+
+# Putra · legal_child_custody route markers
+PUTRA_CUSTODY_KEYWORDS = (
+    'custody', 'visitation', 'court', 'family court',
+    'divorce custody', 'shared custody', 'sole custody',
+    'will i get custody', 'will i win custody',
+    'custody hearing', 'custody battle', 'custody case',
+    'child support', 'parenting plan', 'guardian ad litem',
+)
+
+
+def classify_putra_intent(query_text: Optional[str]) -> str:
+    """
+    Classify a Putra query into one of:
+      - 'child_acute_illness'       : query about a child's acute or chronic
+                                       illness, hospitalization, recovery
+      - 'runaway_estranged_child'   : query about a runaway/estranged child's
+                                       return — an Aagaman (return) reading
+      - 'legal_child_custody'       : query about custody disputes, hearings,
+                                       visitation rights
+      - 'child_development_health'  : query about an existing child's wellbeing,
+                                       speech, education, milestones
+      - 'progeny_capacity'          : default — capacity / family-size / conception
+                                       horizon (the original Putra reading)
+
+    Precedence (most specific first):
+      illness → runaway → custody → child-dev → progeny-capacity.
+
+    Per Prashna Marga Ch.16: when a child is already born and the query is
+    about their state, the chart pivots — the 5th house becomes the child's
+    Lagna, and we count houses from there for child-specific topics.
+    """
+    if not query_text:
+        return 'progeny_capacity'
+    q = ' ' + query_text.lower() + ' '
+
+    # Most specific first — these are mutually exclusive intents.
+    for marker in PUTRA_CHILD_ILLNESS_KEYWORDS:
+        if marker in q:
+            return 'child_acute_illness'
+    for marker in PUTRA_RUNAWAY_KEYWORDS:
+        if marker in q:
+            return 'runaway_estranged_child'
+    for marker in PUTRA_CUSTODY_KEYWORDS:
+        if marker in q:
+            return 'legal_child_custody'
+    for marker in PUTRA_CHILD_DEV_KEYWORDS:
+        if marker in q:
+            return 'child_development_health'
+    return 'progeny_capacity'
+
+
+def _resolve_intent_route(spec: Dict, topic_id: str,
+                          horizon_text: Optional[str],
+                          inputs: Dict) -> Tuple[Dict, Optional[str]]:
+    """
+    Resolve a topic's intent-routed configuration into an effective spec.
+
+    For topics that declare an 'intent_routing' sub-dict, classify the
+    intent (from query text or explicit input) and overlay the route's
+    fields (target_house, target_role, overlays, narrative_tone,
+    secondary_karaka) on top of the base spec.
+
+    Topics without intent_routing get back their original spec unchanged.
+
+    Returns (effective_spec, classified_intent).
+    """
+    intent_routing = spec.get('intent_routing')
+    if not intent_routing:
+        return spec, None
+
+    # 1. Classify intent — explicit input wins, else topic-specific classifier
+    intent = inputs.get('intent')
+    if not intent:
+        if topic_id == 'putra':
+            intent = classify_putra_intent(horizon_text)
+        elif topic_id == 'garbha':
+            intent = classify_garbha_intent(horizon_text)
+        else:
+            intent = spec.get('default_intent')
+
+    # 2. Validate / fall back
+    if intent not in intent_routing:
+        intent = spec.get('default_intent') or next(iter(intent_routing))
+
+    # 3. Layer route fields over the base spec
+    route = intent_routing[intent]
+    effective = dict(spec)
+    for key in ('target_house', 'target_role', 'overlays',
+                'narrative_tone', 'secondary_karaka'):
+        if key in route:
+            effective[key] = route[key]
+
+    return effective, intent
 
 
 # =================================================================
@@ -142,29 +297,104 @@ PRASHNA_TOPICS: Dict[str, Dict] = {
     # 'roga':          { 'container': 'aarogya',   'target_house': 6, ... },
 
     # =================================================================
-    # Phase 4D · Putra (Long-Horizon Progeny / Family Size)
+    # Phase 4D · Putra (Progeny + Child Development & Health)
     # =================================================================
-    # Distinct from Garbha. Garbha reads the immediate biological cycle;
-    # Putra reads long-term capacity. Reflective tone — no fatalistic
-    # over-promises about exact child counts.
+    # INTENT-ROUTED. Two routes:
+    #
+    #   progeny_capacity (default) — long-horizon family-size reading via
+    #     5th house, 5L, Jupiter (Putra Karaka), and the Saptamsha (D7).
+    #     Reflective tone. Never predicts exact child counts.
+    #
+    #   child_development_health  — query about an EXISTING child's
+    #     speech, cognition, wellbeing, or milestones. Per Prashna Marga
+    #     Ch.16, the 5th house BECOMES the child's Lagna; speech reads
+    #     from 2nd-of-5th = 6th of the radix. Mercury (Vak-karaka)
+    #     replaces Jupiter (Putra Karaka). Clinical-empathetic tone —
+    #     diagnostic and parent-focused, no fertility/family-size talk.
     'putra': {
         'container':            'vaivahika',
-        'display_name':         'Putra · Progeny Capacity',
+        'display_name':         'Putra · Progeny',
         'sanskrit_name':        'पुत्र',
-        'target_house':         5,
-        'target_role':          '5th — Putra Bhava (Long-Horizon Progeny)',
         'required_inputs':      [],
-        'optional_inputs':      ['natal_lagna_sign', 'full_query'],
+        'optional_inputs':      ['natal_lagna_sign', 'full_query', 'intent'],
         'sincerity_mode':       'standard',
         'long_horizon_extras':  True,
-        'overlays': [
-            'sincerity_option_c',
-            'putra_yoga_catalogue',     # NEW · Phase 4D
-            'saptamsha_varga_anchor',   # NEW · Phase 4D
-        ],
         'verdict_states':       ['YES', 'YES_WITH_DELAYS', 'CONDITIONAL', 'NO'],
         'verdict_modifiers':    [],
+        # Default fields (used when intent_routing falls through, or by
+        # legacy callers that don't trigger intent classification)
+        'target_house':         5,
+        'target_role':          '5th — Putra Bhava (Long-Horizon Progeny)',
+        'overlays': [
+            'sincerity_option_c',
+            'putra_yoga_catalogue',
+            'saptamsha_varga_anchor',
+        ],
         'narrative_tone':       'reflective',
+        'default_intent':       'progeny_capacity',
+        'intent_routing': {
+            'progeny_capacity': {
+                'target_house':       5,
+                'target_role':        '5th — Putra Bhava (Long-Horizon Progeny)',
+                'secondary_karaka':   'Jupiter',
+                'overlays': [
+                    'sincerity_option_c',
+                    'putra_yoga_catalogue',
+                    'saptamsha_varga_anchor',
+                ],
+                'narrative_tone':     'reflective',
+            },
+            'child_development_health': {
+                # 6th of radix = 2nd from 5th (speech house of the child).
+                # The 5th house is the child themselves; we read from there.
+                'target_house':       6,
+                'target_role':        '6th — Vak Bhava of the Child (2nd from 5th)',
+                'secondary_karaka':   'Mercury',
+                'overlays': [
+                    'sincerity_option_c',
+                    'child_wellbeing_scan',
+                    'mercury_speech_affliction_check',
+                ],
+                'narrative_tone':     'clinical_empathetic',
+            },
+            'child_acute_illness': {
+                # 10th of radix = 6th from 5th = child's illness.
+                'target_house':       10,
+                'target_role':        '10th — Roga Bhava of the Child (6th from 5th)',
+                'secondary_karaka':   'Moon',  # Karaka of vitality
+                'overlays': [
+                    'sincerity_option_c',
+                    'child_wellbeing_scan',
+                    'child_illness_scan',
+                ],
+                'narrative_tone':     'clinical_protective',
+            },
+            'runaway_estranged_child': {
+                # 8th of radix = 4th from 5th = the child's home/stability.
+                'target_house':       8,
+                'target_role':        '8th — Bandhu Bhava of the Child (4th from 5th)',
+                'secondary_karaka':   'Mercury',  # Karaka of communication/return
+                'overlays': [
+                    'sincerity_option_c',
+                    'runaway_aagaman_check',
+                    'child_wellbeing_scan',
+                ],
+                'narrative_tone':     'crisis_supportive',
+            },
+            'legal_child_custody': {
+                # Target stays at 5th (the child themselves) but the overlay
+                # runs the competitive Ithasala between L1 ↔ L5 and L7 ↔ L5.
+                'target_house':       5,
+                'target_role':        '5th — Putra Bhava (custody / parental claim)',
+                'secondary_karaka':   'Jupiter',
+                'overlays': [
+                    'sincerity_option_c',
+                    'custody_ithasala_competition',
+                    'child_wellbeing_scan',
+                ],
+                'narrative_tone':     'tactical_legal',
+            },
+        },
     },
 
     # =================================================================
@@ -1065,11 +1295,650 @@ def overlay_saptamsha_varga_anchor(chart: Dict, state: Dict, inputs: Dict) -> Di
 
 
 # =================================================================
+# PHASE 4D · CHILD-DEVELOPMENT OVERLAYS (Putra → child_development_health)
+# =================================================================
+# Per Prashna Marga Ch.16: when a child already exists and the query is
+# about their wellbeing/speech/development, the chart pivots — the 5th
+# house BECOMES the child's Lagna, so child-specific topics count from
+# there (speech = 2nd from 5th = 6th of the radix). Mercury (Vak-karaka)
+# replaces Jupiter (Putra Karaka) as the operative significator.
+
+def overlay_child_wellbeing_scan(chart: Dict, state: Dict, inputs: Dict) -> Dict:
+    """
+    Reads the child as a person: 5th lord condition, 5th house occupants,
+    and the parent → child connection (Lagna lord vs 5th lord).
+    This is the child's general 'state of being' scan — not their specific
+    speech/cognition (that is mercury_speech_affliction_check).
+    """
+    planets = chart.get('planets', {})
+    lagna_sign = chart.get('lagna_sign', 0)
+    lagna_lord = SIGN_LORDS[lagna_sign]
+    fifth_sign = (lagna_sign + 4) % 12
+    fifth_lord = SIGN_LORDS[fifth_sign]
+    fifth_lord_house = _planet_house(chart, fifth_lord)
+
+    # 5th-house occupants — malefics indicate stress on the child's body/mind
+    fifth_house_occupants = []
+    for planet_name, pdata in planets.items():
+        if isinstance(pdata, dict) and _planet_house(chart, planet_name) == 5:
+            fifth_house_occupants.append(planet_name)
+
+    classical_malefics = {'Sun', 'Mars', 'Saturn', 'Rahu', 'Ketu'}
+    classical_benefics = {'Moon', 'Mercury', 'Jupiter', 'Venus'}
+    malefics_in_5th  = [p for p in fifth_house_occupants if p in classical_malefics]
+    benefics_in_5th  = [p for p in fifth_house_occupants if p in classical_benefics]
+
+    # 5th lord condition
+    fifth_lord_combust = _is_combust(planets, fifth_lord)
+    fifth_lord_in_dushtana = fifth_lord_house in (6, 8, 12)
+    fifth_lord_in_kendra_trikona = fifth_lord_house in (1, 4, 5, 7, 9, 10)
+
+    # Parent-child connection: aspect between Lagna lord and 5th lord
+    asp_l1_l5 = pairwise_aspect(lagna_lord, fifth_lord, chart) if lagna_lord != fifth_lord else {}
+
+    findings = []
+    if fifth_lord_in_dushtana:
+        findings.append({
+            'name': '5L in Dushtana',
+            'detail': f'{fifth_lord} (5L · child as person) sits in the '
+                      f'{fifth_lord_house}{_ordinal_suffix(fifth_lord_house)} house '
+                      f'(Dushtana — a house of difficulty). The child carries '
+                      f'a structural challenge that asks for sustained support.',
+            'severity': 'caveat',
+        })
+    elif fifth_lord_in_kendra_trikona:
+        findings.append({
+            'name': '5L in Kendra/Trikona',
+            'detail': f'{fifth_lord} (5L · child as person) is well-placed in the '
+                      f'{fifth_lord_house}{_ordinal_suffix(fifth_lord_house)} house. '
+                      f'The child has a stable foundation to grow from.',
+            'severity': 'positive',
+        })
+
+    if fifth_lord_combust:
+        findings.append({
+            'name': '5L Combust',
+            'detail': f'{fifth_lord} (5L) is combust by the Sun — the child\u2019s '
+                      f'expression and visibility are temporarily eclipsed. Often '
+                      f'reads as developmental matters taking longer to surface.',
+            'severity': 'caveat',
+        })
+
+    if malefics_in_5th:
+        findings.append({
+            'name': f'{len(malefics_in_5th)} malefic(s) in 5th',
+            'detail': f'{", ".join(malefics_in_5th)} occupy the 5th house directly '
+                      f'(the child\u2019s body and mind). Stress markers — does not '
+                      f'predict outcome, but indicates the child\u2019s '
+                      f'developmental terrain carries friction.',
+            'severity': 'caveat',
+        })
+    if benefics_in_5th:
+        findings.append({
+            'name': f'Benefic support in 5th',
+            'detail': f'{", ".join(benefics_in_5th)} occupy the 5th house — '
+                      f'protective influence on the child\u2019s developmental field.',
+            'severity': 'positive',
+        })
+
+    if asp_l1_l5.get('within_orb'):
+        yoga = asp_l1_l5.get('yoga')
+        if yoga in ('Ithesal', 'Mutthashila'):
+            findings.append({
+                'name': f'Lagna lord ↔ 5L · {yoga}',
+                'detail': f'Active connection between {lagna_lord} (you) and '
+                          f'{fifth_lord} (the child) — your engagement '
+                          f'reaches the child directly. This is your strongest asset.',
+                'severity': 'positive',
+            })
+        elif yoga == 'Esrapha':
+            findings.append({
+                'name': 'Lagna lord ↔ 5L · Esrapha',
+                'detail': f'Parent-child connection is separating — energy is '
+                          f'flowing past rather than landing. Slow it down, '
+                          f'be deliberate.',
+                'severity': 'caveat',
+            })
+
+    # Aggregate severity
+    positive_n = sum(1 for f in findings if f.get('severity') == 'positive')
+    caveat_n   = sum(1 for f in findings if f.get('severity') == 'caveat')
+    if positive_n >= 2 and caveat_n <= 1:
+        verdict = 'supportive'
+    elif caveat_n >= 2 and positive_n == 0:
+        verdict = 'structurally challenged'
+    else:
+        verdict = 'mixed'
+
+    narrative = (f'Child\u2019s wellbeing read via 5th lord ({fifth_lord}) and 5th-house '
+                 f'occupants. Verdict: {verdict}. {len(findings)} marker(s) detected.')
+
+    return {
+        'overlay': 'child_wellbeing_scan',
+        'fired': len(findings) > 0,
+        'data': {
+            'findings':           findings,
+            'verdict':            verdict,
+            'fifth_lord':         fifth_lord,
+            'fifth_lord_house':   fifth_lord_house,
+            'fifth_lord_combust': fifth_lord_combust,
+            'malefics_in_5th':    malefics_in_5th,
+            'benefics_in_5th':    benefics_in_5th,
+            'parent_child_aspect': asp_l1_l5.get('yoga') if asp_l1_l5.get('within_orb') else None,
+        },
+        'narrative': narrative,
+    }
+
+
+def overlay_mercury_speech_affliction_check(chart: Dict, state: Dict, inputs: Dict) -> Dict:
+    """
+    Mercury as Vak-karaka (universal significator of speech / cognition).
+    Per Prashna Marga Ch.16, for queries about a child\u2019s speech or
+    cognitive development, Mercury\u2019s condition is the operative reading
+    (not Jupiter, which is Putra Karaka for capacity/family-size).
+
+    Evaluates: combust, retrograde, debilitation, dushtana placement,
+    malefic aspects, benefic aspects. Aggregates into an affliction band.
+    """
+    planets = chart.get('planets', {})
+    lagna_sign = chart.get('lagna_sign', 0)
+    mercury = planets.get('Mercury', {}) or {}
+
+    mercury_house = _planet_house(chart, 'Mercury')
+    mercury_sign  = mercury.get('sign_index', -1)
+    mercury_combust = _is_combust(planets, 'Mercury')
+    mercury_retro   = bool(mercury.get('retrograde'))
+
+    # Debilitation
+    mercury_debilitated = (mercury_sign == 11)  # Pisces is Mercury's debilitation
+    mercury_exalted     = (mercury_sign == 5)   # Virgo (own sign + exaltation)
+
+    mercury_in_dushtana = mercury_house in (6, 8, 12)
+
+    # Malefic and benefic aspects to Mercury
+    classical_malefics = ['Sun', 'Mars', 'Saturn', 'Rahu', 'Ketu']
+    classical_benefics = ['Moon', 'Jupiter', 'Venus']
+
+    malefic_aspects = []
+    benefic_aspects = []
+    for p in classical_malefics:
+        if p == 'Mercury': continue
+        if not planets.get(p): continue
+        asp = pairwise_aspect(p, 'Mercury', chart)
+        if asp.get('within_orb'):
+            malefic_aspects.append({'planet': p, 'yoga': asp.get('yoga')})
+    for p in classical_benefics:
+        if p == 'Mercury': continue
+        if not planets.get(p): continue
+        asp = pairwise_aspect(p, 'Mercury', chart)
+        if asp.get('within_orb'):
+            benefic_aspects.append({'planet': p, 'yoga': asp.get('yoga')})
+
+    findings = []
+    if mercury_combust:
+        findings.append({
+            'name': 'Mercury Combust',
+            'detail': 'Mercury (Vak-karaka — speech and cognition) is combust by the Sun. '
+                      'Speech and cognitive expression are eclipsed; the child\u2019s '
+                      'voice has not yet found its full register.',
+            'severity': 'caveat',
+        })
+    if mercury_retro:
+        findings.append({
+            'name': 'Mercury Retrograde',
+            'detail': 'Mercury is retrograde — internal processing runs ahead of '
+                      'external expression. The child often understands more than '
+                      'they can yet articulate.',
+            'severity': 'note',
+        })
+    if mercury_debilitated:
+        findings.append({
+            'name': 'Mercury Debilitated (in Pisces)',
+            'detail': 'Mercury is in Pisces — its sign of debilitation. Communication '
+                      'tends to be intuitive and non-linear rather than precise. '
+                      'Structured speech support helps significantly.',
+            'severity': 'caveat',
+        })
+    if mercury_exalted:
+        findings.append({
+            'name': 'Mercury Exalted (in Virgo)',
+            'detail': 'Mercury is in Virgo — its own sign and exaltation. The cognitive '
+                      'and speech apparatus is structurally sound; any delay is '
+                      'temporal, not constitutional.',
+            'severity': 'positive',
+        })
+    if mercury_in_dushtana:
+        findings.append({
+            'name': f'Mercury in {mercury_house}{_ordinal_suffix(mercury_house)} (Dushtana)',
+            'detail': f'Mercury occupies the {mercury_house}th house (Dushtana). '
+                      f'Speech development requires sustained external support and '
+                      f'protected practice space.',
+            'severity': 'caveat',
+        })
+
+    for m in malefic_aspects:
+        findings.append({
+            'name': f'{m["planet"]} aspects Mercury · {m["yoga"]}',
+            'detail': f'{m["planet"]} casts a {m["yoga"]} aspect on Mercury. Malefic '
+                      f'pressure on speech — friction, frustration around verbal '
+                      f'self-expression.',
+            'severity': 'caveat',
+        })
+    for b in benefic_aspects:
+        findings.append({
+            'name': f'{b["planet"]} aspects Mercury · {b["yoga"]}',
+            'detail': f'{b["planet"]} casts a {b["yoga"]} aspect on Mercury. Benefic '
+                      f'support — speech development has structural backing.',
+            'severity': 'positive',
+        })
+
+    # Affliction band
+    caveat_n   = sum(1 for f in findings if f.get('severity') == 'caveat')
+    positive_n = sum(1 for f in findings if f.get('severity') == 'positive')
+    net = positive_n - caveat_n
+
+    if net >= 2:
+        band = 'Mercury well-supported'
+        verdict = 'supported'
+    elif net <= -2:
+        band = 'Mercury heavily afflicted'
+        verdict = 'afflicted'
+    elif caveat_n >= 1 and positive_n >= 1:
+        band = 'Mercury mixed'
+        verdict = 'mixed'
+    elif caveat_n == 0 and positive_n == 0:
+        band = 'Mercury neutral'
+        verdict = 'neutral'
+    else:
+        band = 'Mercury lightly afflicted' if caveat_n > positive_n else 'Mercury lightly supported'
+        verdict = 'mixed'
+
+    narrative = (f'Mercury (Vak-karaka) condition: {band}. '
+                 f'{positive_n} supportive marker(s), {caveat_n} affliction marker(s).')
+
+    return {
+        'overlay': 'mercury_speech_affliction_check',
+        'fired': len(findings) > 0,
+        'data': {
+            'findings':              findings,
+            'verdict':               verdict,
+            'band':                  band,
+            'mercury_house':         mercury_house,
+            'mercury_combust':       mercury_combust,
+            'mercury_retrograde':    mercury_retro,
+            'mercury_debilitated':   mercury_debilitated,
+            'mercury_exalted':       mercury_exalted,
+            'mercury_in_dushtana':   mercury_in_dushtana,
+            'malefic_aspects':       malefic_aspects,
+            'benefic_aspects':       benefic_aspects,
+            'positive_count':        positive_n,
+            'caveat_count':          caveat_n,
+        },
+        'narrative': narrative,
+    }
+
+
+# =================================================================
+# PHASE 4D-EXT · PUTRA · child_acute_illness OVERLAYS
+# =================================================================
+# Target = 10th house = 6th from 5th = the child's illness.
+# Recovery coordinates with 10th lord separating from malefics (Esrapha)
+# or 5th lord (child's Lagna) gaining a Pragalbha degree-band bonus.
+
+def overlay_child_illness_scan(chart: Dict, state: Dict, inputs: Dict) -> Dict:
+    """
+    Reads the child's illness via the 10th house of the radix (= 6th-from-5th).
+    Evaluates 10L condition, malefic aspects to 5L (child), and Esrapha
+    between L10 and L5 as a recovery signal.
+    """
+    planets = chart.get('planets', {})
+    lagna_sign = chart.get('lagna_sign', 0)
+    fifth_sign = (lagna_sign + 4) % 12
+    fifth_lord = SIGN_LORDS[fifth_sign]
+    tenth_sign = (lagna_sign + 9) % 12  # 10th-from-Lagna = 6th-from-5th
+    tenth_lord = SIGN_LORDS[tenth_sign]
+
+    fifth_lord_house  = _planet_house(chart, fifth_lord)
+    tenth_lord_house  = _planet_house(chart, tenth_lord)
+
+    fifth_lord_combust = _is_combust(planets, fifth_lord)
+    tenth_lord_combust = _is_combust(planets, tenth_lord)
+
+    classical_malefics = ['Sun', 'Mars', 'Saturn', 'Rahu', 'Ketu']
+    classical_benefics = ['Moon', 'Jupiter', 'Venus', 'Mercury']
+
+    # Malefic aspects to 5L (the child) — illness pressure
+    malefic_to_5l = []
+    for m in classical_malefics:
+        if m == fifth_lord: continue
+        if not planets.get(m): continue
+        asp = pairwise_aspect(m, fifth_lord, chart)
+        if asp.get('within_orb'):
+            malefic_to_5l.append({'planet': m, 'yoga': asp.get('yoga')})
+
+    # Benefic aspects to 5L — recovery support
+    benefic_to_5l = []
+    for b in classical_benefics:
+        if b == fifth_lord: continue
+        if not planets.get(b): continue
+        asp = pairwise_aspect(b, fifth_lord, chart)
+        if asp.get('within_orb'):
+            benefic_to_5l.append({'planet': b, 'yoga': asp.get('yoga')})
+
+    # Esrapha between L10 (illness) and L5 (child) → recovery signal
+    asp_10_5 = pairwise_aspect(tenth_lord, fifth_lord, chart) if tenth_lord != fifth_lord else {}
+    illness_separating = (asp_10_5.get('yoga') == 'Esrapha')
+    illness_applying   = (asp_10_5.get('yoga') in ('Ithesal', 'Mutthashila'))
+
+    findings = []
+    if illness_separating:
+        findings.append({
+            'name': 'L10 ↔ L5 Esrapha (illness separating)',
+            'detail': f'{tenth_lord} (illness) is in separating aspect with '
+                      f'{fifth_lord} (child) — the illness is moving past. '
+                      f'Recovery direction is established.',
+            'severity': 'positive',
+        })
+    elif illness_applying:
+        findings.append({
+            'name': f'L10 ↔ L5 {asp_10_5.get("yoga")} (illness applying)',
+            'detail': f'{tenth_lord} (illness) is in applying aspect with '
+                      f'{fifth_lord} (child) — the illness is still actively '
+                      f'pressing. Symptom intensity is not yet past peak.',
+            'severity': 'caveat',
+        })
+
+    if tenth_lord_combust:
+        findings.append({
+            'name': 'L10 Combust',
+            'detail': f'{tenth_lord} (illness lord) is combust by the Sun — '
+                      f'the illness is in an acute, blazing phase rather than '
+                      f'a chronic plateau. Often resolves more decisively '
+                      f'once the combustion clears.',
+            'severity': 'note',
+        })
+
+    if fifth_lord_combust:
+        findings.append({
+            'name': 'L5 Combust',
+            'detail': f'{fifth_lord} (the child) is combust — the child\u2019s '
+                      f'vitality is temporarily eclipsed. Watch closely; '
+                      f'preserve rest.',
+            'severity': 'caveat',
+        })
+
+    for mm in malefic_to_5l:
+        findings.append({
+            'name': f'{mm["planet"]} aspects L5 ({mm["yoga"]})',
+            'detail': f'{mm["planet"]} casts a {mm["yoga"]} aspect on '
+                      f'{fifth_lord} (the child). Pressure on the child\u2019s '
+                      f'vitality during this aspect window.',
+            'severity': 'caveat',
+        })
+
+    for bb in benefic_to_5l:
+        findings.append({
+            'name': f'{bb["planet"]} aspects L5 ({bb["yoga"]})',
+            'detail': f'{bb["planet"]} casts a {bb["yoga"]} aspect on '
+                      f'{fifth_lord} (the child). Recovery support is active.',
+            'severity': 'positive',
+        })
+
+    # Aggregate recovery prognosis
+    positive_n = sum(1 for f in findings if f.get('severity') == 'positive')
+    caveat_n   = sum(1 for f in findings if f.get('severity') == 'caveat')
+    if illness_separating and positive_n > caveat_n:
+        prognosis = 'recovery indicated'
+    elif positive_n >= 2 and caveat_n <= 1:
+        prognosis = 'recovery supported'
+    elif caveat_n >= 3 and positive_n == 0:
+        prognosis = 'extended care indicated'
+    elif caveat_n > positive_n:
+        prognosis = 'sustained vigilance required'
+    else:
+        prognosis = 'mixed signals'
+
+    narrative = (f'Child illness scan via L10 ({tenth_lord}) / L5 ({fifth_lord}). '
+                 f'Prognosis: {prognosis}. {positive_n} support, {caveat_n} caveat.')
+
+    return {
+        'overlay': 'child_illness_scan',
+        'fired': len(findings) > 0,
+        'data': {
+            'findings':              findings,
+            'prognosis':             prognosis,
+            'fifth_lord':            fifth_lord,
+            'fifth_lord_house':      fifth_lord_house,
+            'fifth_lord_combust':    fifth_lord_combust,
+            'tenth_lord':            tenth_lord,
+            'tenth_lord_house':      tenth_lord_house,
+            'tenth_lord_combust':    tenth_lord_combust,
+            'illness_separating':    illness_separating,
+            'illness_applying':      illness_applying,
+            'malefic_to_5l_count':   len(malefic_to_5l),
+            'benefic_to_5l_count':   len(benefic_to_5l),
+        },
+        'narrative': narrative,
+    }
+
+
+# =================================================================
+# PHASE 4D-EXT · PUTRA · runaway_estranged_child OVERLAYS
+# =================================================================
+# An Aagaman (return) reading. Target = 8th house = 4th from 5th = the
+# child's home/stability. Watch L5 motion: retrograding toward L1 or the
+# Prashna Lagna cusp indicates the child returning.
+
+def overlay_runaway_aagaman_check(chart: Dict, state: Dict, inputs: Dict) -> Dict:
+    """
+    Aagaman (return) reading for a runaway or estranged child.
+    Reads L5's direction (retrograde → returning), its longitude vs L1
+    and the Prashna Lagna cusp (degree-distance = time to return), and
+    whether L5 has reached the 8th house (4th-from-5th = a stable home).
+    """
+    planets = chart.get('planets', {})
+    lagna_sign = chart.get('lagna_sign', 0)
+    lagna_lord = SIGN_LORDS[lagna_sign]
+    fifth_sign = (lagna_sign + 4) % 12
+    fifth_lord = SIGN_LORDS[fifth_sign]
+
+    fifth_lord_house  = _planet_house(chart, fifth_lord)
+    fifth_lord_lon    = (planets.get(fifth_lord, {}) or {}).get('longitude')
+    fifth_lord_retro  = bool((planets.get(fifth_lord, {}) or {}).get('retrograde'))
+
+    lagna_lord_lon    = (planets.get(lagna_lord, {}) or {}).get('longitude')
+    prashna_lagna_lon = chart.get('lagna_longitude')
+
+    findings = []
+
+    # Retrograde L5 → returning motion
+    if fifth_lord_retro:
+        findings.append({
+            'name': f'{fifth_lord} (L5) Retrograde',
+            'detail': f'{fifth_lord} — the child\u2019s significator — is in '
+                      f'retrograde motion. The classical signal for return: '
+                      f'the child\u2019s trajectory has reversed direction.',
+            'severity': 'positive',
+        })
+    else:
+        findings.append({
+            'name': f'{fifth_lord} (L5) Direct',
+            'detail': f'{fifth_lord} is direct in motion — the child\u2019s '
+                      f'trajectory has not yet reversed. Return is not '
+                      f'classically signalled at this cast.',
+            'severity': 'caveat',
+        })
+
+    # L5 placement — in 4th-from-5th (= 8th of radix) means settled-elsewhere
+    if fifth_lord_house == 8:
+        findings.append({
+            'name': 'L5 in 8th (4th-from-5th)',
+            'detail': f'{fifth_lord} occupies the 8th house of the radix, '
+                      f'which is the 4th-from-5th — the child\u2019s home. '
+                      f'The child is in some kind of settled domestic '
+                      f'situation (theirs, not yours).',
+            'severity': 'note',
+        })
+    elif fifth_lord_house in (1, 4):
+        findings.append({
+            'name': f'L5 in {fifth_lord_house}{_ordinal_suffix(fifth_lord_house)} (your space)',
+            'detail': f'{fifth_lord} sits in YOUR 1st or 4th house — the '
+                      f'child\u2019s significator has returned to the querent\u2019s '
+                      f'space. Classical homecoming signature.',
+            'severity': 'positive',
+        })
+    elif fifth_lord_house == 12:
+        findings.append({
+            'name': 'L5 in 12th',
+            'detail': f'{fifth_lord} sits in the 12th house — the child is '
+                      f'in a far-away, hidden, or dissolution-toned setting. '
+                      f'Distance is currently prevailing.',
+            'severity': 'caveat',
+        })
+
+    # Degree distance from L5 to L1 (parent) and to Prashna Lagna cusp
+    distance_to_l1   = None
+    distance_to_cusp = None
+    if fifth_lord_lon is not None and lagna_lord_lon is not None:
+        distance_to_l1 = round(abs((fifth_lord_lon - lagna_lord_lon + 360) % 360), 2)
+        if distance_to_l1 > 180: distance_to_l1 = round(360 - distance_to_l1, 2)
+    if fifth_lord_lon is not None and prashna_lagna_lon is not None:
+        distance_to_cusp = round(abs((fifth_lord_lon - prashna_lagna_lon + 360) % 360), 2)
+        if distance_to_cusp > 180: distance_to_cusp = round(360 - distance_to_cusp, 2)
+
+    if distance_to_l1 is not None and distance_to_l1 <= 6:
+        findings.append({
+            'name': f'L5 within 6° of L1',
+            'detail': f'{fifth_lord} (child) is within 6° of {lagna_lord} '
+                      f'(you). Physical reunion is energetically near.',
+            'severity': 'positive',
+        })
+
+    # Aggregate verdict
+    positive_n = sum(1 for f in findings if f.get('severity') == 'positive')
+    caveat_n   = sum(1 for f in findings if f.get('severity') == 'caveat')
+    if fifth_lord_retro and positive_n >= 2:
+        return_likelihood = 'return indicated'
+    elif fifth_lord_retro:
+        return_likelihood = 'return signalled but not immediate'
+    elif positive_n > caveat_n:
+        return_likelihood = 'reconciliation possible without physical return'
+    else:
+        return_likelihood = 'no clear return signal in this cast'
+
+    narrative = (f'Aagaman check via L5 ({fifth_lord}). Verdict: {return_likelihood}. '
+                 f'L5 motion: {"retrograde" if fifth_lord_retro else "direct"}; '
+                 f'L5 in house {fifth_lord_house}.')
+
+    return {
+        'overlay': 'runaway_aagaman_check',
+        'fired': True,
+        'data': {
+            'findings':           findings,
+            'return_likelihood':  return_likelihood,
+            'fifth_lord':         fifth_lord,
+            'fifth_lord_house':   fifth_lord_house,
+            'fifth_lord_retro':   fifth_lord_retro,
+            'fifth_lord_longitude':   fifth_lord_lon,
+            'lagna_lord_longitude':   lagna_lord_lon,
+            'prashna_lagna_longitude': prashna_lagna_lon,
+            'distance_to_l1':     distance_to_l1,
+            'distance_to_cusp':   distance_to_cusp,
+        },
+        'narrative': narrative,
+    }
+
+
+# =================================================================
+# PHASE 4D-EXT · PUTRA · legal_child_custody OVERLAYS
+# =================================================================
+# Competitive Ithasala test: which parent's lord (L1 = querent, L7 =
+# ex-spouse) holds a stronger aspect with L5 (the child).
+
+def overlay_custody_ithasala_competition(chart: Dict, state: Dict, inputs: Dict) -> Dict:
+    """
+    Compares the L1↔L5 Ithasala strength against the L7↔L5 Ithasala
+    strength. The parent whose lord holds a closer, more positive aspect
+    is the chart's favored custodian.
+    """
+    lagna_sign = chart.get('lagna_sign', 0)
+    lagna_lord = SIGN_LORDS[lagna_sign]
+    fifth_sign = (lagna_sign + 4) % 12
+    fifth_lord = SIGN_LORDS[fifth_sign]
+    seventh_sign = (lagna_sign + 6) % 12
+    seventh_lord = SIGN_LORDS[seventh_sign]
+
+    # L1 ↔ L5 aspect (you ↔ the child)
+    asp_1_5 = pairwise_aspect(lagna_lord, fifth_lord, chart) if lagna_lord != fifth_lord else {}
+    # L7 ↔ L5 aspect (ex-spouse ↔ the child)
+    asp_7_5 = pairwise_aspect(seventh_lord, fifth_lord, chart) if seventh_lord != fifth_lord else {}
+
+    POSITIVE_YOGAS = {'Ithesal': 3, 'Mutthashila': 2, 'Kamboola': 2}
+    NEUTRAL_YOGAS  = {'Nakta': 1, 'Yama': 1}
+    NEGATIVE_YOGAS = {'Esrapha': -2, 'Manaoo': -1}
+
+    def score_aspect(asp):
+        if not asp.get('within_orb'):
+            return 0, 'no aspect'
+        yoga = asp.get('yoga')
+        for table, label in [(POSITIVE_YOGAS, 'positive'),
+                              (NEUTRAL_YOGAS, 'neutral'),
+                              (NEGATIVE_YOGAS, 'negative')]:
+            if yoga in table:
+                return table[yoga], f'{yoga} ({label})'
+        return 0, yoga or 'unspecified'
+
+    score_l1_l5, label_l1_l5 = score_aspect(asp_1_5)
+    score_l7_l5, label_l7_l5 = score_aspect(asp_7_5)
+
+    if lagna_lord == fifth_lord:
+        score_l1_l5 = 3  # self-rule = strongest possible
+        label_l1_l5 = 'self-ruled (lagna lord IS the 5th lord)'
+    if seventh_lord == fifth_lord:
+        score_l7_l5 = 3
+        label_l7_l5 = 'self-ruled (7th lord IS the 5th lord)'
+
+    if score_l1_l5 > score_l7_l5:
+        winner = 'querent'
+        winner_lord = lagna_lord
+        narrative = (f'L1 ↔ L5 ({label_l1_l5}, +{score_l1_l5}) is stronger than '
+                     f'L7 ↔ L5 ({label_l7_l5}, +{score_l7_l5}). The chart favors '
+                     f'the querent\u2019s connection to the child.')
+    elif score_l7_l5 > score_l1_l5:
+        winner = 'ex_spouse'
+        winner_lord = seventh_lord
+        narrative = (f'L7 ↔ L5 ({label_l7_l5}, +{score_l7_l5}) is stronger than '
+                     f'L1 ↔ L5 ({label_l1_l5}, +{score_l1_l5}). The chart favors '
+                     f'the other parent\u2019s connection to the child.')
+    else:
+        winner = 'tied'
+        winner_lord = None
+        narrative = (f'Both parents\u2019 connections to the child read at '
+                     f'equivalent strength (L1↔L5: {label_l1_l5}; L7↔L5: '
+                     f'{label_l7_l5}). The chart does not favor either side; '
+                     f'outcome rests on external factors.')
+
+    return {
+        'overlay': 'custody_ithasala_competition',
+        'fired': True,
+        'data': {
+            'lagna_lord':    lagna_lord,
+            'fifth_lord':    fifth_lord,
+            'seventh_lord':  seventh_lord,
+            'l1_l5_aspect':  label_l1_l5,
+            'l1_l5_score':   score_l1_l5,
+            'l7_l5_aspect':  label_l7_l5,
+            'l7_l5_score':   score_l7_l5,
+            'winner':        winner,
+            'winner_lord':   winner_lord,
+        },
+        'narrative': narrative,
+    }
+
+
+# =================================================================
 # PHASE 4D · ANYA-SAMBANDHA OVERLAYS (Unconventional & Hidden)
 # =================================================================
-# Pivots dynamically: 7th house (overt), 12th (hidden/secret), or
-# Rahu-Ketu axis activation on 5/11 or 1/7. Clinical tone required —
-# no moralising, just diagnostic truth.
 
 def overlay_secret_aspect_scan(chart: Dict, state: Dict, inputs: Dict) -> Dict:
     """
@@ -1410,6 +2279,13 @@ OVERLAY_REGISTRY: Dict[str, Callable] = {
     # Phase 4D · Putra overlays
     'putra_yoga_catalogue':      overlay_putra_yoga_catalogue,
     'saptamsha_varga_anchor':    overlay_saptamsha_varga_anchor,
+    # Phase 4D · Putra · child_development_health route overlays
+    'child_wellbeing_scan':           overlay_child_wellbeing_scan,
+    'mercury_speech_affliction_check': overlay_mercury_speech_affliction_check,
+    # Phase 4D-EXT · Putra · child_acute_illness, runaway, custody overlays
+    'child_illness_scan':              overlay_child_illness_scan,
+    'runaway_aagaman_check':           overlay_runaway_aagaman_check,
+    'custody_ithasala_competition':    overlay_custody_ithasala_competition,
     # Phase 4D · Anya-Sambandha overlays
     'secret_aspect_scan':        overlay_secret_aspect_scan,
     'node_axis_activation':      overlay_node_axis_activation,
@@ -1642,13 +2518,22 @@ def prashna_topic_judgment(chart_data: Dict, topic_id: str, **inputs) -> Dict:
     spec = PRASHNA_TOPICS[topic_id]
     _validate_inputs(spec, inputs)
 
+    # ===== 1a. Resolve intent route (if topic uses intent_routing) =====
+    # Topics like 'putra' route to different (target_house, overlays, tone,
+    # secondary_karaka) configurations based on the query's classified intent.
+    # Topics without intent_routing get back the original spec unchanged.
+    horizon_text = inputs.get('full_query') or inputs.get('query_text')
+    effective_spec, classified_intent = _resolve_intent_route(
+        spec, topic_id, horizon_text, inputs
+    )
+
     # ===== 1. Initialize target =====
     lagna_sign = chart_data.get('lagna_sign', 0)
-    initial_target_house = spec['target_house']
+    initial_target_house = effective_spec['target_house']
     initial_target_sign = (lagna_sign + initial_target_house - 1) % 12
 
     # ===== 2. Base engine layers =====
-    sincerity_mode = spec.get('sincerity_mode', 'standard')
+    sincerity_mode = effective_spec.get('sincerity_mode', 'standard')
     sincerity = compute_sincerity_score(
         chart_data,
         natal_lagna_sign=inputs.get('natal_lagna_sign'),
@@ -1668,10 +2553,11 @@ def prashna_topic_judgment(chart_data: Dict, topic_id: str, **inputs) -> Dict:
         'chart':    chart_data,
         'target': {
             'house': initial_target_house,
-            'role':  spec['target_role'],
+            'role':  effective_spec['target_role'],
             'sign_index': initial_target_sign,
             'lord': SIGN_LORDS[initial_target_sign],
             'override_reason': None,
+            'secondary_karaka': effective_spec.get('secondary_karaka'),
         },
         'karya':     initial_karya,
         'bhava':     initial_bhava,
@@ -1686,9 +2572,8 @@ def prashna_topic_judgment(chart_data: Dict, topic_id: str, **inputs) -> Dict:
     }
 
     # ===== 4. Long-horizon detection (with topic-specific keyword extras) =====
-    horizon_text = inputs.get('full_query') or inputs.get('query_text')
     long_horizon = detect_long_horizon_query(horizon_text)
-    if not long_horizon['is_long_horizon'] and spec.get('long_horizon_extras'):
+    if not long_horizon['is_long_horizon'] and effective_spec.get('long_horizon_extras'):
         q = (horizon_text or '').lower()
         for kw in GARBHA_LONG_HORIZON_EXTRAS:
             if kw in q:
@@ -1702,17 +2587,17 @@ def prashna_topic_judgment(chart_data: Dict, topic_id: str, **inputs) -> Dict:
                 }
                 break
 
-    # ===== 5. Intent classification (for topics that use it) =====
-    classified_intent = None
-    if topic_id == 'garbha':
+    # ===== 5. Intent classification (legacy Garbha path — unified below) =====
+    if classified_intent is None and topic_id == 'garbha':
         classified_intent = inputs.get('intent') or classify_garbha_intent(horizon_text)
-        # Patch back into inputs so overlays see the resolved intent
-        inputs = dict(inputs)
+    # Patch back into inputs so overlays see the resolved intent
+    inputs = dict(inputs)
+    if classified_intent is not None:
         inputs['intent'] = classified_intent
 
     # ===== 6. Run overlays in declared order =====
     overlay_findings = []
-    for overlay_name in spec['overlays']:
+    for overlay_name in effective_spec['overlays']:
         if overlay_name not in OVERLAY_REGISTRY:
             raise ValueError(f"Unknown overlay '{overlay_name}' in topic '{topic_id}'")
         fn = OVERLAY_REGISTRY[overlay_name]
@@ -1756,7 +2641,10 @@ def prashna_topic_judgment(chart_data: Dict, topic_id: str, **inputs) -> Dict:
         'topic_id':              topic_id,
         'topic_display_name':    spec['display_name'],
         'container':             spec['container'],
-        'narrative_tone':        spec['narrative_tone'],
+        'narrative_tone':        effective_spec['narrative_tone'],
+        # Intent routing (None for topics that don't use it)
+        'intent':                classified_intent,
+        'secondary_karaka':      effective_spec.get('secondary_karaka'),
         # Core verdict
         'verdict':               verdict['state'],
         'verdict_text':          verdict['text'],
