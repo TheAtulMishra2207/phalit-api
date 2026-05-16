@@ -85,10 +85,16 @@ PRASHNA_TOPICS: Dict[str, Dict] = {
         'optional_inputs':      ['natal_lagna_sign', 'full_query'],
         'sincerity_mode':       'standard',
         'long_horizon_extras':  False,
+        # Per Atul's Phase 4D spec: sincerity_option_c declares the BPHS audit
+        # standard; nakta_abhara_scan handles the core Tajik connection scan.
+        # third_party_interference + emotional_reciprocity preserve the legacy
+        # vivaha_judgment output shape (Ch 9 readings) — kept for equivalence
+        # gate parity; can be moved into a "Vivaha+" tier in a future pass.
         'overlays': [
+            'sincerity_option_c',
+            'nakta_abhara_scan',
             'third_party_interference',
             'emotional_reciprocity',
-            'nakta_abhara_scan',
         ],
         'verdict_states':       ['YES', 'YES_WITH_DELAYS', 'CONDITIONAL', 'NO'],
         'verdict_modifiers':    [],
@@ -129,13 +135,90 @@ PRASHNA_TOPICS: Dict[str, Dict] = {
 
     # Future topics register here. Sample shells (commented out until built):
     #
-    # 'putra':         { 'container': 'vaivahika', 'target_house': 5, ... },
-    # 'anya_sambandha':{ 'container': 'vaivahika', 'target_house': 7, ... },
     # 'karma':         { 'container': 'karmika',   'target_house': 10, ... },
     # 'shatru':        { 'container': 'yuddha',    'target_house': 6,
     #                    'required_inputs': ['enemy_name'], ... },
     # 'dhana':         { 'container': 'arthika',   'target_house': 2, ... },
     # 'roga':          { 'container': 'aarogya',   'target_house': 6, ... },
+
+    # =================================================================
+    # Phase 4D · Putra (Long-Horizon Progeny / Family Size)
+    # =================================================================
+    # Distinct from Garbha. Garbha reads the immediate biological cycle;
+    # Putra reads long-term capacity. Reflective tone — no fatalistic
+    # over-promises about exact child counts.
+    'putra': {
+        'container':            'vaivahika',
+        'display_name':         'Putra · Progeny Capacity',
+        'sanskrit_name':        'पुत्र',
+        'target_house':         5,
+        'target_role':          '5th — Putra Bhava (Long-Horizon Progeny)',
+        'required_inputs':      [],
+        'optional_inputs':      ['natal_lagna_sign', 'full_query'],
+        'sincerity_mode':       'standard',
+        'long_horizon_extras':  True,
+        'overlays': [
+            'sincerity_option_c',
+            'putra_yoga_catalogue',     # NEW · Phase 4D
+            'saptamsha_varga_anchor',   # NEW · Phase 4D
+        ],
+        'verdict_states':       ['YES', 'YES_WITH_DELAYS', 'CONDITIONAL', 'NO'],
+        'verdict_modifiers':    [],
+        'narrative_tone':       'reflective',
+    },
+
+    # =================================================================
+    # Phase 4D · Anya-Sambandha (Unconventional / Hidden Alliances)
+    # =================================================================
+    # Pivots dynamically: 7th house default; 12th for hidden contexts;
+    # Rahu-Ketu activation on 5/11 or 1/7. Circumspect tone — clinical
+    # distance, no moralising.
+    'anya_sambandha': {
+        'container':            'vaivahika',
+        'display_name':         'Anya-Sambandha · Unconventional Alliances',
+        'sanskrit_name':        'अन्य-सम्बन्ध',
+        'target_house':         7,
+        'target_role':          '7th — Yuvati Bhava (with 12th-house pivots)',
+        'required_inputs':      [],
+        'optional_inputs':      ['natal_lagna_sign', 'full_query'],
+        'sincerity_mode':       'standard',
+        'long_horizon_extras':  False,
+        'overlays': [
+            'sincerity_option_c',
+            'secret_aspect_scan',     # NEW · Phase 4D
+            'node_axis_activation',   # NEW · Phase 4D
+            'nakta_abhara_scan',
+        ],
+        'verdict_states':       ['YES', 'YES_WITH_DELAYS', 'CONDITIONAL', 'NO'],
+        'verdict_modifiers':    [],
+        'narrative_tone':       'circumspect',
+    },
+
+    # =================================================================
+    # Phase 4D · Kinship & Alliances (Siblings + Networks)
+    # =================================================================
+    # Dual-target: 3rd house (siblings) AND 11th house (networks).
+    # Aggregates legacy Sahaja + Mitra chapters. Pragmatic tone.
+    'kinship': {
+        'container':            'vaivahika',
+        'display_name':         'Kinship & Alliances · Sahaja + Mitra',
+        'sanskrit_name':        'सहज-मित्र',
+        'target_house':         3,   # primary; 11 handled in overlays
+        'secondary_house':      11,  # used by overlays
+        'target_role':          '3rd / 11th — Sahaja Bhava + Labha Bhava',
+        'required_inputs':      [],
+        'optional_inputs':      ['natal_lagna_sign', 'full_query'],
+        'sincerity_mode':       'standard',
+        'long_horizon_extras':  False,
+        'overlays': [
+            'sincerity_option_c',
+            'alliance_reciprocity_check',  # NEW · Phase 4D
+            'nakta_bridge_relay',          # NEW · Phase 4D
+        ],
+        'verdict_states':       ['YES', 'YES_WITH_DELAYS', 'CONDITIONAL', 'NO'],
+        'verdict_modifiers':    [],
+        'narrative_tone':       'pragmatic',
+    },
 }
 
 
@@ -173,6 +256,30 @@ def _empty_finding(name: str) -> Dict:
 
 
 # -----------------------------------------------------------------
+def overlay_sincerity_option_c(chart: Dict, state: Dict, inputs: Dict) -> Dict:
+    """
+    Declarative overlay confirming the topic uses BPHS Option-C sincerity audit
+    (audit-r2 scoring). Surfaces the already-computed sincerity from state into
+    overlay_findings for downstream UI/narrative consumption.
+
+    The sincerity scoring itself runs in the orchestrator's base layer before
+    overlays execute. This overlay merely exposes it under a stable key.
+    """
+    sincerity = state.get('sincerity') or {}
+    return {
+        'overlay': 'sincerity_option_c',
+        'fired': bool(sincerity.get('triggers_insincere') or sincerity.get('score', 100) < 100),
+        'data': {
+            'sincerity_score':         sincerity.get('score'),
+            'sincerity_band':          sincerity.get('band'),
+            'sincerity_triggers':      sincerity.get('triggers_insincere'),
+            'sincerity_audit_version': 'option_c',
+        },
+        'narrative': ('Sincerity audit (Option C / audit-r2) applied — '
+                      'measures the querent\'s motivation strength at the moment of casting.'),
+    }
+
+
 # OVERLAY: lineage_query_check
 # Garbha-specific. If the question contains lineage keywords
 # (lineage / heir / vansha / dynasty / family line / bloodline),
@@ -370,14 +477,27 @@ def overlay_nakta_abhara_scan(chart: Dict, state: Dict, inputs: Dict) -> Dict:
     abhara = detect_abhara_yoga(lagna_lord, target_lord, chart)
     yama = detect_yama_yoga(lagna_lord, target_lord, chart)
 
+    # Positional helpers for downstream flatteners + match-type derivation
+    # (l1_in_target, moon_in_target, aspect_l7_moon are required by the
+    # Vivaha legacy decision tree replicated in _flatten_to_legacy_vivaha)
+    l1_in_target   = (_planet_house(chart, lagna_lord) == target_house)
+    moon_in_target = (_planet_house(chart, 'Moon')      == target_house)
+    aspect_l1_lt   = pairwise_aspect(lagna_lord, target_lord, chart)
+    aspect_lt_moon = pairwise_aspect(target_lord, 'Moon', chart) if target_lord != 'Moon' else {}
+
     return {
         'overlay': 'nakta_abhara_scan',
         'fired': bool(nakta or abhara or yama),
         'data': {
-            'nakta_bridge': nakta,
-            'abhara_yoga':  abhara,
-            'yama_yoga':    yama,
-            'aspect_l1_lt': pairwise_aspect(lagna_lord, target_lord, chart),
+            'nakta_bridge':   nakta,
+            'abhara_yoga':    abhara,
+            'yama_yoga':      yama,
+            'aspect_l1_lt':   aspect_l1_lt,
+            'aspect_lt_moon': aspect_lt_moon,
+            'l1_in_target':   l1_in_target,
+            'moon_in_target': moon_in_target,
+            'lagna_lord':     lagna_lord,
+            'target_lord':    target_lord,
         },
         'narrative': ('Scanned for indirect relays (Nakta), malefic interference '
                       '(Abhara), and midpoint binders (Yama) on the L1–L_target '
@@ -662,27 +782,28 @@ def overlay_inconclusive_check(chart: Dict, state: Dict, inputs: Dict) -> Dict:
 
 def overlay_third_party_interference(chart: Dict, state: Dict, inputs: Dict) -> Dict:
     """
-    Vivaha-specific. Per Ch 9: malefic 8L/3L/4L in 7th identifies
-    third-party interference source (rival/sibling/parent).
+    Vivaha-specific. Per Ch 9 + legacy decision tree:
+    Iterate 8th, 3rd, 4th lords — if a lord is classical malefic
+    (Sun, Mars, Saturn) AND placed in target house, flag as interference.
+    Format matches legacy vivaha_judgment exactly.
     """
     target_house = state['target']['house']  # 7 for Vivaha
     lagna_sign = chart.get('lagna_sign', 0)
 
     interferers = []
-    role_map = {
-        8: ('Female Rival / Outside Party', '8th lord'),
-        3: ('Brother / Sibling', '3rd lord'),
-        4: ('Parents', '4th lord'),
-    }
-    for house_num, (label, descr) in role_map.items():
-        lord_sign = (lagna_sign + house_num - 1) % 12
-        lord = SIGN_LORDS[lord_sign]
-        if _planet_house(chart, lord) == target_house:
-            # Check if malefic by classical sect
-            if lord in ('Mars', 'Saturn', 'Sun') or _is_combust(chart.get('planets', {}), lord):
-                interferers.append({
-                    'trigger': descr, 'malefic_lord': lord, 'type': label,
-                })
+    house_labels = [
+        (8, 'Female rival / other partner'),
+        (3, 'Sibling interference'),
+        (4, 'Parental interference'),
+    ]
+    for house_num, label in house_labels:
+        h_sign = (lagna_sign + house_num - 1) % 12
+        h_lord = SIGN_LORDS[h_sign]
+        if h_lord in ('Sun', 'Mars', 'Saturn') and _planet_house(chart, h_lord) == target_house:
+            interferers.append({
+                'type': label,
+                'trigger': f"Malefic {house_num}th lord ({h_lord}) occupies the {target_house}th house",
+            })
 
     if not interferers:
         return _empty_finding('third_party_interference')
@@ -691,37 +812,51 @@ def overlay_third_party_interference(chart: Dict, state: Dict, inputs: Dict) -> 
         'overlay': 'third_party_interference',
         'fired': True,
         'data': {'third_party_interference': interferers},
-        'narrative': f'Detected {len(interferers)} third-party interference source(s) on the 7th cusp.',
+        'narrative': f'Detected {len(interferers)} third-party interference source(s) on the {target_house}th cusp.',
         'frontend_card_id': 'third-party-card',
     }
 
 
 def overlay_emotional_reciprocity(chart: Dict, state: Dict, inputs: Dict) -> Dict:
     """
-    Vivaha-specific. Per Ch 9: emotional dynamics from L1↔L7 aspect quality
-    + Moon's relationship to both lords.
+    Vivaha-specific. Per Ch 9 + legacy vivaha_judgment decision tree:
+      - L1↔L7 in Ithesal             → 'mutual_love'
+      - L1↔L7 in Esrapha             → 'past_engagement'
+      - Both lords in same sign      → 'discord_short'
+      - L1↔L7 within_orb otherwise   → 'neutral'
+      - No L1↔L7 aspect within orb   → 'disengaged'
     """
+    planets = chart.get('planets', {})
     lagna_sign = chart.get('lagna_sign', 0)
     lagna_lord = SIGN_LORDS[lagna_sign]
     target_house = state['target']['house']
     target_sign = (lagna_sign + target_house - 1) % 12
     target_lord = SIGN_LORDS[target_sign]
 
-    asp_l1_lt = pairwise_aspect(lagna_lord, target_lord, chart)
-    asp_l7_moon = pairwise_aspect(target_lord, 'Moon', chart)
+    asp_l1_l7 = pairwise_aspect(lagna_lord, target_lord, chart)
 
-    if asp_l1_lt.get('within_orb') and asp_l1_lt.get('yoga') in ('Ithesal', 'Mutthashila'):
-        reciprocity = 'mutual_love'
-        narrative = 'Mutual emotional reciprocity — both lords meet within applying aspect.'
-    elif asp_l7_moon.get('within_orb'):
-        reciprocity = 'past_engagement'
-        narrative = 'Partner-significator engages with Moon — emotional thread from one side.'
-    elif asp_l1_lt.get('yoga') == 'Esrapha':
-        reciprocity = 'discord_short'
-        narrative = 'Separating aspect between lords — recent friction; may pass.'
+    if asp_l1_l7.get('within_orb'):
+        yoga = asp_l1_l7.get('yoga')
+        if yoga == 'Ithesal':
+            reciprocity = 'mutual_love'
+            narrative = ("Lagna Lord and 7th Lord are in Ithesal — mutual attraction "
+                         "and active emotional engagement.")
+        elif yoga == 'Esrapha':
+            reciprocity = 'past_engagement'
+            narrative = ("Lagna Lord and 7th Lord are in Esrapha — the emotional "
+                         "energy is in the past; the connection is fading.")
+        elif (planets.get(lagna_lord, {}).get('sign_index') ==
+              planets.get(target_lord, {}).get('sign_index')):
+            reciprocity = 'discord_short'
+            narrative = ("Both lords occupy the same sign — short-lived friction, "
+                         "quickly resolved.")
+        else:
+            reciprocity = 'neutral'
+            narrative = "Active aspect but neither applying nor separating — neutral engagement."
     else:
         reciprocity = 'disengaged'
-        narrative = 'No active emotional bridge between significators.'
+        narrative = ("Lagna Lord and 7th Lord do not aspect each other within orb — "
+                     "emotional disengagement or blind spot between partners.")
 
     return {
         'overlay': 'emotional_reciprocity',
@@ -729,6 +864,522 @@ def overlay_emotional_reciprocity(chart: Dict, state: Dict, inputs: Dict) -> Dic
         'data': {
             'emotional_reciprocity': reciprocity,
             'reciprocity_narrative': narrative,
+        },
+        'narrative': narrative,
+    }
+
+
+# =================================================================
+# PHASE 4D · PUTRA OVERLAYS (Long-Horizon Progeny — Family Size)
+# =================================================================
+# Distinct from Garbha (immediate biological cycle):
+# Putra reads long-term capacity and family size from the 5th house,
+# 5L (Putra Bhava lord), Jupiter (natural Putra Karaka), and the
+# Saptamsha (D7) varga as the classical progeny anchor.
+
+def overlay_putra_yoga_catalogue(chart: Dict, state: Dict, inputs: Dict) -> Dict:
+    """
+    Scans classical progeny yogas — 5L placement, Jupiter (Putra Karaka)
+    condition, and 5th-house occupants. Produces a yoga list + family-size
+    band, not a count promise (per Atul's guardrail: 'avoid fatalistic
+    over-promises').
+    """
+    planets = chart.get('planets', {})
+    lagna_sign = chart.get('lagna_sign', 0)
+    fifth_sign = (lagna_sign + 4) % 12
+    fifth_lord = SIGN_LORDS[fifth_sign]
+    fifth_lord_house = _planet_house(chart, fifth_lord)
+    jupiter_house = _planet_house(chart, 'Jupiter')
+
+    yogas = []
+
+    # 5L in Kendra (1/4/7/10) or Trikona (1/5/9) — fertile sthana
+    if fifth_lord_house in (1, 4, 5, 7, 9, 10):
+        yogas.append({
+            'name': f'5th Lord in Kendra/Trikona',
+            'detail': f'{fifth_lord} (5L) occupies the {fifth_lord_house}{_ordinal_suffix(fifth_lord_house)} '
+                      f'house — Putra Bhava lord is well-placed.',
+        })
+
+    # Jupiter (Putra Karaka) in 5, 9, or 11
+    if jupiter_house in (5, 9, 11):
+        yogas.append({
+            'name': 'Putra Karaka Strong',
+            'detail': f'Jupiter (Putra Karaka) occupies the {jupiter_house}{_ordinal_suffix(jupiter_house)} '
+                      f'house — natural progeny significator in a productive sthana.',
+        })
+
+    # Jupiter aspects 5th house (classical Putra Yoga)
+    if jupiter_house and jupiter_house in (5,):  # Jupiter directly in 5th
+        yogas.append({
+            'name': 'Jupiter in 5th (Putra Yoga)',
+            'detail': 'Jupiter occupies Putra Bhava directly — classical fertility yoga.',
+        })
+
+    # 5L–Jupiter relationship via aspect
+    asp_5l_jup = pairwise_aspect(fifth_lord, 'Jupiter', chart) if fifth_lord != 'Jupiter' else {}
+    if asp_5l_jup.get('within_orb') and asp_5l_jup.get('yoga') in ('Ithesal', 'Mutthashila'):
+        yogas.append({
+            'name': '5L–Jupiter Ithesal',
+            'detail': f'{fifth_lord} (5L) is in applying aspect with Jupiter — '
+                      f'Putra Karaka and Bhava lord are bound.',
+        })
+
+    # 5L combust / debilitated downgrades
+    debilitations = {'Sun': 6, 'Moon': 7, 'Mars': 3, 'Mercury': 11, 'Jupiter': 9, 'Venus': 5, 'Saturn': 0}
+    fifth_lord_sign = planets.get(fifth_lord, {}).get('sign_index')
+    if debilitations.get(fifth_lord) == fifth_lord_sign:
+        yogas.append({
+            'name': '5L Debilitated',
+            'detail': f'{fifth_lord} is in its sign of debilitation — Putra capacity diminished.',
+            'is_caveat': True,
+        })
+
+    # Synthesise a family-size band — strictly qualitative (Atul's guardrail)
+    positive_yogas = sum(1 for y in yogas if not y.get('is_caveat'))
+    caveats = sum(1 for y in yogas if y.get('is_caveat'))
+    if positive_yogas >= 3 and caveats == 0:
+        band = 'Abundant'
+        band_narrative = ('Multiple Putra yogas fire with no caveats — the long-horizon '
+                          'reading favours a full family.')
+    elif positive_yogas >= 2:
+        band = 'Moderate'
+        band_narrative = ('Putra Bhava is supported by some yogas — the long-horizon '
+                          'reading favours a moderate family size.')
+    elif positive_yogas == 1:
+        band = 'Modest'
+        band_narrative = ('A single positive Putra yoga fires — the long-horizon '
+                          'reading suggests a modest family size, dependent on lifestyle choices.')
+    else:
+        band = 'Restricted'
+        band_narrative = ('No clear Putra yogas fire — the long-horizon reading is '
+                          'restrictive; this does not predict childlessness but indicates '
+                          'the chart does not actively support a large family.')
+
+    return {
+        'overlay': 'putra_yoga_catalogue',
+        'fired': len(yogas) > 0,
+        'data': {
+            'yogas':            yogas,
+            'family_size_band': band,
+            'band_narrative':   band_narrative,
+            'fifth_lord':       fifth_lord,
+            'fifth_lord_house': fifth_lord_house,
+            'jupiter_house':    jupiter_house,
+        },
+        'narrative': band_narrative,
+    }
+
+
+def overlay_saptamsha_varga_anchor(chart: Dict, state: Dict, inputs: Dict) -> Dict:
+    """
+    Saptamsha (D7) varga is the classical anchor for progeny.
+    Each 30° sign is divided into 7 parts of 4°17'09" each.
+    The D7 Lagna sign is the strongest progeny indicator.
+
+    Compute D7 position of: Lagna, 5L, Jupiter — and report their
+    D7 sign placements as a progeny-quality reading.
+    """
+    planets = chart.get('planets', {})
+    lagna_sign = chart.get('lagna_sign', 0)
+    lagna_lon = chart.get('lagna_longitude', 0.0)
+    fifth_sign = (lagna_sign + 4) % 12
+    fifth_lord = SIGN_LORDS[fifth_sign]
+
+    def to_d7_sign(longitude: float) -> int:
+        """
+        BPHS Saptamsha: each sign (30°) divided into 7 parts of 4°17'09" (~4.2857°).
+        Odd signs (Aries, Gemini, ..., Aquarius) start D7 from same sign;
+        even signs (Taurus, Cancer, ..., Pisces) start D7 from 7th sign.
+        """
+        sign = int(longitude // 30) % 12
+        deg_in_sign = longitude % 30
+        part = int(deg_in_sign / (30.0 / 7.0))  # 0..6
+        if sign % 2 == 0:  # odd sign (Aries=0)
+            d7_sign = (sign + part) % 12
+        else:  # even sign
+            d7_sign = (sign + 6 + part) % 12
+        return d7_sign
+
+    lagna_d7    = to_d7_sign(lagna_lon)
+    fifth_lord_lon = planets.get(fifth_lord, {}).get('longitude', 0)
+    fifth_lord_d7 = to_d7_sign(fifth_lord_lon)
+    jupiter_lon = planets.get('Jupiter', {}).get('longitude', 0)
+    jupiter_d7 = to_d7_sign(jupiter_lon)
+
+    SIGN_NAMES = ['Aries','Taurus','Gemini','Cancer','Leo','Virgo',
+                  'Libra','Scorpio','Sagittarius','Capricorn','Aquarius','Pisces']
+
+    # Fertile vs barren signs (classical Putra evaluation)
+    fertile_signs   = {3, 7, 11}      # Cancer, Scorpio, Pisces (water)
+    semi_fertile    = {1, 6}           # Taurus, Libra (Venus-ruled)
+    barren_signs    = {0, 4, 5, 9}     # Aries, Leo, Virgo, Capricorn
+
+    def classify_sign(s):
+        if s in fertile_signs:    return ('fertile', 'productive D7 sign')
+        if s in semi_fertile:     return ('semi_fertile', 'mixed D7 sign')
+        if s in barren_signs:     return ('barren', 'restrictive D7 sign')
+        return ('neutral', 'neutral D7 sign')
+
+    lagna_d7_class    = classify_sign(lagna_d7)
+    fifth_lord_d7_class = classify_sign(fifth_lord_d7)
+    jupiter_d7_class  = classify_sign(jupiter_d7)
+
+    # Scoring: how many indicators land in fertile signs?
+    fertile_count = sum(1 for c in (lagna_d7_class, fifth_lord_d7_class, jupiter_d7_class)
+                        if c[0] == 'fertile')
+    barren_count  = sum(1 for c in (lagna_d7_class, fifth_lord_d7_class, jupiter_d7_class)
+                        if c[0] == 'barren')
+
+    if fertile_count >= 2:
+        verdict = 'strong'
+        narrative = (f'Saptamsha (D7) anchor confirms long-horizon progeny capacity — '
+                     f'{fertile_count} of 3 key indicators (D7 Lagna, 5L, Jupiter) sit in fertile signs.')
+    elif barren_count >= 2:
+        verdict = 'weak'
+        narrative = (f'Saptamsha (D7) anchor weakens long-horizon progeny capacity — '
+                     f'{barren_count} of 3 key indicators sit in barren signs. The Rashi reading '
+                     f'should be weighed against this restriction.')
+    else:
+        verdict = 'moderate'
+        narrative = ('Saptamsha (D7) anchor is mixed — no dominant fertile or barren signal. '
+                     'The Rashi chart\'s Putra reading should be taken at face value.')
+
+    return {
+        'overlay': 'saptamsha_varga_anchor',
+        'fired': True,
+        'data': {
+            'd7_verdict':      verdict,
+            'd7_narrative':    narrative,
+            'lagna_d7_sign':   SIGN_NAMES[lagna_d7],
+            'fifth_lord_d7_sign': SIGN_NAMES[fifth_lord_d7],
+            'jupiter_d7_sign': SIGN_NAMES[jupiter_d7],
+            'lagna_d7_class':  lagna_d7_class[0],
+            'fifth_lord_d7_class': fifth_lord_d7_class[0],
+            'jupiter_d7_class': jupiter_d7_class[0],
+            'fertile_count':   fertile_count,
+            'barren_count':    barren_count,
+        },
+        'narrative': narrative,
+    }
+
+
+# =================================================================
+# PHASE 4D · ANYA-SAMBANDHA OVERLAYS (Unconventional & Hidden)
+# =================================================================
+# Pivots dynamically: 7th house (overt), 12th (hidden/secret), or
+# Rahu-Ketu axis activation on 5/11 or 1/7. Clinical tone required —
+# no moralising, just diagnostic truth.
+
+def overlay_secret_aspect_scan(chart: Dict, state: Dict, inputs: Dict) -> Dict:
+    """
+    Scans for hidden-relationship signatures:
+      - 7L in 12th (hidden partnerships)
+      - 12L in 7th (secret influence over partner)
+      - Combust planets near the 7L (concealed by Sun)
+      - Venus in 12th (private affections)
+      - Mars-Venus connection via 12th
+    """
+    planets = chart.get('planets', {})
+    lagna_sign = chart.get('lagna_sign', 0)
+    seventh_sign = (lagna_sign + 6) % 12
+    twelfth_sign = (lagna_sign + 11) % 12
+    seventh_lord = SIGN_LORDS[seventh_sign]
+    twelfth_lord = SIGN_LORDS[twelfth_sign]
+
+    signatures = []
+
+    if _planet_house(chart, seventh_lord) == 12:
+        signatures.append({
+            'name': '7L in 12th',
+            'detail': f'{seventh_lord} (7L) is in the 12th house — partnerships happen '
+                      f'in hidden, private, or unconventional contexts.',
+        })
+
+    if _planet_house(chart, twelfth_lord) == 7:
+        signatures.append({
+            'name': '12L in 7th',
+            'detail': f'{twelfth_lord} (12L) is in the 7th house — secret or background '
+                      f'influences shape the partnership domain.',
+        })
+
+    if _is_combust(planets, seventh_lord):
+        signatures.append({
+            'name': '7L Combust',
+            'detail': f'{seventh_lord} (7L) is combust — partnership matters operate '
+                      f'in concealment; the relationship may be private or hidden.',
+        })
+
+    venus_house = _planet_house(chart, 'Venus')
+    if venus_house == 12:
+        signatures.append({
+            'name': 'Venus in 12th',
+            'detail': 'Venus occupies the 12th house — affections expressed privately or in seclusion.',
+        })
+
+    # Mars-Venus 12th-house mutual aspect (intensity signature)
+    mars_house  = _planet_house(chart, 'Mars')
+    if {venus_house, mars_house} <= {12}:
+        signatures.append({
+            'name': 'Mars-Venus in 12th',
+            'detail': 'Both Mars and Venus tenant the 12th — strong private-intensity signature.',
+        })
+
+    fired = len(signatures) > 0
+
+    if not fired:
+        narrative = ('No strong hidden-relationship signatures detected — partnership '
+                     'activity, if any, operates in overt registers.')
+    else:
+        narrative = (f'{len(signatures)} hidden-relationship signature(s) detected. '
+                     f'The partnership terrain is unconventional or concealed.')
+
+    return {
+        'overlay': 'secret_aspect_scan',
+        'fired': fired,
+        'data': {
+            'signatures':       signatures,
+            'count':            len(signatures),
+            'seventh_lord':     seventh_lord,
+            'twelfth_lord':     twelfth_lord,
+            'venus_house':      venus_house,
+            'mars_house':       mars_house,
+        },
+        'narrative': narrative,
+    }
+
+
+def overlay_node_axis_activation(chart: Dict, state: Dict, inputs: Dict) -> Dict:
+    """
+    Rahu-Ketu axis activation on alliance-relevant axes:
+      - 1/7 axis (self vs partner)
+      - 5/11 axis (creative bonds vs networks)
+      - Nodes aspecting/conjuncting target lord
+    Indicates karmic, sudden, or unconventional alliance dynamics.
+    """
+    planets = chart.get('planets', {})
+    rahu_house = _planet_house(chart, 'Rahu')
+    ketu_house = _planet_house(chart, 'Ketu')
+
+    activations = []
+    axis_axes_hit = []
+
+    # 1/7 axis — self / partner
+    if {rahu_house, ketu_house} == {1, 7}:
+        activations.append({
+            'name': 'Rahu-Ketu on 1/7 axis',
+            'detail': 'Nodes split the self–partner axis — alliances carry karmic charge, '
+                      'sudden formations or dissolutions, and unconventional dynamics.',
+        })
+        axis_axes_hit.append('1/7')
+
+    # 5/11 axis — creative bonds / networks
+    if {rahu_house, ketu_house} == {5, 11}:
+        activations.append({
+            'name': 'Rahu-Ketu on 5/11 axis',
+            'detail': 'Nodes split the creative-bond/network axis — fated friendships, '
+                      'unconventional creative partnerships, or boundary-blurring alliances.',
+        })
+        axis_axes_hit.append('5/11')
+
+    # 3/9 axis — kinship / dharma
+    if {rahu_house, ketu_house} == {3, 9}:
+        activations.append({
+            'name': 'Rahu-Ketu on 3/9 axis',
+            'detail': 'Nodes split the kinship/dharma axis — sibling-like bonds outside '
+                      'biological family or alliances that test moral frame.',
+        })
+        axis_axes_hit.append('3/9')
+
+    # Node in target house directly
+    target_house = state['target']['house']
+    if rahu_house == target_house:
+        activations.append({
+            'name': f'Rahu in {target_house}{_ordinal_suffix(target_house)}',
+            'detail': f'Rahu occupies the target house — alliance dynamics carry '
+                      f'amplification, novelty, foreign or unconventional flavour.',
+        })
+    if ketu_house == target_house:
+        activations.append({
+            'name': f'Ketu in {target_house}{_ordinal_suffix(target_house)}',
+            'detail': f'Ketu occupies the target house — alliance dynamics carry '
+                      f'detachment, dissolution, or karmic completion energy.',
+        })
+
+    fired = len(activations) > 0
+
+    if not fired:
+        narrative = ('Nodes do not activate alliance-relevant axes — relational dynamics '
+                     'operate without strong karmic or unconventional pressure.')
+    else:
+        narrative = (f'Node-axis activation detected: {len(activations)} signature(s). '
+                     f'Alliance dynamics carry karmic weight.')
+
+    return {
+        'overlay': 'node_axis_activation',
+        'fired': fired,
+        'data': {
+            'activations':     activations,
+            'rahu_house':      rahu_house,
+            'ketu_house':      ketu_house,
+            'axes_hit':        axis_axes_hit,
+            'target_house':    target_house,
+        },
+        'narrative': narrative,
+    }
+
+
+# =================================================================
+# PHASE 4D · KINSHIP & ALLIANCES OVERLAYS (Sahaja + Mitra)
+# =================================================================
+# Dual-target reading: 3L (siblings/co-borns) + 11L (deep networks).
+# Aggregates legacy Sahaja and Mitra chapters into one modern frame.
+
+def overlay_alliance_reciprocity_check(chart: Dict, state: Dict, inputs: Dict) -> Dict:
+    """
+    Dual-house reciprocity check on 3L (siblings) and 11L (alliances/networks).
+    Evaluates each lord's house placement, friendship/enmity to Lagna lord
+    by Naisargika friendship, and mutual aspect quality.
+    """
+    planets = chart.get('planets', {})
+    lagna_sign = chart.get('lagna_sign', 0)
+    lagna_lord = SIGN_LORDS[lagna_sign]
+    third_sign = (lagna_sign + 2) % 12
+    eleventh_sign = (lagna_sign + 10) % 12
+    third_lord = SIGN_LORDS[third_sign]
+    eleventh_lord = SIGN_LORDS[eleventh_sign]
+
+    # Naisargika friendships (BPHS Ch.13)
+    FRIENDS = {
+        'Sun':     {'Moon', 'Mars', 'Jupiter'},
+        'Moon':    {'Sun', 'Mercury'},
+        'Mars':    {'Sun', 'Moon', 'Jupiter'},
+        'Mercury': {'Sun', 'Venus'},
+        'Jupiter': {'Sun', 'Moon', 'Mars'},
+        'Venus':   {'Mercury', 'Saturn'},
+        'Saturn':  {'Mercury', 'Venus'},
+    }
+    ENEMIES = {
+        'Sun':     {'Venus', 'Saturn'},
+        'Moon':    set(),
+        'Mars':    {'Mercury'},
+        'Mercury': {'Moon'},
+        'Jupiter': {'Mercury', 'Venus'},
+        'Venus':   {'Sun', 'Moon'},
+        'Saturn':  {'Sun', 'Moon', 'Mars'},
+    }
+
+    def classify(other):
+        if other in FRIENDS.get(lagna_lord, set()): return ('friend',  'naisargika friend')
+        if other in ENEMIES.get(lagna_lord, set()): return ('enemy',   'naisargika enemy')
+        return ('neutral', 'naisargika neutral')
+
+    # Sibling branch (3L)
+    third_lord_house = _planet_house(chart, third_lord)
+    asp_l1_l3 = pairwise_aspect(lagna_lord, third_lord, chart) if third_lord != lagna_lord else {}
+    sibling = {
+        'lord':           third_lord,
+        'lord_house':     third_lord_house,
+        'friendship':     classify(third_lord)[1] if third_lord != lagna_lord else 'self-ruled',
+        'aspect_quality': asp_l1_l3.get('yoga') if asp_l1_l3.get('within_orb') else 'no_aspect',
+        'is_combust':     _is_combust(planets, third_lord),
+    }
+    # Sibling verdict
+    sibling_score = 0
+    if sibling['friendship'] == 'naisargika friend': sibling_score += 2
+    elif sibling['friendship'] == 'naisargika neutral': sibling_score += 1
+    if sibling['aspect_quality'] == 'Ithesal': sibling_score += 2
+    elif sibling['aspect_quality'] == 'Mutthashila': sibling_score += 1
+    if sibling['is_combust']: sibling_score -= 2
+    if third_lord_house in (1, 3, 5, 9, 10, 11): sibling_score += 1
+
+    sibling['verdict'] = ('supportive' if sibling_score >= 3
+                          else 'estranged' if sibling_score <= 0
+                          else 'mixed')
+
+    # Network branch (11L)
+    eleventh_lord_house = _planet_house(chart, eleventh_lord)
+    asp_l1_l11 = pairwise_aspect(lagna_lord, eleventh_lord, chart) if eleventh_lord != lagna_lord else {}
+    networks = {
+        'lord':           eleventh_lord,
+        'lord_house':     eleventh_lord_house,
+        'friendship':     classify(eleventh_lord)[1] if eleventh_lord != lagna_lord else 'self-ruled',
+        'aspect_quality': asp_l1_l11.get('yoga') if asp_l1_l11.get('within_orb') else 'no_aspect',
+        'is_combust':     _is_combust(planets, eleventh_lord),
+    }
+    network_score = 0
+    if networks['friendship'] == 'naisargika friend': network_score += 2
+    elif networks['friendship'] == 'naisargika neutral': network_score += 1
+    if networks['aspect_quality'] == 'Ithesal': network_score += 2
+    elif networks['aspect_quality'] == 'Mutthashila': network_score += 1
+    if networks['is_combust']: network_score -= 2
+    if eleventh_lord_house in (1, 5, 9, 10, 11): network_score += 1
+
+    networks['verdict'] = ('rewarding' if network_score >= 3
+                           else 'depleting' if network_score <= 0
+                           else 'mixed')
+
+    narrative = (f'Sibling axis: {sibling["verdict"]} ({third_lord} in {third_lord_house}{_ordinal_suffix(third_lord_house)}). '
+                 f'Network axis: {networks["verdict"]} ({eleventh_lord} in {eleventh_lord_house}{_ordinal_suffix(eleventh_lord_house)}).')
+
+    return {
+        'overlay': 'alliance_reciprocity_check',
+        'fired': True,
+        'data': {
+            'sibling':  sibling,
+            'networks': networks,
+            'lagna_lord': lagna_lord,
+            'aggregated_verdict': ('strong_support' if sibling['verdict'] == 'supportive' and networks['verdict'] == 'rewarding'
+                                   else 'weak_support' if sibling['verdict'] == 'estranged' and networks['verdict'] == 'depleting'
+                                   else 'mixed_support'),
+        },
+        'narrative': narrative,
+    }
+
+
+def overlay_nakta_bridge_relay(chart: Dict, state: Dict, inputs: Dict) -> Dict:
+    """
+    Indirect-relay reading: checks for Nakta bridge between Lagna lord and
+    BOTH 3L (siblings) and 11L (allies) — surfaces intermediary planets
+    that mediate kinship/alliance connections.
+    """
+    lagna_sign = chart.get('lagna_sign', 0)
+    lagna_lord = SIGN_LORDS[lagna_sign]
+    third_sign = (lagna_sign + 2) % 12
+    eleventh_sign = (lagna_sign + 10) % 12
+    third_lord = SIGN_LORDS[third_sign]
+    eleventh_lord = SIGN_LORDS[eleventh_sign]
+
+    bridge_sibling = detect_nakta(lagna_lord, third_lord, chart) if third_lord != lagna_lord else None
+    bridge_network = detect_nakta(lagna_lord, eleventh_lord, chart) if eleventh_lord != lagna_lord else None
+
+    has_sibling_bridge = bool(bridge_sibling and bridge_sibling.get('bridge'))
+    has_network_bridge = bool(bridge_network and bridge_network.get('bridge'))
+
+    fired = has_sibling_bridge or has_network_bridge
+
+    if not fired:
+        narrative = ('No active Nakta bridges between Lagna lord and the kinship/alliance '
+                     'significators — connections, when present, are direct or absent.')
+    else:
+        parts = []
+        if has_sibling_bridge:
+            parts.append(f'Sibling axis routed via {bridge_sibling["bridge"]} ({bridge_sibling.get("bridge_role", "intermediary")})')
+        if has_network_bridge:
+            parts.append(f'Network axis routed via {bridge_network["bridge"]} ({bridge_network.get("bridge_role", "intermediary")})')
+        narrative = '; '.join(parts) + '.'
+
+    return {
+        'overlay': 'nakta_bridge_relay',
+        'fired': fired,
+        'data': {
+            'sibling_bridge':  bridge_sibling,
+            'network_bridge':  bridge_network,
+            'lagna_lord':      lagna_lord,
+            'third_lord':      third_lord,
+            'eleventh_lord':   eleventh_lord,
+            'has_sibling_bridge': has_sibling_bridge,
+            'has_network_bridge': has_network_bridge,
         },
         'narrative': narrative,
     }
@@ -748,6 +1399,7 @@ OVERLAY_REGISTRY: Dict[str, Callable] = {
     'rahu_ketu_progeny_axis':    overlay_rahu_ketu_progeny_axis,
     'inconclusive_check':        overlay_inconclusive_check,
     # Shared overlays
+    'sincerity_option_c':        overlay_sincerity_option_c,
     'nakta_abhara_scan':         overlay_nakta_abhara_scan,
     'kamboola_yoga':             overlay_kamboola_yoga,
     'gada_yoga':                 overlay_gada_yoga,
@@ -755,6 +1407,15 @@ OVERLAY_REGISTRY: Dict[str, Callable] = {
     # Vivaha overlays
     'third_party_interference':  overlay_third_party_interference,
     'emotional_reciprocity':     overlay_emotional_reciprocity,
+    # Phase 4D · Putra overlays
+    'putra_yoga_catalogue':      overlay_putra_yoga_catalogue,
+    'saptamsha_varga_anchor':    overlay_saptamsha_varga_anchor,
+    # Phase 4D · Anya-Sambandha overlays
+    'secret_aspect_scan':        overlay_secret_aspect_scan,
+    'node_axis_activation':      overlay_node_axis_activation,
+    # Phase 4D · Kinship & Alliances overlays
+    'alliance_reciprocity_check': overlay_alliance_reciprocity_check,
+    'nakta_bridge_relay':        overlay_nakta_bridge_relay,
 }
 
 
@@ -1153,52 +1814,72 @@ def prashna_topic_judgment(chart_data: Dict, topic_id: str, **inputs) -> Dict:
     }
 
 
+def _ordinal_suffix(n: int) -> str:
+    """Returns 'st', 'nd', 'rd', or 'th' for a number."""
+    if 10 <= n % 100 <= 20:
+        return 'th'
+    return {1: 'st', 2: 'nd', 3: 'rd'}.get(n % 10, 'th')
+
+
 def _select_core_catalyst(state: Dict, findings: List[Dict],
                            lagna_lord: str, target_lord: str) -> Dict:
     """
     Pick the single most decisive yoga/finding as the verdict's 'core catalyst'
-    for display in the hero card.
+    for display in the hero card. Topic-aware: formats target lord descriptor
+    as "7th Lord" / "5th Lord" / etc. to match legacy convention.
     """
-    # Priority: substitution-firing yogas > L1↔L_target aspect > "no catalyst"
-    fired_findings_by_name = {f['overlay']: f for f in findings if f.get('fired')}
+    target_house = state['target']['house']
+    ord_suffix = _ordinal_suffix(target_house)
+    target_descriptor = f"{target_house}{ord_suffix} Lord ({target_lord})"
+    lagna_descriptor  = f"Lagna Lord ({lagna_lord})"
 
+    fired_findings_by_name = {f['overlay']: f for f in findings if f.get('fired')}
+    karya = state.get('karya') or {}
+
+    # Priority 1: substitution-firing yogas (Kamboola, Gada, Rahu/Ketu axis)
     for name in ('kamboola_yoga', 'gada_yoga', 'rahu_ketu_progeny_axis'):
         if name in fired_findings_by_name:
             f = fired_findings_by_name[name]
             return {
                 'yoga': name.replace('_', ' ').title(),
-                'between': [f"Lagna Lord ({lagna_lord})", f"Target Lord ({target_lord})"],
+                'between': [lagna_descriptor, target_descriptor],
                 'narrative': f.get('narrative'),
                 'source_overlay': name,
             }
 
-    # L1↔L_target aspect from nakta_abhara_scan data
-    nakta_finding = fired_findings_by_name.get('nakta_abhara_scan')
-    if nakta_finding:
-        asp = (nakta_finding.get('data') or {}).get('aspect_l1_lt') or {}
-        if asp.get('within_orb'):
-            return {
-                'yoga': asp.get('yoga', 'Aspect'),
-                'between': [f"Lagna Lord ({lagna_lord})", f"Target Lord ({target_lord})"],
-                'narrative': asp.get('narrative', ''),
-                'source_overlay': 'nakta_abhara_scan',
-            }
+    # Priority 2: L1↔L_target direct aspect via nakta_abhara_scan data
+    nakta_finding = fired_findings_by_name.get('nakta_abhara_scan') or {}
+    nakta_data = nakta_finding.get('data') or {}
+    asp = nakta_data.get('aspect_l1_lt') or {}
 
-        nakta = (nakta_finding.get('data') or {}).get('nakta_bridge')
-        if nakta and nakta.get('bridge'):
-            return {
-                'yoga': 'Nakta',
-                'between': [f"Lagna Lord ({lagna_lord})", f"Target Lord ({target_lord})"],
-                'bridge': nakta.get('bridge'),
-                'bridge_role': nakta.get('bridge_role'),
-                'narrative': nakta.get('narrative'),
-                'source_overlay': 'nakta_abhara_scan',
-            }
+    # Legacy vivaha_judgment used `positive_satisfied >= 2` as the gate
+    # for picking a strong-aspect catalyst vs Nakta/None fallback.
+    if karya.get('positive_satisfied', 0) >= 2 and asp.get('within_orb'):
+        return {
+            'yoga': asp.get('yoga', 'Aspect'),
+            'between': [lagna_descriptor, target_descriptor],
+            'narrative': asp.get('narrative', ''),
+            'source_overlay': 'nakta_abhara_scan',
+        }
 
+    # Priority 3: Nakta bridge as catalyst (legacy used `elif nakta:` truthy check)
+    nakta = nakta_data.get('nakta_bridge')
+    if nakta:
+        return {
+            'yoga': 'Nakta',
+            'between': [lagna_descriptor, target_descriptor],
+            'narrative': nakta.get('narrative', ''),
+            'bridge':      nakta.get('bridge'),
+            'bridge_role': nakta.get('bridge_role'),
+            'bridge_role_narrative': nakta.get('bridge_role_narrative'),
+            'source_overlay': 'nakta_abhara_scan',
+        }
+
+    # Priority 4: No decisive connection
     return {
         'yoga': 'None',
-        'between': [f"Lagna Lord ({lagna_lord})", f"Target Lord ({target_lord})"],
-        'narrative': 'No decisive Tajik connection between Lagna and target lords.',
+        'between': [lagna_descriptor, target_descriptor],
+        'narrative': 'No decisive Tajik connection between the two significators.',
     }
 
 
