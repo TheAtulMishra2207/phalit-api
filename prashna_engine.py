@@ -844,7 +844,9 @@ def _within_aspect_orb(planet_lon: float, target_lon: float,
 
 
 def compute_sincerity_score(chart_data: Dict,
-                            natal_lagna_sign: Optional[int] = None) -> Dict:
+                            natal_lagna_sign: Optional[int] = None,
+                            garbha_mode: bool = False,
+                            jd_ut: Optional[float] = None) -> Dict:
     """
     Evaluate querent sincerity per the Prashna Ethical Filter.
 
@@ -858,20 +860,14 @@ def compute_sincerity_score(chart_data: Dict,
       - When the Prashna Lagna falls in the user's natal Kendra (1/4/7/10) or
         Trikona (5/9), the query is considered "loyal" to the natal axis: +10
 
-    Insincere triggers (each reduces score):
-      - Moon in Lagna AND (Saturn or combust-Mercury) in any angular house  (-20 / -20)
-      - Mars AND Mercury both aspect the Moon                                (-15)
-      - Saturn in Lagna (querent is testing the astrologer)                  (-15)
-      - Saturn in 7th house                                                  (-12)
-      - Jupiter or Mercury cast inimical aspect (square/opposition) on 7th   (-4)
-
-    Sincere triggers (each increases score):
-      - Lagna conjoined with Jupiter / Venus                                 (+12 each)
-      - Lagna conjoined with unafflicted Mercury                             (+8)
-      - Moon in any Kendra (1/4/7/10) — classical "Mind in seat of action"   (+12)
-      - Moon aspected by Jupiter                                             (+15)
-      - Mercury or Jupiter in Lagna or 7th house                             (+8)
-      - Prashna Lagna activates natal Kendra/Trikona (natal-axis match)      (+10)
+    Garbha extensions (when garbha_mode=True):
+      - Combust Moon                                            (-10)
+      - Saturn in 5th AND Moon aspects Saturn                   (-8)
+      - Jupiter in 1st or 7th house                             (+8)
+      - Sun in 5th house                                        (-5)
+      - Mars-Saturn conjunction within orb                      (-5)
+      - Prashna Lagna == natal 5th house sign  → +15 (SUPERSEDES the generic +10)
+      - Eclipse proximity on relevant axis → hard cap at 45
 
     Returns dict with score (0–100), verdict, triggers, narrative_lead,
     natal_match (the natal house number activated, if any).
@@ -987,6 +983,9 @@ def compute_sincerity_score(chart_data: Dict,
     # When the Prashna Lagna lands in a natal Kendra (1/4/7/10) or Trikona (5/9),
     # the query is "loyal" to the user's life-axis — the question genuinely
     # concerns a meaningful life-area, not idle curiosity.
+    #
+    # Garbha extension: if Prashna Lagna lands specifically in natal 5th
+    # (the progeny axis), the bonus is +15 (supersedes the generic +10).
     natal_match = None
     if natal_lagna_sign is not None:
         shift_house = ((lagna_sign_idx - natal_lagna_sign) % 12) + 1
@@ -999,14 +998,82 @@ def compute_sincerity_score(chart_data: Dict,
             9: 'Dharma Bhava (Wisdom / Belief)',
             10: 'Karma Bhava (Career / Status)',
         }
-        if shift_house in zone_labels:
+        if garbha_mode and shift_house == 5:
+            # Garbha-specific supersession (+15 flat, suppresses the +10)
+            triggers_sincere.append(
+                "Prashna Lagna activates natal Putra Bhava (progeny axis) — "
+                "the question lands directly on the natal fertility frame"
+            )
+            score += 15
+        elif shift_house in zone_labels:
             triggers_sincere.append(
                 f"Prashna Lagna activates natal {zone_labels[shift_house]} — "
                 "the query is loyal to your life-axis"
             )
             score += 10
 
+    # -- GARBHA-SPECIFIC ADJUSTMENTS (Phase 3A) =====
+    if garbha_mode:
+        # Combust Moon → mind clouded / hormonal volatility
+        if _is_combust(planets, 'Moon'):
+            triggers_insincere.append(
+                "Moon is combust — mind clouded, hormonal volatility colours the query"
+            )
+            score -= 10
+
+        # Saturn in 5th AND Moon aspects Saturn → anxiety / infertility fear
+        if (_planet_in_house(houses, 'Saturn', 5)
+                and moon_lon is not None):
+            sat_lon = planets.get('Saturn', {}).get('longitude')
+            if sat_lon is not None and _within_aspect_orb(
+                    sat_lon, moon_lon,
+                    DEEPTAMSHA['Saturn'], DEEPTAMSHA['Moon']):
+                triggers_insincere.append(
+                    "Saturn in 5th, aspected by Moon — query driven by fear of infertility"
+                )
+                score -= 8
+
+        # Jupiter in Lagna or 7th → devotional / sincere
+        if (_planet_in_house(houses, 'Jupiter', 1)
+                or _planet_in_house(houses, 'Jupiter', 7)):
+            triggers_sincere.append(
+                "Jupiter (Putrakaraka) in Lagna or 7th — devotional sincerity"
+            )
+            score += 8
+
+        # Sun in 5th → ego-driven framing
+        if _planet_in_house(houses, 'Sun', 5):
+            triggers_insincere.append(
+                "Sun in 5th — pride / ego-driven framing of the question"
+            )
+            score -= 5
+
+        # Mars-Saturn conjunction → conflict-charged emotional state
+        mars_lon = planets.get('Mars', {}).get('longitude')
+        sat_lon = planets.get('Saturn', {}).get('longitude')
+        if (mars_lon is not None and sat_lon is not None
+                and _angular_diff(mars_lon, sat_lon) <= max(
+                    DEEPTAMSHA['Mars'], DEEPTAMSHA['Saturn'])):
+            triggers_insincere.append(
+                "Mars-Saturn conjunction within orb — conflict-charged emotional state"
+            )
+            score -= 5
+
     score = max(0, min(100, score))
+
+    # -- ECLIPSE CAP (last — overrides all positives) =====
+    # If query falls within ±15 days of an eclipse on the progeny axis,
+    # the judgment is shadowed regardless of other sincere triggers.
+    eclipse_capped = False
+    if garbha_mode and jd_ut is not None:
+        eclipse_check = detect_eclipse_proximity(jd_ut, chart_data, target_house=5)
+        if eclipse_check is not None and score > 45:
+            score = 45
+            eclipse_capped = True
+            triggers_insincere.append(
+                f"Eclipse shadow on progeny axis ({eclipse_check['axis_hit']}) — "
+                "sincerity hard-capped at 45/100; medical monitoring advised"
+            )
 
     if score >= 60:
         verdict = 'sincere'
@@ -1029,6 +1096,7 @@ def compute_sincerity_score(chart_data: Dict,
         'triggers_insincere': triggers_insincere,
         'triggers_sincere': triggers_sincere,
         'natal_match': natal_match,
+        'eclipse_capped': eclipse_capped if garbha_mode else False,
         'narrative_lead': narrative_lead,
     }
 
@@ -2730,4 +2798,910 @@ def vivaha_judgment(chart_data: Dict,
 
 # =================================================================
 # END OF PHASE 1H + 1I + 1J + 1K (Vivaha)
+# =================================================================
+
+
+# =================================================================
+# PHASE 3A — GARBHA (CONCEPTION) ENGINE MATH
+# Locked corpus: /mnt/user-data/outputs/garbha_corpus_locked.md
+# Reference priority: Prashna Marga > Tajik Neelkanthi > Phaladeepika
+# =================================================================
+
+
+# Alpa-Putra (sterile / low-fertility) signs per Atul's locked corpus.
+# Used by Rule A (Sphuta-cap at 50%) and Rule C (5th-cusp YES → YES_WITH_DELAYS).
+# Indices: Gemini=2, Leo=4, Virgo=5, Scorpio=7
+STERILE_SIGNS = {2, 4, 5, 7}
+
+# Mars-in-5th severity split per Atul's locked rulership-based decision:
+#   Leo (Sun-ruled Sthira) concentrates dry heat → high risk
+#   Sagittarius (Jupiter-ruled Dwiswabhava) → tempered, safe group
+# RISK indices: Aries=0, Cancer=3, Leo=4, Libra=6, Capricorn=9
+MARS_5TH_RISK_SIGNS = {0, 3, 4, 6, 9}
+
+# Garbha intent classifier keyword bank.
+# Order of evaluation matters — more specific intents are checked first.
+GARBHA_INTENT_KEYWORDS = {
+    'current_pregnancy_confirmation': [
+        'am i pregnant', 'is she pregnant', 'is my wife pregnant',
+        'did it work', 'did i conceive', 'has she conceived',
+        'is the pregnancy real', 'am i carrying',
+    ],
+    'gestation_safety': [
+        'go to term', 'will i miscarry', 'will the pregnancy', 'is the pregnancy safe',
+        'will it last', 'will the baby survive', 'gestation safe', 'trimester',
+        'high risk pregnancy', 'pregnancy go to term',
+    ],
+    'conception_timing': [
+        'when will i conceive', 'when will we conceive', 'fertility window',
+        'best time to try', 'when should we try', 'when can i get pregnant',
+        'optimal time to try', 'when is the best time',
+    ],
+    'outcome_quality': [
+        'healthy child', 'health of the child', "child's future", "baby's future",
+        "kids' future", 'will the child be',
+    ],
+}
+
+# Husband-pivot phrase bank — when male querent asks about partner's conception
+HUSBAND_PIVOT_PHRASES = [
+    'my wife', 'my partner', 'my spouse', 'my girlfriend', 'my fiancee',
+    'is she', 'will she', 'when will she', 'her conception',
+    'her pregnancy', 'her womb', 'she conceive',
+]
+
+# Self-pregnancy phrases — block the pivot even for male profile
+SELF_PREGNANCY_PHRASES = [
+    'am i pregnant', 'am i carrying', 'will i conceive', 'i conceive',
+    'when will i give birth', 'i am pregnant', 'my pregnancy',
+    'i give birth', 'i am carrying',
+]
+
+# 9th house exception keywords (lineage queries)
+LINEAGE_KEYWORDS = ['lineage', 'heir', 'vansha', 'dynasty', 'family line', 'bloodline']
+
+# Garbha-specific long-horizon keywords appended at lookup time
+GARBHA_LONG_HORIZON_EXTRAS = [
+    'ever have children', 'ever conceive', 'all my children',
+    'how many children', "children's future", "kids' future",
+    'multiple pregnancies', 'future kids', 'future babies',
+]
+
+
+# -----------------------------------------------------------------
+# GROUP 1 — FERTILITY COORDINATES (Beeja & Kshetra Sphuta)
+# -----------------------------------------------------------------
+
+def compute_beeja_sphuta(planets: Dict) -> Dict:
+    """
+    Beeja Sphuta — male fertility coordinate (Parashari integration).
+    Formula: (Sun_lon + Venus_lon + Jupiter_lon) mod 360°
+    Returns dict with longitude, sign_index, sign_name, deg_in_sign.
+    """
+    sun_lon = planets.get('Sun', {}).get('longitude')
+    venus_lon = planets.get('Venus', {}).get('longitude')
+    jup_lon = planets.get('Jupiter', {}).get('longitude')
+    if None in (sun_lon, venus_lon, jup_lon):
+        return {'error': 'Missing required planet longitude for Beeja Sphuta'}
+    sphuta = (sun_lon + venus_lon + jup_lon) % 360.0
+    sign_idx = int(sphuta // 30)
+    return {
+        'longitude': round(sphuta, 4),
+        'sign_index': sign_idx,
+        'sign_name': SIGNS[sign_idx],
+        'sign_sanskrit': SIGN_SANSKRIT[sign_idx],
+        'deg_in_sign': round(sphuta - sign_idx * 30, 4),
+        'sphuta_type': 'beeja',
+        'gender_applicability': 'male',
+    }
+
+
+def compute_kshetra_sphuta(planets: Dict) -> Dict:
+    """
+    Kshetra Sphuta — female fertility coordinate.
+    Formula: (Jupiter_lon + Moon_lon + Mars_lon) mod 360°
+    """
+    jup_lon = planets.get('Jupiter', {}).get('longitude')
+    moon_lon = planets.get('Moon', {}).get('longitude')
+    mars_lon = planets.get('Mars', {}).get('longitude')
+    if None in (jup_lon, moon_lon, mars_lon):
+        return {'error': 'Missing required planet longitude for Kshetra Sphuta'}
+    sphuta = (jup_lon + moon_lon + mars_lon) % 360.0
+    sign_idx = int(sphuta // 30)
+    return {
+        'longitude': round(sphuta, 4),
+        'sign_index': sign_idx,
+        'sign_name': SIGNS[sign_idx],
+        'sign_sanskrit': SIGN_SANSKRIT[sign_idx],
+        'deg_in_sign': round(sphuta - sign_idx * 30, 4),
+        'sphuta_type': 'kshetra',
+        'gender_applicability': 'female',
+    }
+
+
+def is_alpa_putra_sign(sign_index: int) -> bool:
+    """True if sign is in the sterile Alpa-Putra list (Gem/Leo/Vir/Sco)."""
+    return sign_index in STERILE_SIGNS
+
+
+def is_mars_5th_high_risk(mars_sign_index: int) -> bool:
+    """True if Mars sign places it in the 5th-house high-risk group."""
+    return mars_sign_index in MARS_5TH_RISK_SIGNS
+
+
+# -----------------------------------------------------------------
+# GROUP 2 — TAJIK VIMSHOPAKA SURROGATE (0-20 strength scale)
+# Per Atul's spec: skip full Shaddvarga Vimshopaka in favour of a
+# Tajik-aligned approximation (Avastha base + degree-band modifier).
+# -----------------------------------------------------------------
+
+# Avastha → base score on 0–20 scale (Atul's three-tier mapping)
+TAJIK_VIMSHOPAKA_AVASTHA_BASE = {
+    # Tier 1: Exalted / Own (14-16)
+    'Deepta':     16,
+    'Swastha':    15,
+    'Suveerya':   15,
+    'Adhiveerya': 14,
+    # Tier 2: Friend / Neutral (10-13)
+    'Mudita':     12,
+    'Neutral':    10,
+    # Tier 3: Inimical / Debilitated (2-6)
+    'Supta':       6,
+    'Peedita':     4,
+    'Pariheena':   4,
+    'Deena':       3,
+    'Mushita':     2,
+}
+
+TAJIK_VIMSHOPAKA_BAND_MOD = {
+    'pragalbha':    4,   # Peak utility
+    'sandhi':      -6,   # Edge of abyss
+    'sadyo_gata':   0,
+    'udaya':        0,
+    'culminating':  0,
+}
+
+
+def compute_tajik_vimshopaka_surrogate(planet_name: str,
+                                       chart_data: Dict) -> Dict:
+    """
+    Tajik-aligned Vimshopaka surrogate on 0-20 scale.
+    Per Atul's spec: Avastha-tier base + degree-band modifier.
+    Used as the gating threshold for Kamboola Yoga (≥12 = active).
+    """
+    avasthas = compute_avasthas(chart_data)
+    planet_av = avasthas.get(planet_name, {})
+    avastha = planet_av.get('avastha', 'Neutral')
+    deg_band = planet_av.get('degree_band') or {}
+    band_key = deg_band.get('band_key', 'udaya')
+
+    base = TAJIK_VIMSHOPAKA_AVASTHA_BASE.get(avastha, 10)
+    modifier = TAJIK_VIMSHOPAKA_BAND_MOD.get(band_key, 0)
+    score = max(0, min(20, base + modifier))
+
+    return {
+        'planet': planet_name,
+        'score': score,
+        'avastha': avastha,
+        'avastha_base': base,
+        'band_key': band_key,
+        'band_modifier': modifier,
+        'narrative': (
+            f"{planet_name} Tajik Vimshopaka (surrogate): {score}/20 — "
+            f"{avastha} base ({base}) {modifier:+d} from {band_key} band."
+        ),
+    }
+
+
+# -----------------------------------------------------------------
+# GROUP 3 — NEW YOGAS (Kamboola + Gada)
+# -----------------------------------------------------------------
+
+def detect_kamboola_yoga(lagna_lord: str, target_lord: str,
+                         chart_data: Dict,
+                         vimshopaka_threshold: float = 12.0) -> Optional[Dict]:
+    """
+    Kamboola Yoga — Moon as cosmic proxy.
+    Fires when:
+      1. L1 ↔ L_target do NOT aspect each other within orb
+      2. Moon aspects BOTH L1 and L_target within orb
+      3. Moon's Tajik Vimshopaka surrogate ≥ threshold (12)
+
+    Effect: substitute primitive NO with YES_WITH_DELAYS.
+    Excludes the case where Moon IS one of the lords (tautology).
+    """
+    if lagna_lord == 'Moon' or target_lord == 'Moon':
+        return None
+
+    # Step 1: confirm L1 ↔ L_target lack direct aspect
+    asp_lords = pairwise_aspect(lagna_lord, target_lord, chart_data)
+    if asp_lords.get('within_orb'):
+        return None
+
+    # Step 2: Moon must aspect both within orb
+    asp_moon_l1 = pairwise_aspect('Moon', lagna_lord, chart_data)
+    asp_moon_lt = pairwise_aspect('Moon', target_lord, chart_data)
+    if not (asp_moon_l1.get('within_orb') and asp_moon_lt.get('within_orb')):
+        return None
+
+    # Step 3: Moon's Vimshopaka strength
+    vim = compute_tajik_vimshopaka_surrogate('Moon', chart_data)
+    if vim['score'] < vimshopaka_threshold:
+        return None
+
+    return {
+        'lagna_lord': lagna_lord,
+        'target_lord': target_lord,
+        'moon_vimshopaka_score': vim['score'],
+        'moon_vimshopaka_narrative': vim['narrative'],
+        'aspect_moon_to_l1': asp_moon_l1.get('yoga'),
+        'aspect_moon_to_target': asp_moon_lt.get('yoga'),
+        'narrative': (
+            f"Kamboola Yoga — Moon (Vimshopaka {vim['score']}/20) aspects both "
+            f"{lagna_lord} and {target_lord} when they themselves lack direct "
+            "aspect. The Moon carries the fertility energy as a cosmic proxy; "
+            "the Karya succeeds but with extended timing."
+        ),
+        'effect': 'substitute_failure_with_yes_with_delays',
+    }
+
+
+def detect_gada_yoga(chart_data: Dict) -> Optional[Dict]:
+    """
+    Gada Yoga — all 7 classical planets cluster into TWO CONSECUTIVE Kendras only.
+    Consecutive Kendra pairs: (1,4), (4,7), (7,10), (10,1).
+    Distinct from Kamala Yoga (all four Kendras populated).
+
+    Effect: force resolution within 12 months.
+    """
+    KENDRA_PAIRS = [(1, 4), (4, 7), (7, 10), (10, 1)]
+    CLASSICAL_7 = ['Sun', 'Moon', 'Mars', 'Mercury', 'Jupiter', 'Venus', 'Saturn']
+
+    planet_houses = {}
+    for p in CLASSICAL_7:
+        h = _planet_house(chart_data, p)
+        if h is None:
+            return None
+        planet_houses[p] = h
+
+    occupied = set(planet_houses.values())
+
+    for h1, h2 in KENDRA_PAIRS:
+        if occupied == {h1, h2}:
+            return {
+                'kendras_occupied': [h1, h2],
+                'planet_distribution': planet_houses,
+                'narrative': (
+                    f"Gada Yoga — all 7 classical planets cluster in houses "
+                    f"{h1} and {h2} (consecutive Kendras). Structural compression "
+                    "forces the Karya outcome within a 12-month horizon, often "
+                    "through external or unconventional means."
+                ),
+                'effect': 'force_resolution_within_12_months',
+            }
+
+    return None
+
+
+# -----------------------------------------------------------------
+# GROUP 4 — ECLIPSE PROXIMITY DETECTION
+# Per Atul's locked spec: ±15 day window AND eclipse longitude within
+# ±5° orb of Lagna/Descendant, Putra/Labha, or L5's longitude.
+# -----------------------------------------------------------------
+
+def detect_eclipse_proximity(jd_ut: float,
+                              chart_data: Dict,
+                              window_days: float = 15.0,
+                              axis_orb_deg: float = 5.0,
+                              target_house: int = 5) -> Optional[Dict]:
+    """
+    Eclipse proximity detector. Fires when BOTH:
+      1. A solar OR lunar eclipse occurs within ±window_days of jd_ut, AND
+      2. That eclipse's sidereal longitude is within axis_orb_deg of:
+           - Lagna or 7th cusp, OR
+           - target_house cusp or its opposite (e.g. 5/11 for Garbha), OR
+           - The L_target's natal-position longitude.
+
+    Returns None if no eclipse meets both conditions.
+    Effect: caller should hard-cap sincerity at 45 and emit safety warning.
+    """
+    try:
+        import swisseph as swe
+    except ImportError:
+        return None
+
+    lagna_sign = chart_data.get('lagna_sign', 0)
+    target_sign = (lagna_sign + target_house - 1) % 12
+    opposite_house = ((target_house - 1 + 6) % 12) + 1
+    opposite_sign = (lagna_sign + opposite_house - 1) % 12
+
+    target_lord = SIGN_LORDS[target_sign]
+    target_lord_lon = chart_data.get('planets', {}).get(target_lord, {}).get('longitude')
+
+    # Build the axis longitudes to check
+    axes = [
+        ('Lagna (1st cusp)', lagna_sign * 30.0),
+        ('Descendant (7th cusp)', ((lagna_sign + 6) % 12) * 30.0),
+        (f'Putra ({target_house}th cusp)', target_sign * 30.0),
+        (f'Labha ({opposite_house}th cusp)', opposite_sign * 30.0),
+    ]
+    if target_lord_lon is not None:
+        axes.append((f'{target_lord} ({target_house}th lord)', target_lord_lon))
+
+    # Collect candidate eclipses within window
+    eclipses = []
+
+    # Solar eclipses — search forward from (jd - window)
+    try:
+        res = swe.sol_eclipse_when_glob(jd_ut - window_days - 1.0,
+                                         swe.FLG_SWIEPH, 0)
+        ecl_jd = res[1][0]
+        if abs(ecl_jd - jd_ut) <= window_days:
+            sun_pos, _ = swe.calc_ut(ecl_jd, swe.SUN)
+            ayan = swe.get_ayanamsa_ut(ecl_jd)
+            sidereal_lon = (sun_pos[0] - ayan) % 360.0
+            eclipses.append({
+                'type': 'solar', 'jd': ecl_jd,
+                'days_offset': round(ecl_jd - jd_ut, 1),
+                'longitude': round(sidereal_lon, 2),
+            })
+    except Exception:
+        pass
+
+    # Solar eclipses — search forward from (jd + 1)
+    try:
+        res = swe.sol_eclipse_when_glob(jd_ut + 1.0, swe.FLG_SWIEPH, 0)
+        ecl_jd = res[1][0]
+        if abs(ecl_jd - jd_ut) <= window_days:
+            sun_pos, _ = swe.calc_ut(ecl_jd, swe.SUN)
+            ayan = swe.get_ayanamsa_ut(ecl_jd)
+            sidereal_lon = (sun_pos[0] - ayan) % 360.0
+            eclipses.append({
+                'type': 'solar', 'jd': ecl_jd,
+                'days_offset': round(ecl_jd - jd_ut, 1),
+                'longitude': round(sidereal_lon, 2),
+            })
+    except Exception:
+        pass
+
+    # Lunar eclipses — same two-direction search
+    for offset in [-window_days - 1.0, 1.0]:
+        try:
+            res = swe.lun_eclipse_when(jd_ut + offset, swe.FLG_SWIEPH, 0)
+            ecl_jd = res[1][0]
+            if abs(ecl_jd - jd_ut) <= window_days:
+                moon_pos, _ = swe.calc_ut(ecl_jd, swe.MOON)
+                ayan = swe.get_ayanamsa_ut(ecl_jd)
+                sidereal_lon = (moon_pos[0] - ayan) % 360.0
+                eclipses.append({
+                    'type': 'lunar', 'jd': ecl_jd,
+                    'days_offset': round(ecl_jd - jd_ut, 1),
+                    'longitude': round(sidereal_lon, 2),
+                })
+        except Exception:
+            pass
+
+    if not eclipses:
+        return None
+
+    # Deduplicate by JD
+    seen_jd = set()
+    unique = []
+    for e in eclipses:
+        key = round(e['jd'], 2)
+        if key in seen_jd:
+            continue
+        seen_jd.add(key)
+        unique.append(e)
+
+    # Check axis intersection
+    for ecl in unique:
+        for axis_name, axis_lon in axes:
+            diff = min(abs(ecl['longitude'] - axis_lon),
+                       360 - abs(ecl['longitude'] - axis_lon))
+            if diff <= axis_orb_deg:
+                return {
+                    'eclipse_type': ecl['type'],
+                    'eclipse_jd': ecl['jd'],
+                    'days_from_cast': ecl['days_offset'],
+                    'eclipse_longitude': ecl['longitude'],
+                    'axis_hit': axis_name,
+                    'axis_longitude': round(axis_lon, 2),
+                    'orb_offset_deg': round(diff, 2),
+                    'narrative': (
+                        f"{ecl['type'].capitalize()} eclipse at "
+                        f"{ecl['longitude']:.1f}° (cast offset {ecl['days_offset']:+.1f} days) "
+                        f"shadows the {axis_name} at {axis_lon:.1f}° "
+                        f"(orb gap {diff:.1f}°). Progeny axis is under eclipse shadow — "
+                        "sincerity capped, medical monitoring advised."
+                    ),
+                    'effect': 'cap_sincerity_at_45_emit_safety_warning',
+                }
+
+    return None  # Eclipse present but not on relevant axis
+
+
+# -----------------------------------------------------------------
+# GROUP 5 — INTENT CLASSIFIER + HUSBAND-PIVOT DETECTOR
+# -----------------------------------------------------------------
+
+def classify_garbha_intent(full_query: Optional[str]) -> str:
+    """
+    Classify a Garbha query into one of 5 intent codes.
+    Default: 'conception_possibility'.
+    """
+    if not full_query:
+        return 'conception_possibility'
+    q = full_query.lower()
+    # Order matters — more specific intents first
+    for intent in ['current_pregnancy_confirmation',
+                   'gestation_safety',
+                   'conception_timing',
+                   'outcome_quality']:
+        for kw in GARBHA_INTENT_KEYWORDS[intent]:
+            if kw in q:
+                return intent
+    return 'conception_possibility'
+
+
+def detect_husband_pivot(full_query: Optional[str],
+                          querent_gender: Optional[str]) -> bool:
+    """
+    Determine whether to pivot target house from 5th → 11th (5th from 7th)
+    per Atul's locked rule logic.
+
+    Pivot fires when:
+      - Explicit husband phrase present in query ("my wife", "is she...", etc.), OR
+      - querent_gender == 'male' AND no explicit self-pregnancy phrase
+
+    Pivot blocked when:
+      - Explicit self-pregnancy phrase present ("am I pregnant", "I conceive", etc.)
+    """
+    q = (full_query or '').lower()
+
+    # Self-pregnancy phrases override pivot regardless of gender
+    if any(p in q for p in SELF_PREGNANCY_PHRASES):
+        return False
+
+    # Explicit husband phrases trigger pivot regardless of gender field
+    if any(p in q for p in HUSBAND_PIVOT_PHRASES):
+        return True
+
+    # Ambiguous query — fall back to gender field
+    return querent_gender == 'male'
+
+
+def detect_lineage_query(full_query: Optional[str]) -> bool:
+    """True if query mentions lineage/heir/vansha — triggers 9th-house exception."""
+    if not full_query:
+        return False
+    q = full_query.lower()
+    return any(kw in q for kw in LINEAGE_KEYWORDS)
+
+
+# -----------------------------------------------------------------
+# GROUP 6 — UTILITIES (combustion depth, void-of-course Moon)
+# -----------------------------------------------------------------
+
+def is_heavily_combust(planets: Dict, planet_name: str,
+                       heavy_threshold_deg: float = 4.0) -> bool:
+    """
+    True if planet is within heavy_threshold_deg of the Sun
+    (vs standard combustion which uses ~8° per planet).
+    Used to trigger INCONCLUSIVE_RECAST_REQUIRED for current-pregnancy queries.
+    """
+    if planet_name == 'Sun':
+        return False
+    p_lon = planets.get(planet_name, {}).get('longitude')
+    sun_lon = planets.get('Sun', {}).get('longitude')
+    if p_lon is None or sun_lon is None:
+        return False
+    return _angular_diff(p_lon, sun_lon) <= heavy_threshold_deg
+
+
+def is_moon_void_of_course(chart_data: Dict) -> bool:
+    """
+    Void-of-course Moon: the Moon makes no further Tajik aspect (Ithesal type)
+    before exiting its current sign. Simplified surrogate: if Moon's longitude
+    is in the last 3° of its sign AND no faster planet is in orb...
+    Since Moon is the fastest planet, we approximate by checking whether the
+    Moon's degree-within-sign exceeds 27° AND no planet is within 3° aspect-arc
+    of the Moon's projected ingress longitude.
+
+    This is a conservative approximation — true VoC requires nakshatra-level
+    transit projection.
+    """
+    moon_lon = chart_data.get('planets', {}).get('Moon', {}).get('longitude')
+    if moon_lon is None:
+        return False
+    deg_in_sign = moon_lon % 30.0
+    if deg_in_sign < 27.0:
+        return False  # Plenty of room for further aspects in current sign
+
+    # Moon is near sign-end. Check if any other planet is within 3° of Moon's
+    # remaining arc — if so, an aspect is possible before sign change.
+    remaining_arc_end = moon_lon + (30.0 - deg_in_sign)
+    for p_name in ['Sun', 'Mercury', 'Venus', 'Mars', 'Jupiter', 'Saturn']:
+        p_lon = chart_data.get('planets', {}).get(p_name, {}).get('longitude')
+        if p_lon is None:
+            continue
+        if _angular_diff(p_lon, moon_lon) <= 3.0:
+            return False
+        # Check if planet is within 3° of remaining arc
+        if _angular_diff(p_lon, remaining_arc_end) <= 3.0:
+            return False
+
+    return True  # No nearby planet → Moon is void-of-course
+
+
+# -----------------------------------------------------------------
+# GROUP 7 — GARBHA JUDGMENT ORCHESTRATOR
+# -----------------------------------------------------------------
+
+def garbha_judgment(chart_data: Dict,
+                    natal_lagna_sign: Optional[int] = None,
+                    query_text: Optional[str] = None,
+                    full_query: Optional[str] = None,
+                    intent: Optional[str] = None,
+                    querent_gender: Optional[str] = None) -> Dict:
+    """
+    Full Garbha (Conception) judgment package. Returns the structured dict
+    consumed by /prashna_garbha endpoint + AI narrative + UI.
+
+    Args:
+        chart_data:          Prashna chart dict
+        natal_lagna_sign:    0-11 sign index of querent's natal Lagna (optional)
+        query_text:          The first-word phonetic source (or None)
+        full_query:          Full original question text (for intent + long-horizon)
+        intent:              Pre-classified intent, or None to auto-classify
+        querent_gender:      'male' | 'female' | None
+    """
+    planets = chart_data.get('planets', {})
+    lagna_sign = chart_data.get('lagna_sign', 0)
+    lagna_lord = SIGN_LORDS[lagna_sign]
+
+    # ===== 1. Intent classification =====
+    if intent is None:
+        intent = classify_garbha_intent(full_query)
+
+    # ===== 2. Target-house resolution =====
+    is_lineage = detect_lineage_query(full_query)
+    is_husband_pivot = detect_husband_pivot(full_query, querent_gender)
+    if is_lineage:
+        target_house = 9
+        target_role = '9th — lineage / heir axis'
+    elif is_husband_pivot:
+        target_house = 11
+        target_role = "11th (5th from 7th) — wife's progeny zone"
+    else:
+        target_house = 5
+        target_role = '5th — Putra Bhava'
+
+    target_sign = (lagna_sign + target_house - 1) % 12
+    target_lord = SIGN_LORDS[target_sign]
+
+    # ===== 3. Karya chain on the resolved target =====
+    karya = karya_success_chain(chart_data, target_house)
+
+    # ===== 4. Strength scaling (certainty score) =====
+    strength = compute_strength_scaling(chart_data)
+
+    # ===== 5. Bhava Bala on the target house =====
+    bhava = compute_bhava_bala(chart_data, target_house)
+    bhava_net = bhava.get('net_strength_pct', 0)
+
+    # ===== 6. Avasthas (with synthesis_label carried from Vivaha) =====
+    avasthas = compute_avasthas(chart_data)
+    querent_av = avasthas.get(lagna_lord, {})
+    quesited_av = avasthas.get(target_lord, {})
+
+    # ===== 7. Sphuta fertility coordinates =====
+    beeja = compute_beeja_sphuta(planets)
+    kshetra = compute_kshetra_sphuta(planets)
+
+    # Apply gender-specific Sphuta logic
+    sphuta_active = None
+    sphuta_effect = None
+    if querent_gender == 'male' and 'error' not in beeja:
+        sphuta_active = beeja
+        sphuta_sign = beeja['sign_index']
+        # 1-based parity check: Aries(1)/Gemini(3)/Leo(5)/Libra(7)/Sag(9)/Aqu(11) = odd
+        is_1based_odd = ((sphuta_sign + 1) % 2 == 1)
+        if is_alpa_putra_sign(sphuta_sign):
+            # Cap Bhava Bala at 50%
+            if bhava_net > 50:
+                bhava_net = 50
+                bhava['net_strength_pct'] = 50
+                bhava['sphuta_cap_applied'] = True
+            sphuta_effect = {
+                'type': 'cap_50',
+                'narrative': (
+                    f"Beeja Sphuta lands in {SIGNS[sphuta_sign]} (Alpa-Putra sterile sign) "
+                    f"— Bhava Bala hard-capped at 50%, forcing verdict toward delays or "
+                    "medical intervention."
+                ),
+            }
+        elif is_1based_odd:
+            bhava_net = min(100, bhava_net + 15)
+            bhava['net_strength_pct'] = bhava_net
+            bhava['sphuta_bonus_applied'] = True
+            sphuta_effect = {
+                'type': 'bonus_15',
+                'narrative': (
+                    f"Beeja Sphuta lands in {SIGNS[sphuta_sign]} (masculine sign for male "
+                    "querent) — +15% Bhava Bala bonus on the progeny axis."
+                ),
+            }
+    elif querent_gender == 'female' and 'error' not in kshetra:
+        sphuta_active = kshetra
+        sphuta_sign = kshetra['sign_index']
+        # 1-based parity check: Taurus(2)/Cancer(4)/Virgo(6)/Sco(8)/Cap(10)/Pis(12) = even
+        is_1based_even = ((sphuta_sign + 1) % 2 == 0)
+        if is_alpa_putra_sign(sphuta_sign):
+            if bhava_net > 50:
+                bhava_net = 50
+                bhava['net_strength_pct'] = 50
+                bhava['sphuta_cap_applied'] = True
+            sphuta_effect = {
+                'type': 'cap_50',
+                'narrative': (
+                    f"Kshetra Sphuta lands in {SIGNS[sphuta_sign]} (Alpa-Putra sterile sign) "
+                    f"— Bhava Bala hard-capped at 50%, forcing verdict toward delays or "
+                    "medical intervention."
+                ),
+            }
+        elif is_1based_even:
+            bhava_net = min(100, bhava_net + 15)
+            bhava['net_strength_pct'] = bhava_net
+            bhava['sphuta_bonus_applied'] = True
+            sphuta_effect = {
+                'type': 'bonus_15',
+                'narrative': (
+                    f"Kshetra Sphuta lands in {SIGNS[sphuta_sign]} (feminine sign for female "
+                    "querent) — +15% Bhava Bala bonus on the progeny axis."
+                ),
+            }
+
+    # ===== 8. L1 ↔ L_target aspect + Tajik yogas =====
+    asp_l1_lt = pairwise_aspect(lagna_lord, target_lord, chart_data)
+    nakta = detect_nakta(lagna_lord, target_lord, chart_data)
+    abhara = detect_abhara_yoga(lagna_lord, target_lord, chart_data)
+    yama = detect_yama_yoga(lagna_lord, target_lord, chart_data)
+    kamboola = detect_kamboola_yoga(lagna_lord, target_lord, chart_data)
+    gada = detect_gada_yoga(chart_data)
+
+    # ===== 9. Mars-in-target-house split (rulership-based severity) =====
+    mars_in_target = (_planet_house(chart_data, 'Mars') == target_house)
+    mars_sign = planets.get('Mars', {}).get('sign_index')
+    mars_5th_risk = (mars_in_target and mars_sign is not None
+                     and is_mars_5th_high_risk(mars_sign))
+    mars_5th_vitality = (mars_in_target and mars_sign is not None
+                        and not is_mars_5th_high_risk(mars_sign))
+
+    # ===== 10. Sterile cusp downgrade =====
+    target_cusp_sterile = is_alpa_putra_sign(target_sign)
+
+    # ===== 11. Rahu / intervention detection (modern Tajik) =====
+    rahu_in_target = (_planet_house(chart_data, 'Rahu') == target_house)
+    ketu_in_target = (_planet_house(chart_data, 'Ketu') == target_house)
+
+    # ===== 12. Eclipse proximity =====
+    jd_ut = chart_data.get('jd_ut')
+    eclipse = None
+    if jd_ut is not None:
+        eclipse = detect_eclipse_proximity(jd_ut, chart_data,
+                                            target_house=target_house)
+
+    # ===== 13. Long-horizon (with Garbha keywords) =====
+    long_horizon = detect_long_horizon_query(full_query or query_text)
+    if not long_horizon['is_long_horizon']:
+        q = (full_query or query_text or '').lower()
+        for kw in GARBHA_LONG_HORIZON_EXTRAS:
+            if kw in q:
+                long_horizon = {
+                    'is_long_horizon': True,
+                    'matched_keyword': kw,
+                    'disclaimer': (
+                        "This question concerns a multi-decade horizon — Prashna "
+                        "shows the current cycle's trajectory. For lifelong "
+                        "fertility forecasting, consult D-7 Saptamsha and Jupiter's "
+                        "full transit cycle through your natal 5th from Moon."
+                    ),
+                }
+                break
+
+    # ===== 14. Verdict synthesis =====
+    primitive = karya['verdict_primitive']
+    modifier = karya['verdict_modifier']
+
+    # Resolution priority:
+    #   failure + Kamboola      → YES_WITH_DELAYS (Moon proxy)
+    #   failure + Gada          → YES_WITH_DELAYS (structural force, 12mo horizon)
+    #   failure + Nakta         → CONDITIONAL_THIRD_PARTY (intermediary)
+    #   failure (clean)         → NO
+    #   conditional + Rahu/Ketu → CONDITIONAL_MEDICAL
+    #   conditional             → YES_WITH_DELAYS
+    #   success + Abhara        → YES_WITH_DELAYS (friction)
+    #   success + sterile cusp  → YES_WITH_DELAYS
+    #   success                 → YES
+    if primitive == 'failure' and kamboola:
+        verdict = 'YES_WITH_DELAYS'
+        verdict_text = ("Yes — through Moon's cosmic proxy (Kamboola Yoga), "
+                        "with extended timing")
+    elif primitive == 'failure' and gada:
+        verdict = 'YES_WITH_DELAYS'
+        verdict_text = ("Yes — forced through structural compression (Gada Yoga); "
+                        "resolution within a 12-month horizon")
+    elif primitive == 'failure' and nakta:
+        verdict = 'CONDITIONAL_THIRD_PARTY'
+        verdict_text = f'Conditional — only via {nakta["bridge"]} as intermediary'
+    elif primitive == 'failure':
+        verdict = 'NO'
+        verdict_text = 'No — conception not indicated within the Prashna horizon'
+    elif primitive == 'conditional':
+        if rahu_in_target:
+            verdict = 'CONDITIONAL_MEDICAL'
+            verdict_text = ("Conditional — Rahu in the progeny axis indicates "
+                            "assisted conception (IVF / IUI / surrogacy)")
+        else:
+            verdict = 'YES_WITH_DELAYS'
+            verdict_text = ('Yes — with delays; circumstantial support required '
+                            'before the matter consolidates')
+    elif primitive == 'success' and modifier == 'with_delays':
+        verdict = 'YES_WITH_DELAYS'
+        verdict_text = 'Yes — with initial delays'
+    elif primitive == 'success':
+        verdict = 'YES'
+        verdict_text = 'Yes — conception indicated within the Prashna horizon'
+    elif primitive == 'confirmed':
+        verdict = 'YES'
+        verdict_text = 'Yes — strongly confirmed'
+    else:
+        verdict = 'YES_WITH_DELAYS'
+        verdict_text = 'Conditional — chart shows mixed indicators'
+
+    # ===== Verdict downgrades (sterile cusp, Mars risk, Abhara) =====
+    if target_cusp_sterile and verdict == 'YES':
+        verdict = 'YES_WITH_DELAYS'
+        verdict_text = (f"Yes — conception structurally promised, but the "
+                        f"{target_house}th cusp falls in {SIGNS[target_sign]} "
+                        "(Alpa-Putra sterile sign); physiological preparation required")
+
+    if mars_5th_risk and verdict in ('YES', 'YES_WITH_DELAYS'):
+        verdict = 'HIGH_RISK'
+        verdict_text = (f"Yes — conception possible, but Mars in {SIGNS[mars_sign]} "
+                        f"(risk-grouped sign) within the progeny house flags "
+                        "miscarriage/surgical risk")
+
+    if abhara and verdict in ('YES',):
+        verdict = 'YES_WITH_DELAYS'
+        verdict_text = 'Yes — but with malefic friction (Abhara Yoga)'
+
+    # Adoption signal (Ketu)
+    if ketu_in_target and verdict in ('NO', 'YES_WITH_DELAYS'):
+        # Soft signal — flag adoption path as supplementary, don't override hard NO
+        if verdict == 'NO':
+            verdict = 'CONDITIONAL_THIRD_PARTY'
+            verdict_text = ("Adoption path indicated — Ketu in the progeny axis "
+                            "suggests spiritual detachment from biological conception")
+
+    # ===== INCONCLUSIVE modifier (current-pregnancy intent only) =====
+    verdict_modifier_flag = None
+    if intent == 'current_pregnancy_confirmation':
+        moon_voc = is_moon_void_of_course(chart_data)
+        l_target_heavy_combust = is_heavily_combust(planets, target_lord)
+        if moon_voc or l_target_heavy_combust:
+            verdict_modifier_flag = 'INCONCLUSIVE_RECAST_REQUIRED'
+
+    # ===== Core catalyst (mirrors Vivaha logic) =====
+    if karya['positive_satisfied'] >= 2:
+        core_catalyst = {
+            'yoga': asp_l1_lt.get('yoga', 'Aspect'),
+            'between': [f"Lagna Lord ({lagna_lord})",
+                        f"{target_house}th Lord ({target_lord})"],
+            'narrative': asp_l1_lt.get('narrative', ''),
+        }
+    elif kamboola:
+        core_catalyst = {
+            'yoga': 'Kamboola',
+            'between': [f"Lagna Lord ({lagna_lord})",
+                        f"{target_house}th Lord ({target_lord})"],
+            'narrative': kamboola['narrative'],
+            'proxy': 'Moon',
+        }
+    elif gada:
+        core_catalyst = {
+            'yoga': 'Gada',
+            'between': ['All 7 planets in two consecutive Kendras'],
+            'narrative': gada['narrative'],
+        }
+    elif nakta:
+        core_catalyst = {
+            'yoga': 'Nakta',
+            'between': [f"Lagna Lord ({lagna_lord})",
+                        f"{target_house}th Lord ({target_lord})"],
+            'narrative': nakta.get('narrative', ''),
+            'bridge': nakta.get('bridge'),
+            'bridge_role': nakta.get('bridge_role'),
+            'bridge_role_narrative': nakta.get('bridge_role_narrative'),
+        }
+    else:
+        core_catalyst = {
+            'yoga': 'None',
+            'between': [f"Lagna Lord ({lagna_lord})",
+                        f"{target_house}th Lord ({target_lord})"],
+            'narrative': ('No decisive Tajik connection between Lagna and '
+                          f'{target_house}th lords.'),
+        }
+
+    # Horary-to-natal
+    h2n = horary_to_natal_shift(lagna_sign, natal_lagna_sign)
+
+    return {
+        'sub_module': 'garbha',
+        'intent': intent,
+        'verdict': verdict,
+        'verdict_text': verdict_text,
+        'verdict_modifier': verdict_modifier_flag,
+        'target_house': target_house,
+        'target_role': target_role,
+        'is_husband_pivot': is_husband_pivot,
+        'is_lineage_query': is_lineage,
+        'querent_gender': querent_gender,
+        'certainty_score': strength['score'],
+        'certainty_band': strength['band'],
+        'certainty_narrative': strength['narrative'],
+        'core_catalyst': core_catalyst,
+        'querent_lord': {
+            'name': lagna_lord,
+            'avastha': querent_av.get('avastha'),
+            'condition': querent_av.get('condition'),
+            'outcome': querent_av.get('outcome'),
+            'degree_band': querent_av.get('degree_band'),
+            'synthesis_label': querent_av.get('synthesis_label'),
+            'synthesis_narrative': querent_av.get('synthesis_narrative'),
+            'is_combust': _is_combust(planets, lagna_lord),
+            'sign': planets.get(lagna_lord, {}).get('sign'),
+            'house': _planet_house(chart_data, lagna_lord),
+        },
+        'quesited_lord': {
+            'name': target_lord,
+            'avastha': quesited_av.get('avastha'),
+            'condition': quesited_av.get('condition'),
+            'outcome': quesited_av.get('outcome'),
+            'degree_band': quesited_av.get('degree_band'),
+            'synthesis_label': quesited_av.get('synthesis_label'),
+            'synthesis_narrative': quesited_av.get('synthesis_narrative'),
+            'is_combust': _is_combust(planets, target_lord),
+            'is_heavily_combust': is_heavily_combust(planets, target_lord),
+            'sign': planets.get(target_lord, {}).get('sign'),
+            'house': _planet_house(chart_data, target_lord),
+        },
+        'aspect_l1_lt': asp_l1_lt,
+        'nakta_bridge': nakta,
+        'abhara_yoga': abhara,
+        'yama_yoga': yama,
+        'kamboola_yoga': kamboola,
+        'gada_yoga': gada,
+        'beeja_sphuta': beeja,
+        'kshetra_sphuta': kshetra,
+        'sphuta_active': sphuta_active,
+        'sphuta_effect': sphuta_effect,
+        'mars_in_target': mars_in_target,
+        'mars_5th_risk': mars_5th_risk,
+        'mars_5th_vitality': mars_5th_vitality,
+        'target_cusp_sterile': target_cusp_sterile,
+        'rahu_in_target': rahu_in_target,
+        'ketu_in_target': ketu_in_target,
+        'eclipse_proximity': eclipse,
+        'karya_chain': karya,
+        'strength_scaling': strength,
+        'bhava_bala_target': bhava,
+        'horary_to_natal': h2n,
+        'long_horizon': long_horizon,
+    }
+
+
+# =================================================================
+# END OF PHASE 3A — GARBHA ENGINE MATH
 # =================================================================
