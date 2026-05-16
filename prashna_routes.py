@@ -32,7 +32,7 @@
 
 import math
 from datetime import datetime, timezone
-from typing import Dict, List, Optional, Literal
+from typing import Dict, List, Optional, Literal, Any
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
@@ -61,6 +61,12 @@ from prashna_engine import (
     classify_garbha_intent,
     compute_beeja_sphuta,
     compute_kshetra_sphuta,
+)
+
+# Phase 4A — generic topic orchestrator
+from prashna_topics import (
+    prashna_topic_judgment,
+    PRASHNA_TOPICS,
 )
 
 router = APIRouter(prefix="", tags=["prashna"])
@@ -179,6 +185,76 @@ class PrashnaGarbhaRequest(PrashnaChartRequest):
         None,
         description="Override the intent classifier. When omitted, the engine "
                     "infers intent from full_query via keyword matching."
+    )
+
+
+# -----------------------------------------------------------------
+# PHASE 4B — Canonical /prashna_topic schema
+# -----------------------------------------------------------------
+
+class PrashnaChartInputs(BaseModel):
+    """
+    Casting parameters nested under PrashnaTopicRequest.chart_data.
+    Mirrors PrashnaChartRequest fields without the topic_id concerns.
+    """
+    mode: Literal['time', 'phonetic'] = Field(
+        'time', description="'time' for time+place casting or 'phonetic' for first-syllable Pavarga"
+    )
+    lat: float = Field(..., ge=-90, le=90)
+    lon: float = Field(..., ge=-180, le=180)
+    place_name: Optional[str] = None
+    date: Optional[str] = Field(None, description="YYYY-MM-DD, defaults to current UTC date")
+    time: Optional[str] = Field(None, description="HH:MM, defaults to current UTC time")
+    timezone: Optional[str] = Field(None, alias='timezone_str',
+                                     description="IANA timezone string, defaults to UTC")
+    query_text: Optional[str] = Field(None, description="Question text (full sentence or first word)")
+    lagna_override: Optional[int] = Field(None, ge=0, le=11)
+    question_index: int = Field(1, ge=1, le=5,
+                                 description="Q1=Prashna Lagna; Q2-Q5 rotate Moon→Sun→Jupiter→Mercury/Venus")
+
+    class Config:
+        populate_by_name = True
+        extra = 'allow'  # tolerate extra cast fields
+
+
+class PrashnaTopicRequest(BaseModel):
+    """
+    Canonical Phase 4B request body for /prashna_topic.
+
+    Generic shape that drives the registry-based orchestrator. Replaces
+    the per-topic schemas (PrashnaVivahaRequest, PrashnaGarbhaRequest)
+    with a single declarative payload structure.
+
+    Example:
+        {
+            "topic_id": "garbha",
+            "chart_data": {
+                "mode": "phonetic", "lat": 28.57, "lon": 77.32,
+                "query_text": "Santaan", "date": "2026-05-15",
+                "time": "10:00", "timezone": "Asia/Kolkata",
+                "place_name": "Noida"
+            },
+            "topic_inputs": {
+                "querent_gender": "female",
+                "full_query": "Will we conceive a child this year?",
+                "natal_lagna_sign": 6
+            }
+        }
+
+    The orchestrator validates topic_inputs against
+    PRASHNA_TOPICS[topic_id]['required_inputs'] at run time.
+    """
+    topic_id: str = Field(
+        ...,
+        description=f"Registered topic. Currently available: {sorted(PRASHNA_TOPICS)}"
+    )
+    chart_data: PrashnaChartInputs = Field(
+        ...,
+        description="Casting parameters for the Prashna Lagna chart."
+    )
+    topic_inputs: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="Topic-specific inputs (see registry's required_inputs/optional_inputs)."
     )
 
 
@@ -498,51 +574,44 @@ def prashna_chart(req: PrashnaChartRequest) -> Dict:
 
 
 # -----------------------------------------------------------------
-# PHASE 2: VIVAHA JUDGMENT ENDPOINT
+# PHASE 4B — Shared casting pipeline + legacy-shape flatteners
 # -----------------------------------------------------------------
 
-@router.post("/prashna_vivaha")
-def prashna_vivaha(req: PrashnaVivahaRequest) -> Dict:
+def _cast_chart_pipeline(req_like: Any) -> Dict:
     """
-    Cast a Prashna chart AND compute the full Vivaha (Marriage) judgment package.
+    Generic chart-casting pipeline used by all three route handlers
+    (/prashna_topic, /prashna_vivaha, /prashna_garbha).
 
-    This is the primary endpoint for the Vaivahika · Vivaha War Room. It returns
-    everything /prashna_chart returns, plus a 'vivaha' block containing:
-      - verdict           (YES / YES_WITH_DELAYS / CONDITIONAL / NO)
-      - verdict_text      (human-readable verdict line)
-      - certainty_score   (0/25/50/75/100 — Tajik strength scaling)
-      - core_catalyst     (the decisive yoga driving the verdict)
-      - querent_lord      (Lagna Lord with Avastha + house + combust state)
-      - quesited_lord     (7th Lord with Avastha + house + combust state)
-      - aspect_l1_l7      (full Tajik pairwise reading between the two lords)
-      - nakta_bridge      (intermediary planet if no direct aspect)
-      - match_type        (effortless / effort_based / conditional / failure)
-      - third_party_interference  (8L/3L/4L malefic in 7th list)
-      - emotional_reciprocity     (mutual_love / past_engagement / discord_short / disengaged)
-      - karya_chain               (the 4-rule success chain detail)
-      - strength_scaling          (composite certainty narrative)
-      - bhava_bala_7th            (target house strength)
-      - horary_to_natal           (shift to natal chart, if natal_lagna_sign provided)
+    Accepts any request-like object exposing the casting fields:
+    `mode`, `lat`, `lon`, `place_name`, `date`, `time`, `query_text`,
+    `lagna_override`, `question_index`. Supports both `timezone_str` and
+    `timezone` attribute names.
+
+    Returns dict with: base_chart, active_chart, jd_info, phon,
+    casting_note, sun_alt, shadow, sun_above_horizon — everything the
+    diagnostic + judgment layers need.
     """
+    # Tolerate either 'timezone_str' or 'timezone' attribute
+    tz = getattr(req_like, 'timezone_str', None) or getattr(req_like, 'timezone', None)
 
-    # ===== 1. Cast chart (identical logic to /prashna_chart) =====
-    jd_info = _resolve_jd_ut(req.date, req.time, req.timezone_str)
+    jd_info = _resolve_jd_ut(req_like.date, req_like.time, tz)
     jd_ut = jd_info['jd_ut']
     planets = _compute_planet_positions(jd_ut)
 
     casting_note = ''
-    if req.lagna_override is not None:
-        lagna_sign = int(req.lagna_override) % 12
+    lagna_override = getattr(req_like, 'lagna_override', None)
+    if lagna_override is not None:
+        lagna_sign = int(lagna_override) % 12
         lagna_lon = lagna_sign * 30.0
         casting_note = f"Manual Lagna override: {SIGNS[lagna_sign]}"
         phon = None
-    elif req.mode == 'phonetic':
-        if not req.query_text:
+    elif req_like.mode == 'phonetic':
+        if not req_like.query_text:
             raise HTTPException(status_code=400,
                                 detail="query_text is required when mode='phonetic'")
-        phon = phonetic_to_lagna_sign(req.query_text)
+        phon = phonetic_to_lagna_sign(req_like.query_text)
         if 'error' in phon:
-            lagna_lon = _compute_ascendant(jd_ut, req.lat, req.lon)
+            lagna_lon = _compute_ascendant(jd_ut, req_like.lat, req_like.lon)
             lagna_sign = int(lagna_lon // 30) % 12
             casting_note = (f"Phonetic parsing failed ('{phon['error']}'). "
                             f"Fell back to time-based Lagna: {SIGNS[lagna_sign]}.")
@@ -556,14 +625,14 @@ def prashna_vivaha(req: PrashnaVivahaRequest) -> Dict:
                             f"position {phon['position_in_group']}{single_lord_note}, "
                             f"method {phon['method']}) → {SIGNS[lagna_sign]}")
     else:
-        lagna_lon = _compute_ascendant(jd_ut, req.lat, req.lon)
+        lagna_lon = _compute_ascendant(jd_ut, req_like.lat, req_like.lon)
         lagna_sign = int(lagna_lon // 30) % 12
         casting_note = (f"Time-based Lagna: {SIGNS[lagna_sign]} "
                         f"({lagna_lon - lagna_sign*30:.2f}° into sign)")
         phon = None
 
     houses = _build_whole_sign_houses(lagna_sign, planets)
-    sun_alt = compute_sun_altitude(jd_ut, req.lat, req.lon, planets['Sun']['longitude'])
+    sun_alt = compute_sun_altitude(jd_ut, req_like.lat, req_like.lon, planets['Sun']['longitude'])
     shadow = compute_shadow_ratio_from_altitude(sun_alt)
     sun_above_horizon = sun_alt > 0
 
@@ -575,56 +644,214 @@ def prashna_vivaha(req: PrashnaVivahaRequest) -> Dict:
         'planets': planets,
         'houses': houses,
         'jd_ut': jd_ut,
-        'lat': req.lat,
-        'lon': req.lon,
-        'place_name': req.place_name,
+        'lat': req_like.lat,
+        'lon': req_like.lon,
+        'place_name': getattr(req_like, 'place_name', None),
         'sun_altitude': round(sun_alt, 4),
         'shadow_ratio': round(shadow, 4) if shadow >= 0 else None,
         'sun_above_horizon': sun_above_horizon,
-        'cast_mode': req.mode,
+        'cast_mode': req_like.mode,
+        'casting_note': casting_note,
+    }
+    return {
+        'base_chart': base_chart,
+        'active_chart': base_chart,  # Q1 anchor; multi-query rotation reserved for diagnostic hub
+        'jd_info': jd_info,
+        'phon': phon,
         'casting_note': casting_note,
     }
 
-    # Active chart — Vivaha always uses Q1 anchor (Prashna Lagna).
-    # Multi-query rotation is reserved for the diagnostic Hub.
-    active_chart = base_chart
 
-    # ===== 2. Diagnostic layers =====
+def _flatten_to_legacy_vivaha(judgment: Dict) -> Dict:
+    """
+    Map prashna_topic_judgment output → legacy vivaha_judgment shape.
+
+    Keeps /prashnareport and any client code reading req.judgment.<key>
+    fields working without modification. Phase 4C may eliminate this when
+    the AI narrative builder reads from overlay_findings directly.
+    """
+    findings = judgment.get('overlay_findings', {})
+
+    def _data(name: str, key: str, default=None):
+        return (findings.get(name, {}).get('data') or {}).get(key, default)
+
+    nakta_data = findings.get('nakta_abhara_scan', {}).get('data') or {}
+
+    return {
+        'sub_module':           'vivaha',
+        'verdict':              judgment.get('verdict'),
+        'verdict_text':         judgment.get('verdict_text'),
+        'certainty_score':      judgment.get('certainty_score'),
+        'certainty_band':       judgment.get('certainty_band'),
+        'certainty_narrative':  judgment.get('certainty_narrative'),
+        'target_house':         judgment.get('target_house'),
+        'target_role':          judgment.get('target_role'),
+        'core_catalyst':        judgment.get('core_catalyst'),
+        'querent_lord':         judgment.get('querent_lord'),
+        'quesited_lord':        judgment.get('quesited_lord'),
+        # Tajik aspect + yogas (lifted from overlay data)
+        'aspect_l1_l7':         nakta_data.get('aspect_l1_lt'),
+        'nakta_bridge':         nakta_data.get('nakta_bridge'),
+        'abhara_yoga':          nakta_data.get('abhara_yoga'),
+        'yama_yoga':            nakta_data.get('yama_yoga'),
+        # Vivaha-specific overlays
+        'third_party_interference': _data('third_party_interference', 'third_party_interference', []),
+        'emotional_reciprocity':    _data('emotional_reciprocity', 'emotional_reciprocity'),
+        'reciprocity_narrative':    _data('emotional_reciprocity', 'reciprocity_narrative'),
+        # Core layers
+        'karya_chain':          judgment.get('karya_chain'),
+        'strength_scaling':     judgment.get('strength_scaling'),
+        'bhava_bala_7th':       judgment.get('bhava_bala_target'),  # legacy key name
+        'horary_to_natal':      judgment.get('horary_to_natal'),
+        'long_horizon':         judgment.get('long_horizon'),
+        # Match-type derived from verdict primitive + asp_l1_l7
+        'match_type':           _vivaha_match_type(judgment, nakta_data),
+        'match_narrative':      _vivaha_match_narrative(judgment, nakta_data),
+    }
+
+
+def _vivaha_match_type(judgment: Dict, nakta_data: Dict) -> str:
+    """Derive legacy match_type from new orchestrator output."""
+    verdict = judgment.get('verdict')
+    if verdict == 'NO': return 'failure'
+    if verdict == 'YES_WITH_DELAYS': return 'effort_based'
+    if verdict == 'CONDITIONAL': return 'conditional'
+    if nakta_data.get('aspect_l1_lt', {}).get('within_orb'):
+        return 'effortless'
+    return 'effort_based'
+
+
+def _vivaha_match_narrative(judgment: Dict, nakta_data: Dict) -> str:
+    """Single-sentence summary of match type."""
+    mt = _vivaha_match_type(judgment, nakta_data)
+    return {
+        'effortless':   'Direct applying aspect between the lords — the match comes without strain.',
+        'effort_based': 'No direct aspect — fruition requires sustained effort or formal request.',
+        'conditional':  'Significators meet only through a third planet — outcome depends on circumstantial support.',
+        'failure':      'Significators are afflicted or fail the Karya chain — the match is not indicated.',
+    }.get(mt, '')
+
+
+def _flatten_to_legacy_garbha(judgment: Dict, querent_gender: Optional[str]) -> Dict:
+    """
+    Map prashna_topic_judgment output → legacy garbha_judgment shape.
+
+    Spreads each overlay's `data` into top-level keys while preserving the
+    new `overlay_findings` structure underneath. /prashnareport's existing
+    _build_garbha_user_prompt reads from the flat top-level keys.
+    """
+    findings = judgment.get('overlay_findings', {})
+
+    def _data(name: str, key: str, default=None):
+        return (findings.get(name, {}).get('data') or {}).get(key, default)
+
+    nakta_data = findings.get('nakta_abhara_scan', {}).get('data') or {}
+
+    return {
+        'sub_module':           'garbha',
+        'intent':               judgment.get('intent'),
+        'verdict':              judgment.get('verdict'),
+        'verdict_text':         judgment.get('verdict_text'),
+        'verdict_modifier':     judgment.get('verdict_modifier'),
+        'target_house':         judgment.get('target_house'),
+        'target_role':          judgment.get('target_role'),
+        'is_husband_pivot':     _data('husband_pivot_auto', 'is_husband_pivot', False),
+        'is_lineage_query':     _data('lineage_query_check', 'is_lineage', False),
+        'querent_gender':       querent_gender,
+        'certainty_score':      judgment.get('certainty_score'),
+        'certainty_band':       judgment.get('certainty_band'),
+        'certainty_narrative':  judgment.get('certainty_narrative'),
+        'core_catalyst':        judgment.get('core_catalyst'),
+        'querent_lord':         judgment.get('querent_lord'),
+        'quesited_lord':        judgment.get('quesited_lord'),
+        # Tajik aspect + relay yogas
+        'aspect_l1_lt':         nakta_data.get('aspect_l1_lt'),
+        'nakta_bridge':         nakta_data.get('nakta_bridge'),
+        'abhara_yoga':          nakta_data.get('abhara_yoga'),
+        'yama_yoga':            nakta_data.get('yama_yoga'),
+        'kamboola_yoga':        _data('kamboola_yoga', 'kamboola_yoga'),
+        'gada_yoga':            _data('gada_yoga', 'gada_yoga'),
+        # Sphuta layer
+        'beeja_sphuta':         _data('beeja_kshetra_sphuta', 'beeja'),
+        'kshetra_sphuta':       _data('beeja_kshetra_sphuta', 'kshetra'),
+        'sphuta_active':        _data('beeja_kshetra_sphuta', 'sphuta_active'),
+        'sphuta_effect':        _data('beeja_kshetra_sphuta', 'sphuta_effect'),
+        # Mars + sterile + Rahu/Ketu
+        'mars_in_target':       findings.get('mars_5_vitality_split', {}).get('fired', False),
+        'mars_5th_risk':        _data('mars_5_vitality_split', 'mars_5_risk', False),
+        'mars_5th_vitality':    _data('mars_5_vitality_split', 'mars_5_vitality', False),
+        'target_cusp_sterile':  _data('sterile_sign_downgrade', 'target_cusp_sterile', False),
+        'rahu_in_target':       _data('rahu_ketu_progeny_axis', 'rahu_in_target', False),
+        'ketu_in_target':       _data('rahu_ketu_progeny_axis', 'ketu_in_target', False),
+        # Eclipse
+        'eclipse_proximity':    _data('eclipse_proximity_axis', 'eclipse_proximity'),
+        # Core layers
+        'karya_chain':          judgment.get('karya_chain'),
+        'strength_scaling':     judgment.get('strength_scaling'),
+        'bhava_bala_target':    judgment.get('bhava_bala_target'),
+        'horary_to_natal':      judgment.get('horary_to_natal'),
+        'long_horizon':         judgment.get('long_horizon'),
+    }
+
+
+# -----------------------------------------------------------------
+# PHASE 2: VIVAHA JUDGMENT ENDPOINT
+# -----------------------------------------------------------------
+
+@router.post("/prashna_vivaha")
+def prashna_vivaha(req: PrashnaVivahaRequest) -> Dict:
+    """
+    Cast a Prashna chart AND compute the Vivaha (Marriage) judgment package.
+
+    **Phase 4B**: this is now a thin backward-compatibility wrapper around
+    the canonical `/prashna_topic` orchestrator. The response shape (with
+    'vivaha' key + legacy field names like `bhava_bala_7th`, `match_type`,
+    `aspect_l1_l7`) is preserved via `_flatten_to_legacy_vivaha()` so
+    existing clients (frontend + /prashnareport) require no changes.
+
+    New canonical equivalent:
+        POST /prashna_topic  { "topic_id": "vivaha", ... }
+    """
+    cast = _cast_chart_pipeline(req)
+
+    # Diagnostic layers (same as before, kept for legacy response shape)
+    active_chart = cast['active_chart']
     sincerity = compute_sincerity_score(active_chart,
                                         natal_lagna_sign=req.natal_lagna_sign)
     avasthas = compute_avasthas(active_chart)
     aspects = detect_all_aspects(active_chart)
-    bhava_bala = {
-        str(h): compute_bhava_bala(active_chart, h) for h in range(1, 13)
-    }
+    bhava_bala = {str(h): compute_bhava_bala(active_chart, h) for h in range(1, 13)}
 
-    # ===== 3. Vivaha judgment =====
-    # Long-horizon detection uses the FULL question text. In phonetic mode,
-    # the frontend sends just the first word as query_text (for Lagna derivation)
-    # and the complete sentence as full_query. Fall back to query_text otherwise.
+    # Route through the generic orchestrator
     horizon_text = req.full_query or req.query_text
-    vivaha = vivaha_judgment(active_chart,
-                             natal_lagna_sign=req.natal_lagna_sign,
-                             query_text=horizon_text)
+    judgment = prashna_topic_judgment(
+        active_chart, 'vivaha',
+        natal_lagna_sign=req.natal_lagna_sign,
+        full_query=horizon_text,
+        query_text=req.query_text,
+    )
+
+    # Flatten back to legacy 'vivaha' shape for backward compat
+    vivaha = _flatten_to_legacy_vivaha(judgment)
 
     return {
-        'base_chart': base_chart,
-        'active_chart': active_chart,
-        'sincerity': sincerity,
-        'avasthas': avasthas,
-        'aspects': aspects,
-        'bhava_bala': bhava_bala,
-        'vivaha': vivaha,
+        'base_chart':   cast['base_chart'],
+        'active_chart': cast['active_chart'],
+        'sincerity':    sincerity,
+        'avasthas':     avasthas,
+        'aspects':      aspects,
+        'bhava_bala':   bhava_bala,
+        'vivaha':       vivaha,
         'cast_meta': {
-            'jd_ut': jd_ut,
-            'datetime_utc_iso': jd_info['datetime_utc_iso'],
-            'datetime_local_iso': jd_info['datetime_local_iso'],
-            'timezone_used': jd_info['timezone_used'],
-            'casting_note': casting_note,
-            'phonetic_match': phon,  # vibrational_accuracy + accuracy_note (None if not phonetic)
-            'ayanamsha': 'Lahiri',
-            'house_system': 'Whole Sign',
-            'nodes': 'Mean',
+            'jd_ut':              cast['jd_info']['jd_ut'],
+            'datetime_utc_iso':   cast['jd_info']['datetime_utc_iso'],
+            'datetime_local_iso': cast['jd_info']['datetime_local_iso'],
+            'timezone_used':      cast['jd_info']['timezone_used'],
+            'casting_note':       cast['casting_note'],
+            'phonetic_match':     cast['phon'],
+            'ayanamsha':          'Lahiri',
+            'house_system':       'Whole Sign',
+            'nodes':              'Mean',
         },
     }
 
@@ -681,112 +908,170 @@ def prashna_garbha(req: PrashnaGarbhaRequest) -> Dict:
       - long_horizon      (Garbha-specific keywords appended)
     """
 
-    # ===== 1. Cast chart (identical logic to /prashna_vivaha) =====
-    jd_info = _resolve_jd_ut(req.date, req.time, req.timezone_str)
-    jd_ut = jd_info['jd_ut']
-    planets = _compute_planet_positions(jd_ut)
+    # ===== 1. Cast chart via shared pipeline =====
+    cast = _cast_chart_pipeline(req)
+    active_chart = cast['active_chart']
+    jd_ut = cast['jd_info']['jd_ut']
 
-    casting_note = ''
-    if req.lagna_override is not None:
-        lagna_sign = int(req.lagna_override) % 12
-        lagna_lon = lagna_sign * 30.0
-        casting_note = f"Manual Lagna override: {SIGNS[lagna_sign]}"
-        phon = None
-    elif req.mode == 'phonetic':
-        if not req.query_text:
-            raise HTTPException(status_code=400,
-                                detail="query_text is required when mode='phonetic'")
-        phon = phonetic_to_lagna_sign(req.query_text)
-        if 'error' in phon:
-            lagna_lon = _compute_ascendant(jd_ut, req.lat, req.lon)
-            lagna_sign = int(lagna_lon // 30) % 12
-            casting_note = (f"Phonetic parsing failed ('{phon['error']}'). "
-                            f"Fell back to time-based Lagna: {SIGNS[lagna_sign]}.")
-            phon = None
-        else:
-            lagna_sign = phon['sign_index']
-            lagna_lon = lagna_sign * 30.0
-            single_lord_note = " (single-lord varga)" if phon.get('single_lord') else ""
-            casting_note = (f"Phonetic Lagna from '{phon['matched_letter']}' "
-                            f"(via {phon['ruling_planet']}, "
-                            f"position {phon['position_in_group']}{single_lord_note}, "
-                            f"method {phon['method']}) → {SIGNS[lagna_sign]}")
-    else:
-        lagna_lon = _compute_ascendant(jd_ut, req.lat, req.lon)
-        lagna_sign = int(lagna_lon // 30) % 12
-        casting_note = (f"Time-based Lagna: {SIGNS[lagna_sign]} "
-                        f"({lagna_lon - lagna_sign*30:.2f}° into sign)")
-        phon = None
-
-    houses = _build_whole_sign_houses(lagna_sign, planets)
-    sun_alt = compute_sun_altitude(jd_ut, req.lat, req.lon, planets['Sun']['longitude'])
-    shadow = compute_shadow_ratio_from_altitude(sun_alt)
-    sun_above_horizon = sun_alt > 0
-
-    base_chart = {
-        'lagna_sign': lagna_sign,
-        'lagna_name': SIGNS[lagna_sign],
-        'lagna_sanskrit': SIGN_SANSKRIT[lagna_sign],
-        'lagna_longitude': lagna_lon,
-        'planets': planets,
-        'houses': houses,
-        'jd_ut': jd_ut,
-        'lat': req.lat,
-        'lon': req.lon,
-        'place_name': req.place_name,
-        'sun_altitude': round(sun_alt, 4),
-        'shadow_ratio': round(shadow, 4) if shadow >= 0 else None,
-        'sun_above_horizon': sun_above_horizon,
-        'cast_mode': req.mode,
-        'casting_note': casting_note,
-    }
-    active_chart = base_chart  # Garbha uses Q1 anchor like Vivaha
-
-    # ===== 2. Diagnostic layers (sincerity in garbha_mode + jd_ut for eclipse cap) =====
+    # ===== 2. Diagnostic layers =====
     sincerity = compute_sincerity_score(active_chart,
                                         natal_lagna_sign=req.natal_lagna_sign,
                                         garbha_mode=True,
                                         jd_ut=jd_ut)
     avasthas = compute_avasthas(active_chart)
     aspects = detect_all_aspects(active_chart)
-    bhava_bala = {
-        str(h): compute_bhava_bala(active_chart, h) for h in range(1, 13)
-    }
+    bhava_bala = {str(h): compute_bhava_bala(active_chart, h) for h in range(1, 13)}
 
-    # ===== 3. Garbha judgment =====
-    # Long-horizon + intent classification + husband-pivot detection all
-    # use the FULL question text. In phonetic mode, query_text holds the
-    # first word (Lagna source); full_query holds the complete sentence.
+    # ===== 3. Route through the generic orchestrator =====
     horizon_text = req.full_query or req.query_text
-    garbha = garbha_judgment(active_chart,
-                             natal_lagna_sign=req.natal_lagna_sign,
-                             query_text=req.query_text,
-                             full_query=horizon_text,
-                             intent=req.intent,
-                             querent_gender=req.querent_gender)
+    judgment = prashna_topic_judgment(
+        active_chart, 'garbha',
+        querent_gender=req.querent_gender,
+        intent=req.intent,
+        natal_lagna_sign=req.natal_lagna_sign,
+        full_query=horizon_text,
+        query_text=req.query_text,
+    )
+
+    # ===== 4. Flatten to legacy 'garbha' shape =====
+    garbha = _flatten_to_legacy_garbha(judgment, req.querent_gender)
 
     return {
-        'base_chart': base_chart,
+        'base_chart':   cast['base_chart'],
         'active_chart': active_chart,
-        'sincerity': sincerity,
-        'avasthas': avasthas,
-        'aspects': aspects,
-        'bhava_bala': bhava_bala,
-        'garbha': garbha,
+        'sincerity':    sincerity,
+        'avasthas':     avasthas,
+        'aspects':      aspects,
+        'bhava_bala':   bhava_bala,
+        'garbha':       garbha,
         'cast_meta': {
-            'jd_ut': jd_ut,
-            'datetime_utc_iso': jd_info['datetime_utc_iso'],
-            'datetime_local_iso': jd_info['datetime_local_iso'],
-            'timezone_used': jd_info['timezone_used'],
-            'casting_note': casting_note,
-            'phonetic_match': phon,
-            'querent_gender': req.querent_gender,
-            'intent_resolved': garbha.get('intent'),
+            'jd_ut':                jd_ut,
+            'datetime_utc_iso':     cast['jd_info']['datetime_utc_iso'],
+            'datetime_local_iso':   cast['jd_info']['datetime_local_iso'],
+            'timezone_used':        cast['jd_info']['timezone_used'],
+            'casting_note':         cast['casting_note'],
+            'phonetic_match':       cast['phon'],
+            'querent_gender':       req.querent_gender,
+            'intent_resolved':      garbha.get('intent'),
             'intent_was_overridden': req.intent is not None,
-            'ayanamsha': 'Lahiri',
-            'house_system': 'Whole Sign',
-            'nodes': 'Mean',
+            'ayanamsha':            'Lahiri',
+            'house_system':         'Whole Sign',
+            'nodes':                'Mean',
         },
+    }
+
+
+# -----------------------------------------------------------------
+# PHASE 4B: /prashna_topic — CANONICAL endpoint
+# Generic, registry-driven entry point for all current and future
+# sub-modules. Routes new traffic here; legacy /prashna_vivaha and
+# /prashna_garbha are wrappers around this same orchestrator.
+# -----------------------------------------------------------------
+
+@router.post("/prashna_topic")
+def prashna_topic(req: PrashnaTopicRequest) -> Dict:
+    """
+    Canonical Prashna sub-module endpoint.
+
+    Casts a chart from `chart_data` and runs the registry-driven judgment
+    for `topic_id`, with topic-specific inputs validated against the spec
+    in PRASHNA_TOPICS.
+
+    Returns:
+        {
+            "topic_id":     str,            # echoed back
+            "container":    str,            # 'vaivahika' / 'karmika' / ...
+            "base_chart":   Dict,
+            "active_chart": Dict,
+            "sincerity":    Dict,
+            "avasthas":     Dict,
+            "aspects":      Dict,
+            "bhava_bala":   Dict,           # all 12 houses
+            "judgment":     Dict,           # full orchestrator output (new shape)
+            "cast_meta":    Dict,
+        }
+    """
+    if req.topic_id not in PRASHNA_TOPICS:
+        raise HTTPException(
+            status_code=400,
+            detail=(f"Unknown topic_id '{req.topic_id}'. "
+                    f"Registered topics: {sorted(PRASHNA_TOPICS)}")
+        )
+
+    spec = PRASHNA_TOPICS[req.topic_id]
+
+    # ===== 1. Cast chart from the nested chart_data block =====
+    cast = _cast_chart_pipeline(req.chart_data)
+    active_chart = cast['active_chart']
+    jd_ut = cast['jd_info']['jd_ut']
+
+    # ===== 2. Diagnostic layers (sincerity_mode from registry) =====
+    sincerity_mode = spec.get('sincerity_mode', 'standard')
+    sincerity = compute_sincerity_score(
+        active_chart,
+        natal_lagna_sign=req.topic_inputs.get('natal_lagna_sign'),
+        garbha_mode=(sincerity_mode == 'garbha'),
+        jd_ut=jd_ut,
+    )
+    avasthas = compute_avasthas(active_chart)
+    aspects = detect_all_aspects(active_chart)
+    bhava_bala = {str(h): compute_bhava_bala(active_chart, h) for h in range(1, 13)}
+
+    # ===== 3. Run the orchestrator =====
+    try:
+        judgment = prashna_topic_judgment(
+            active_chart, req.topic_id, **req.topic_inputs
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    return {
+        'topic_id':       req.topic_id,
+        'container':      judgment.get('container'),
+        'base_chart':     cast['base_chart'],
+        'active_chart':   active_chart,
+        'sincerity':      sincerity,
+        'avasthas':       avasthas,
+        'aspects':        aspects,
+        'bhava_bala':     bhava_bala,
+        'judgment':       judgment,  # NEW CANONICAL SHAPE (overlay_findings, verdict_trace, etc.)
+        'cast_meta': {
+            'jd_ut':              jd_ut,
+            'datetime_utc_iso':   cast['jd_info']['datetime_utc_iso'],
+            'datetime_local_iso': cast['jd_info']['datetime_local_iso'],
+            'timezone_used':      cast['jd_info']['timezone_used'],
+            'casting_note':       cast['casting_note'],
+            'phonetic_match':     cast['phon'],
+            'topic_inputs_used':  req.topic_inputs,
+            'ayanamsha':          'Lahiri',
+            'house_system':       'Whole Sign',
+            'nodes':              'Mean',
+        },
+    }
+
+
+@router.get("/prashna_topics")
+def prashna_topics_registry() -> Dict:
+    """
+    Returns the public registry — frontend reads this to dynamically build
+    casting forms (required_inputs / optional_inputs / target_house etc.)
+    per Atul's "single source of truth" payload contract.
+    """
+    return {
+        'topics': {
+            tid: {
+                'display_name':    spec['display_name'],
+                'sanskrit_name':   spec.get('sanskrit_name'),
+                'container':       spec['container'],
+                'target_house':    spec['target_house'],
+                'target_role':     spec['target_role'],
+                'required_inputs': spec.get('required_inputs', []),
+                'optional_inputs': spec.get('optional_inputs', []),
+                'verdict_states':  spec.get('verdict_states', []),
+                'narrative_tone':  spec.get('narrative_tone'),
+            }
+            for tid, spec in PRASHNA_TOPICS.items()
+        }
     }
 
 
@@ -1449,7 +1734,12 @@ def prashna_health() -> Dict:
             'husband_pivot_auto_detection',
             'ai_narrative_3_tranche',
             'ai_narrative_garbha_tonal_shift',
+            # Phase 4 — registry-driven orchestrator
+            'prashna_topic_orchestrator',
+            'prashna_topics_registry_endpoint',
+            'overlay_based_judgment_engine',
         ],
+        'registered_topics': sorted(PRASHNA_TOPICS),
         'max_queries_per_chart': MAX_QUERIES_PER_CHART,
         'ai_model': PRASHNA_AI_MODEL,
     }
