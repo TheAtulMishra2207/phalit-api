@@ -1473,6 +1473,353 @@ def signed_separation(lon_faster: float, lon_slower: float) -> float:
     return d
 
 
+# =================================================================
+# PHALA-KAALA · 4-VECTOR TIMING ENGINE (Phase 4D-Extended)
+# =================================================================
+# Implements the four canonical Tajik/Prashna timing vectors:
+#
+#   1. STANDARD            — degree distance L1 ↔ target lord,
+#                             motility-scaled to days/weeks/months
+#   2. DERIVED             — degree distance L1 ↔ derived-house lord
+#                             (Bhavat Bhavam — e.g. L6 for child's voice)
+#   3. BINDER              — degree distance to Yama/Nakta midpoint lock
+#   4. ORB_CLEARANCE       — degree distance to clear/enter 12° Tajik orb
+#
+# Mean daily motion (degrees/day, tropical) — used when ephemeris-derived
+# velocity isn't available on the chart object.
+# =================================================================
+
+DAILY_MEAN_MOTION_DEG = {
+    'Sun':     0.9856,
+    'Moon':   13.1764,
+    'Mercury': 1.3833,   # mean; varies dramatically
+    'Venus':   1.6021,   # mean; varies
+    'Mars':    0.5240,   # mean; slow when retro
+    'Jupiter': 0.0831,
+    'Saturn':  0.0335,
+    'Rahu':    0.0529,
+    'Ketu':    0.0529,
+}
+
+# Sign motility class — drives the time-unit scaling for the Standard vector.
+# Movable (Chara) signs:    fast results (days)
+# Dual (Dvisvabhava) signs: medium results (weeks)
+# Fixed (Sthira) signs:     slow results (months)
+SIGN_MOTILITY = {
+    0:  'movable',   # Aries
+    1:  'fixed',     # Taurus
+    2:  'dual',      # Gemini
+    3:  'movable',   # Cancer
+    4:  'fixed',     # Leo
+    5:  'dual',      # Virgo
+    6:  'movable',   # Libra
+    7:  'fixed',     # Scorpio
+    8:  'dual',      # Sagittarius
+    9:  'movable',   # Capricorn
+    10: 'fixed',     # Aquarius
+    11: 'dual',      # Pisces
+}
+
+MOTILITY_UNIT = {
+    'movable': 'days',
+    'dual':    'weeks',
+    'fixed':   'months',
+}
+
+
+def _get_planet_velocity(planet_name: str, chart_data: Dict) -> float:
+    """
+    Returns daily motion in degrees. Prefers ephemeris-derived velocity
+    from chart_data['planets'][p]['daily_motion'] if present;
+    falls back to mean motion constants.
+    """
+    p = (chart_data.get('planets') or {}).get(planet_name) or {}
+    v = p.get('daily_motion') or p.get('velocity')
+    if v is not None and v != 0:
+        return abs(float(v))
+    return DAILY_MEAN_MOTION_DEG.get(planet_name, 1.0)
+
+
+def _get_planet_longitude(planet_name: str, chart_data: Dict) -> Optional[float]:
+    p = (chart_data.get('planets') or {}).get(planet_name) or {}
+    lon = p.get('longitude')
+    if lon is None: return None
+    return float(lon) % 360.0
+
+
+def _angular_separation(lon_a: float, lon_b: float) -> float:
+    """Smallest unsigned angular distance, 0..180."""
+    d = abs((lon_a - lon_b) % 360.0)
+    return d if d <= 180.0 else 360.0 - d
+
+
+def _applying_or_separating(lon_a: float, lon_b: float,
+                              vel_a: float, vel_b: float) -> str:
+    """
+    Returns 'applying' if the two planets are approaching aspect,
+    'separating' if moving apart. Uses signed angular gap delta.
+    """
+    # Position the faster planet's relative motion vs the slower.
+    # Simpler heuristic: if (lon_faster - lon_slower) mod 360 is decreasing
+    # toward 0, we're applying.
+    if vel_a >= vel_b:
+        gap = (lon_a - lon_b) % 360.0
+        # If gap > 180, the faster is "behind" and applying clockwise;
+        # else gap is decreasing and we're applying.
+        return 'applying' if gap > 180.0 else 'separating'
+    else:
+        gap = (lon_b - lon_a) % 360.0
+        return 'applying' if gap > 180.0 else 'separating'
+
+
+def compute_phal_kaal(chart_data: Dict, vector_type: str,
+                       **params) -> Dict:
+    """
+    Universal phala-kaala (result-time) engine. Returns a dict with
+    {amount, unit, narrative, vector_type, motility, data}.
+
+    Vector types:
+      'standard'      — degree distance from Lagna lord to target lord.
+                        params: target_house (int 1-12)
+      'derived'       — Bhavat Bhavam: degree distance from Lagna lord to
+                        a derived house lord (e.g. 2nd-from-5th = 6th for
+                        child's speech).
+                        params: derived_house (int 1-12)
+      'binder'        — degree distance to completion of a Yama/Nakta
+                        midpoint lock between two specified planets.
+                        params: p1 (str), p2 (str)
+      'orb_clearance' — degree distance for two planets to clear (or enter)
+                        the 12° Tajik orb. Used for severance/extrication.
+                        params: p1 (str), p2 (str),
+                                direction: 'clear' (exit orb) or 'enter'.
+    """
+    lagna_sign = chart_data.get('lagna_sign', 0)
+    lagna_lord = SIGN_LORDS[lagna_sign]
+    l1_lon = _get_planet_longitude(lagna_lord, chart_data)
+    l1_vel = _get_planet_velocity(lagna_lord, chart_data)
+
+    if l1_lon is None:
+        return {
+            'vector_type': vector_type,
+            'amount': None, 'unit': None,
+            'narrative': 'Cannot compute timing — Lagna lord longitude unavailable.',
+            'motility': None,
+            'data': {'error': 'lagna_lord_no_longitude'},
+        }
+
+    # ── 1. STANDARD ──────────────────────────────────────────────
+    if vector_type == 'standard':
+        target_house = params.get('target_house', 7)
+        target_sign  = (lagna_sign + target_house - 1) % 12
+        target_lord  = SIGN_LORDS[target_sign]
+        target_lon   = _get_planet_longitude(target_lord, chart_data)
+        target_vel   = _get_planet_velocity(target_lord, chart_data)
+        if target_lon is None:
+            return {'vector_type': 'standard', 'amount': None, 'unit': None,
+                    'narrative': f'Target lord {target_lord} longitude unavailable.',
+                    'motility': None, 'data': {}}
+
+        # Motility is taken from the FASTER planet's current sign
+        faster, faster_sign = (lagna_lord, lagna_sign) if l1_vel >= target_vel \
+                              else (target_lord, target_sign)
+        # Use the faster planet's CURRENT sign (not nominal house sign)
+        faster_curr_sign = int(_get_planet_longitude(faster, chart_data) // 30) % 12
+        motility = SIGN_MOTILITY[faster_curr_sign]
+        unit = MOTILITY_UNIT[motility]
+
+        deg_dist = _angular_separation(l1_lon, target_lon)
+        # Daily relative motion
+        rel_vel = abs(l1_vel - target_vel) or max(l1_vel, target_vel, 0.01)
+        days = deg_dist / rel_vel
+
+        # Convert to motility-appropriate unit
+        if unit == 'days':
+            amount = round(days, 1)
+        elif unit == 'weeks':
+            amount = round(days / 7.0, 1)
+        else:  # months
+            amount = round(days / 30.4, 1)
+
+        return {
+            'vector_type': 'standard',
+            'amount':      amount,
+            'unit':        unit,
+            'narrative':   (f'Result horizon ≈ {amount} {unit}: '
+                            f'{lagna_lord} (L1) and {target_lord} (L{target_house}) '
+                            f'close their {round(deg_dist, 2)}° gap at {round(rel_vel, 3)}°/day; '
+                            f'faster planet ({faster}) is in {motility} sign — '
+                            f'time unit scales to {unit}.'),
+            'motility':    motility,
+            'data': {
+                'lagna_lord':   lagna_lord, 'l1_longitude': round(l1_lon, 3),
+                'l1_velocity':  round(l1_vel, 3),
+                'target_lord':  target_lord, 'target_house': target_house,
+                'target_longitude': round(target_lon, 3),
+                'target_velocity':  round(target_vel, 3),
+                'deg_dist':     round(deg_dist, 3),
+                'rel_vel':      round(rel_vel, 3),
+                'days_raw':     round(days, 2),
+                'faster_planet': faster,
+                'faster_curr_sign': faster_curr_sign,
+            },
+        }
+
+    # ── 2. DERIVED ATTRIBUTE (Bhavat Bhavam) ────────────────────
+    if vector_type == 'derived':
+        derived_house = params['derived_house']
+        derived_sign  = (lagna_sign + derived_house - 1) % 12
+        derived_lord  = SIGN_LORDS[derived_sign]
+        derived_lon   = _get_planet_longitude(derived_lord, chart_data)
+        derived_vel   = _get_planet_velocity(derived_lord, chart_data)
+        if derived_lon is None:
+            return {'vector_type': 'derived', 'amount': None, 'unit': None,
+                    'narrative': f'Derived lord {derived_lord} longitude unavailable.',
+                    'motility': None, 'data': {}}
+
+        # Motility from the derived lord's CURRENT sign
+        d_curr_sign = int(derived_lon // 30) % 12
+        motility = SIGN_MOTILITY[d_curr_sign]
+        unit = MOTILITY_UNIT[motility]
+
+        deg_dist = _angular_separation(l1_lon, derived_lon)
+        rel_vel = abs(l1_vel - derived_vel) or max(l1_vel, derived_vel, 0.01)
+        days = deg_dist / rel_vel
+
+        amount = round(days, 1) if unit == 'days' else \
+                 round(days / 7.0, 1) if unit == 'weeks' else \
+                 round(days / 30.4, 1)
+
+        return {
+            'vector_type': 'derived',
+            'amount':      amount,
+            'unit':        unit,
+            'narrative':   (f'Derived-attribute horizon ≈ {amount} {unit}: '
+                            f'{lagna_lord} (L1) closes its gap to {derived_lord} '
+                            f'(L{derived_house} · Bhavat Bhavam) over '
+                            f'{round(deg_dist, 2)}° at {round(rel_vel, 3)}°/day; '
+                            f'derived lord is in a {motility} sign.'),
+            'motility':    motility,
+            'data': {
+                'derived_house': derived_house, 'derived_lord': derived_lord,
+                'derived_longitude': round(derived_lon, 3),
+                'derived_velocity': round(derived_vel, 3),
+                'deg_dist': round(deg_dist, 3), 'rel_vel': round(rel_vel, 3),
+                'days_raw': round(days, 2),
+                'lagna_lord': lagna_lord,
+            },
+        }
+
+    # ── 3. BINDER (Yama / Nakta midpoint lock) ──────────────────
+    if vector_type == 'binder':
+        p1, p2 = params['p1'], params['p2']
+        lon1, lon2 = _get_planet_longitude(p1, chart_data), _get_planet_longitude(p2, chart_data)
+        vel1, vel2 = _get_planet_velocity(p1, chart_data),  _get_planet_velocity(p2, chart_data)
+        if lon1 is None or lon2 is None:
+            return {'vector_type': 'binder', 'amount': None, 'unit': None,
+                    'narrative': f'{p1} or {p2} longitude unavailable.',
+                    'motility': None, 'data': {}}
+
+        # Midpoint of the two longitudes
+        midpoint = ((lon1 + lon2) / 2.0) % 360.0
+        # Faster planet's distance to the midpoint
+        faster, fast_lon, fast_vel = (p1, lon1, vel1) if vel1 >= vel2 else (p2, lon2, vel2)
+        slower, slow_lon, slow_vel = (p2, lon2, vel2) if vel1 >= vel2 else (p1, lon1, vel1)
+
+        deg_to_midpoint = _angular_separation(fast_lon, midpoint)
+        # Faster planet effectively closes the gap at (fast_vel - slow_vel)
+        rel_vel = abs(fast_vel - slow_vel) or max(fast_vel, slow_vel, 0.01)
+        days = deg_to_midpoint / rel_vel
+
+        # Motility from the faster planet's current sign
+        fast_curr_sign = int(fast_lon // 30) % 12
+        motility = SIGN_MOTILITY[fast_curr_sign]
+        unit = MOTILITY_UNIT[motility]
+
+        amount = round(days, 1) if unit == 'days' else \
+                 round(days / 7.0, 1) if unit == 'weeks' else \
+                 round(days / 30.4, 1)
+
+        return {
+            'vector_type': 'binder',
+            'amount':      amount,
+            'unit':        unit,
+            'narrative':   (f'Binder midpoint lock ≈ {amount} {unit}: '
+                            f'{faster} closes {round(deg_to_midpoint, 2)}° to the '
+                            f'{p1}↔{p2} midpoint at {round(rel_vel, 3)}°/day.'),
+            'motility':    motility,
+            'data': {
+                'p1': p1, 'p2': p2,
+                'lon1': round(lon1, 3), 'lon2': round(lon2, 3),
+                'midpoint': round(midpoint, 3),
+                'faster': faster, 'slower': slower,
+                'deg_to_midpoint': round(deg_to_midpoint, 3),
+                'rel_vel': round(rel_vel, 3),
+                'days_raw': round(days, 2),
+            },
+        }
+
+    # ── 4. ORB CLEARANCE (Hidden / Severance) ───────────────────
+    if vector_type == 'orb_clearance':
+        p1, p2 = params['p1'], params['p2']
+        direction = params.get('direction', 'clear')  # 'clear' or 'enter'
+        lon1, lon2 = _get_planet_longitude(p1, chart_data), _get_planet_longitude(p2, chart_data)
+        vel1, vel2 = _get_planet_velocity(p1, chart_data),  _get_planet_velocity(p2, chart_data)
+        if lon1 is None or lon2 is None:
+            return {'vector_type': 'orb_clearance', 'amount': None, 'unit': None,
+                    'narrative': f'{p1} or {p2} longitude unavailable.',
+                    'motility': None, 'data': {}}
+
+        current_sep = _angular_separation(lon1, lon2)
+        rel_vel = abs(vel1 - vel2) or max(vel1, vel2, 0.01)
+
+        if direction == 'clear':
+            # Time to exceed 12° orb
+            if current_sep >= 12.0:
+                gap = 0
+                narrative = (f'{p1} and {p2} are already separated by '
+                             f'{round(current_sep, 2)}° — orb has cleared.')
+                days = 0
+            else:
+                gap = 12.0 - current_sep
+                days = gap / rel_vel
+                narrative = (f'Severance horizon ≈ {round(days, 1)} days: '
+                             f'{p1} and {p2} need {round(gap, 2)}° more to clear '
+                             f'the 12° Tajik orb at {round(rel_vel, 3)}°/day.')
+        else:  # 'enter'
+            if current_sep <= 12.0:
+                gap = 0
+                narrative = (f'{p1} and {p2} are already within 12° — '
+                             f'orb is active.')
+                days = 0
+            else:
+                gap = current_sep - 12.0
+                days = gap / rel_vel
+                narrative = (f'Orb-entry horizon ≈ {round(days, 1)} days: '
+                             f'{p1} and {p2} close from {round(current_sep, 2)}° '
+                             f'to within 12° at {round(rel_vel, 3)}°/day.')
+
+        # Always report in days for orb-clearance (high-precision events)
+        return {
+            'vector_type': 'orb_clearance',
+            'amount':      round(days, 1),
+            'unit':        'days',
+            'narrative':   narrative,
+            'motility':    None,
+            'data': {
+                'p1': p1, 'p2': p2, 'direction': direction,
+                'current_sep': round(current_sep, 3),
+                'rel_vel': round(rel_vel, 3),
+                'gap_remaining': round(gap, 3),
+                'orb_status': 'cleared' if (direction == 'clear' and current_sep >= 12.0)
+                              else ('active' if (direction == 'enter' and current_sep <= 12.0)
+                                    else 'in_motion'),
+            },
+        }
+
+    raise ValueError(f"Unknown vector_type '{vector_type}'. "
+                     f"Expected one of: standard, derived, binder, orb_clearance")
+
+
 def pairwise_aspect(p_a: str, p_b: str, chart_data: Dict) -> Dict:
     """
     Compute the Tajik aspect between two named planets in a given chart.
