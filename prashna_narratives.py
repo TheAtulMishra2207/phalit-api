@@ -216,6 +216,134 @@ OUTPUT FORMAT — STRICT JSON:
 
 Do not include any other keys. Do not nest. Do not use markdown inside string values.""",
 
+    # =================================================================
+    # PHASE 4D · 'clinical_empathetic' tone — Putra (child_development_health)
+    # =================================================================
+    'clinical_empathetic': """You are Phalit, a senior Vedic Jyotisha consultant advising a parent about an EXISTING child's development, speech, cognition, wellbeing, or health. The parent is anxious and looking for diagnostic clarity, not platitudes.
+
+ABSOLUTE TONE REQUIREMENTS — CRITICAL:
+- This is NOT a fertility reading. NOT a family-size reading. NOT a conception reading. The child already exists.
+- NEVER mention 'family size', 'how many children', 'conception', 'fertility', 'future progeny', 'IVF', 'before children arrive', 'when the time is right for children', or any variant. The child is already here.
+- NEVER speak of the 5th house as 'progeny capacity'. Per Prashna Marga Ch.16, the 5th house IS the child. The 6th house (counted as 2nd-from-5th) IS the child's speech apparatus. Use this framing.
+- Mercury (Budha) is the operative significator here — Vak-karaka, governing speech and cognition. Jupiter remains a benefic but is NOT the primary read for this query.
+- Empathetic AND clinical. The parent does not need reassurance; they need diagnostic clarity. Be warm in tone, direct in substance.
+- NEVER predict outcomes definitively. Speak of structural tendencies, supports, and friction. Speech delays are NOT a curse; they are a chart architecture that responds to intervention.
+
+CONSISTENCY REQUIREMENTS:
+1. Frame the 5th house as the child themselves. Frame the 6th house as the child's speech / verbal expression. Use these framings consistently.
+2. Mercury's condition — combust, retrograde, debilitated, in dushtana (6/8/12), or afflicted by malefic aspects — is the primary diagnostic. Name each affliction explicitly.
+3. The child's wellbeing scan (5L condition + 5th-house occupants + parent-child aspect via Lagna-lord ↔ 5L) is the secondary diagnostic. Name what fires.
+4. Action cards must point to CONCRETE developmental support: speech therapy, occupational therapy, structured cognitive practice, reduction of sensory overload, paediatric consultation. NEVER 'remedial' in a mystical sense; ALWAYS practical and evidence-supported.
+5. Timeline framing: speech and cognitive development unfold over MONTHS to YEARS, not weeks. Frame in terms of developmental windows, Mercury transits through favorable houses, and the practical reality that consistent support reshapes the chart's expression.
+
+OUTPUT FORMAT — STRICT JSON:
+{
+  "tranche_arc":       "150-220 word reading. Open by naming the 5th lord (which represents the child as a person) and its placement. Then name Mercury (Vak-karaka) and its condition — combust, retrograde, debilitated, in 6/8/12, aspected by malefics. Then describe the child's wellbeing markers (parent-child connection via Lagna-lord ↔ 5L aspect, malefics or benefics in 5th, etc). Do NOT predict an outcome; describe the architecture and what it tends to favor.",
+  "tranche_strategy":  "150-220 word strategic guidance for the PARENT. Concrete developmental support: which therapies tend to align with the chart's architecture, how to structure the child's environment, how to read the child's pace correctly so as not to project parental anxiety. Reference specific chart features (Mercury combust → speech tends to emerge later but is not absent; 5L in dushtana → the child carries a structural challenge that consistent support addresses).",
+  "tranche_timeline":  "100-160 word developmental timeline. Mercury's transits through the 5th, 1st, 9th, 11th of the natal chart open windows for speech and cognitive growth. The natural maturation arc — milestones unfold over years, not weeks. Frame the next 12-36 months as the active window where consistent support produces visible change.",
+  "platinum_rule":     "30-50 word directive. Action verb leading. About establishing professional developmental support TODAY — speech therapy, paediatric assessment, structured cognitive routines — NOT 'wait and see'.",
+  "friction_gate":     "30-50 word warning. The most important behaviour to drop. Often: comparison with other children, panicked over-stimulation, dismissing professional support, projecting parental anxiety onto the child.",
+  "sensory_remedy":    "30-50 word grounding practice. Wednesday devotion (Mercury), Saraswati mantra, structured story-time, sensory-calm spaces. Always practical and aligned with developmental support — never gem-prescriptive."
+}
+
+Do not include any other keys. Do not nest. Do not use markdown inside string values.""",
+
+    # =================================================================
+    # PHASE 4D-EXT · 'clinical_protective' tone
+    # =================================================================
+    # Used for high-stakes medical readings where a parent (or person) is
+    # frightened. Putra child_acute_illness, Garbha RPL, Garbha overdue.
+    'clinical_protective': """You are Phalit, a senior Vedic Jyotisha consultant advising a parent (or close family member) whose child is acutely or chronically ill. The querent is frightened. They are not looking for spiritual platitudes; they need diagnostic clarity that helps them act.
+
+ABSOLUTE TONE REQUIREMENTS:
+- WARM but CLINICAL. Acknowledge the fear in passing — once, briefly — then move to the chart. Never linger in pity or doom.
+- The 10th house here = 6th-from-5th = the child's illness. The 5th house = the child themselves.
+- NEVER predict death. NEVER predict "no recovery." The chart shows TRAJECTORY and PRESSURE WINDOWS, not outcomes.
+- If the prognosis is grim, say so with respect for the parent's intelligence and frame it as "extended care indicated" — not as fatalism.
+- ALWAYS direct action to MEDICAL PROFESSIONALS. The chart's role is to inform decisions, never to replace medical care.
+- Concrete: name the planets, their conditions, the timing windows when malefic pressure intensifies or releases.
+
+CONSISTENCY REQUIREMENTS:
+1. Name the 10th lord (illness lord) and its condition. Combust/applying/separating from L5.
+2. Name the 5th lord (the child) and its condition. Strength, combustness, malefic and benefic aspects.
+3. Esrapha between L10 and L5 = illness moving past = the chart's strongest recovery signal. Highlight when present.
+4. Action cards: medical follow-through, nutrition / rest / care discipline, AND professional second opinion if applicable.
+
+OUTPUT FORMAT — STRICT JSON:
+{
+  "tranche_arc":       "150-220 word reading. Acknowledge the parent's situation briefly (one sentence). Then name the 10th lord (illness) and 5th lord (child) and their relationship. State the prognosis band (recovery indicated / recovery supported / extended care indicated / sustained vigilance required) and what it means clinically. Do NOT predict death or 'no recovery'.",
+  "tranche_strategy":  "150-220 word strategic guidance. Concrete clinical action: maintaining medical regimen, following up on second opinions, structured rest/nutrition. Reference specific chart features. When malefic pressure peaks, when benefic windows open.",
+  "tranche_timeline":  "100-160 word timeline. Watch malefic transits over L5 or the 5th cusp — those are pressure windows. Benefic transits over L5, or L10 separating from L5, are recovery windows. Frame in days or weeks, not months — illness scales fast.",
+  "platinum_rule":     "30-50 word directive. The single most important clinical action TODAY. Often: confirm the next medical appointment, ensure medication adherence, secure a paediatric / specialist consultation.",
+  "friction_gate":     "30-50 word warning. What to avoid: catastrophizing, comparing to other children, skipping appointments out of exhaustion, alternative-remedy substitution for prescribed care.",
+  "sensory_remedy":    "30-50 word grounding practice for the PARENT'S equilibrium. Never frame as 'cure the child.' Suggest practices that stabilize the caregiver — measured breath, brief Sun-salutation, simple Hanuman or Dhanvantari recitation. Always practical."
+}
+
+Do not include any other keys. Do not nest. Do not use markdown inside string values.""",
+
+    # =================================================================
+    # PHASE 4D-EXT · 'crisis_supportive' tone
+    # =================================================================
+    # Used for emotional crises with a missing or estranged person.
+    # Putra runaway, future Anya blackmail-victim variant.
+    'crisis_supportive': """You are Phalit, a senior Vedic Jyotisha consultant advising a parent (or family member) whose child has run away, gone estranged, or cut contact. The querent is in emotional distress.
+
+ABSOLUTE TONE REQUIREMENTS:
+- Steady, supportive, NOT pitying. The querent does not need consolation; they need clarity.
+- ANCHOR in the chart, not the emotion. The chart shows the child's significator (L5) and its motion — that is what you read.
+- NEVER promise a return. NEVER promise reconciliation. The chart shows DIRECTION and TRAJECTORY, not certainty.
+- Speak to the querent as a steady adult. No infantilizing, no over-tender language. Direct sentences. Concrete planetary references.
+- Action-oriented: what the parent can do NOW that the chart supports.
+
+CONSISTENCY REQUIREMENTS:
+1. Name L5 (the child's significator) and its motion. Retrograde = the classical return signal (mention this directly). Direct = not yet returning.
+2. Name L5's current house placement. In your 1st/4th = energetic return. In the 12th = far/hidden. In the 8th-of-radix (4th-from-5th) = settled elsewhere, not with you.
+3. Speak about the child's autonomy with respect. They are a separate person whose chart-motion has its own trajectory.
+4. Action cards: keep communication channels open, don't pursue aggressively, work on YOUR own grounding so reunion is met with steadiness.
+
+OUTPUT FORMAT — STRICT JSON:
+{
+  "tranche_arc":       "150-220 word reading. Name L5 (child) and its motion (retrograde vs direct). Name L5's house. State the return likelihood band (return indicated / signalled but not immediate / reconciliation possible without physical return / no clear signal). Speak about the child with respect for their separate trajectory.",
+  "tranche_strategy":  "150-220 word strategic guidance. What can the parent do given the chart's reading? Often: keep channels open without forcing contact, focus on the parent's own grounding (so any reunion is met with steadiness, not anxiety projection), prepare for the form of return the chart actually signals (physical vs reconciliation-without-physical-return).",
+  "tranche_timeline":  "100-160 word timeline. If L5 is retrograde, when does it station direct (look up Jyotisha-friend; mention this generally). If L5 is in the 12th, transits of benefics through the 1st/4th of the chart can open windows for contact.",
+  "platinum_rule":     "30-50 word directive. The single most important parent-side action. Often: maintain your own stability, keep one specific channel open (text, letter, mutual contact), don't pursue aggressively.",
+  "friction_gate":     "30-50 word warning. The behaviour that closes the door further. Often: relentless calling/texting, public confrontation, projecting parental anxiety, third-party interventions that the child reads as ambush.",
+  "sensory_remedy":    "30-50 word grounding practice for the PARENT. Saturday discipline (Saturn), evening journaling, walks at dusk, simple Hanuman recitation for steadiness. Never promise reunion; promise composure."
+}
+
+Do not include any other keys. Do not nest. Do not use markdown inside string values.""",
+
+    # =================================================================
+    # PHASE 4D-EXT · 'tactical_legal' tone
+    # =================================================================
+    # Used for legal disputes — custody, partition, contract disputes.
+    # Reused across Putra custody, Kinship partition, future Vivada modules.
+    'tactical_legal': """You are Phalit, a senior Vedic Jyotisha consultant advising a querent involved in a legal dispute. The chart's job is tactical — to read the chart's positional advantage and the timing of resolution, NOT to predict legal victory in absolute terms.
+
+ABSOLUTE TONE REQUIREMENTS:
+- Cool, tactical, clinical. NO emotional language about justice, fairness, or righteousness.
+- The chart is a positional readout: who currently holds the stronger aspect to the disputed object/person, when the aspect completes (= resolution), what malefic interference exists.
+- NEVER predict legal victory with certainty. Speak of "positional advantage", "favored outcome trajectory", or "resolution timing".
+- Always include the standard disclaimer in spirit: legal outcomes depend on jurisdiction, counsel quality, and procedural factors the chart cannot read.
+
+CONSISTENCY REQUIREMENTS:
+1. Name the competing significators (L1 for querent, L7 for opposing party, or for custody: L5 as the disputed object — the child).
+2. State the Ithasala competition outcome — querent-favored, opposing-party-favored, or tied.
+3. Name the malefic pressures (Abhara Yoga, retrograde, debilitation) that complicate the picture.
+4. Action cards: legal-tactical guidance — when to file, when to wait, what to document, when settlement is more favorable than litigation.
+
+OUTPUT FORMAT — STRICT JSON:
+{
+  "tranche_arc":       "150-220 word reading. Open with the competing significators. State the Ithasala competition outcome (querent-favored / opposing-favored / tied) and what it means tactically. Name the verdict band (YES / CONDITIONAL / NO) and frame it as positional advantage, not legal certainty.",
+  "tranche_strategy":  "150-220 word tactical guidance. WHEN to push for resolution (which transit window favors the querent's side), WHAT documentation strengthens the chart's reading, WHETHER settlement is favored over litigation. Always remind: consult competent legal counsel; the chart informs, never replaces.",
+  "tranche_timeline":  "100-160 word timeline. The Tajik aspect closure between competing significators = the resolution window. Mention motility-based time-scaling. If the chart shows binder (Yama) timing, name when the midpoint locks.",
+  "platinum_rule":     "30-50 word directive. The single most important tactical action. Often: secure documentation, time the next filing, negotiate during the favored window.",
+  "friction_gate":     "30-50 word warning. What to avoid tactically: escalation during malefic windows, public confrontation, statements that create discoverable record, premature settlement when the chart favors waiting.",
+  "sensory_remedy":    "30-50 word grounding practice for legal-stress management. Jupiter for justice (Thursday), measured Hanuman recitation for steady will, structured breathing before hearings. Always practical."
+}
+
+Do not include any other keys. Do not nest. Do not use markdown inside string values.""",
+
     # Tones reserved for upcoming topic types (filled in as topics land):
     # 'tactical':  Shatru / Sangrama / Vivada — cold strategic counsel
     # 'executive': Karma / Sammana — career advisory tone
@@ -705,7 +833,330 @@ def _build_garbha_user_prompt(judgment: Dict,
 # =================================================================
 
 def _build_putra_user_prompt(judgment, query_text, cast_meta):
-    """Long-horizon progeny prompt."""
+    """
+    Dispatcher: routes to the appropriate sub-builder based on the
+    judgment's classified intent. Routes:
+
+      child_acute_illness        → _build_putra_illness_prompt
+      runaway_estranged_child    → _build_putra_runaway_prompt
+      legal_child_custody        → _build_putra_custody_prompt
+      child_development_health   → _build_putra_child_dev_prompt
+      progeny_capacity (default) → _build_putra_progeny_capacity_prompt
+    """
+    intent = judgment.get('intent') or 'progeny_capacity'
+    if intent == 'child_acute_illness':
+        return _build_putra_illness_prompt(judgment, query_text, cast_meta)
+    if intent == 'runaway_estranged_child':
+        return _build_putra_runaway_prompt(judgment, query_text, cast_meta)
+    if intent == 'legal_child_custody':
+        return _build_putra_custody_prompt(judgment, query_text, cast_meta)
+    if intent == 'child_development_health':
+        return _build_putra_child_dev_prompt(judgment, query_text, cast_meta)
+    return _build_putra_progeny_capacity_prompt(judgment, query_text, cast_meta)
+
+
+def _build_putra_illness_prompt(judgment, query_text, cast_meta):
+    """Child acute/chronic illness — clinical_protective tone."""
+    wb_findings   = judgment.get('findings') or []  # child_wellbeing or illness; we read both
+    prognosis     = judgment.get('prognosis')
+    fifth_lord    = judgment.get('fifth_lord')
+    fifth_lord_house = judgment.get('fifth_lord_house')
+    fifth_lord_combust = judgment.get('fifth_lord_combust')
+    tenth_lord    = judgment.get('tenth_lord')
+    tenth_lord_house = judgment.get('tenth_lord_house')
+    tenth_lord_combust = judgment.get('tenth_lord_combust')
+    illness_separating = judgment.get('illness_separating')
+    illness_applying   = judgment.get('illness_applying')
+
+    querent_lord = judgment.get('querent_lord') or {}
+    target_lord  = judgment.get('quesited_lord') or {}
+    catalyst     = judgment.get('core_catalyst') or {}
+    bhava_target = judgment.get('bhava_bala_target') or {}
+
+    lines = [
+        "# Putra Prashna · CHILD ACUTE / CHRONIC ILLNESS (route: child_acute_illness)",
+        "",
+        "## Cast Context",
+        f"- Querent question: \"{query_text or '(not provided)'}\"",
+        f"- Place: {(cast_meta or {}).get('place_name', '(not provided)')}",
+        f"- Target: 10th — Roga Bhava of the Child (6th from 5th).",
+        f"- Operative significator pair: 10th lord ({tenth_lord}) = illness; 5th lord ({fifth_lord}) = the child.",
+        "",
+        "## CRITICAL FRAMING",
+        "- The chart shows TRAJECTORY and PRESSURE WINDOWS — never definite outcomes.",
+        "- NEVER predict death or 'no recovery'. If prognosis is grim, frame as 'extended care indicated'.",
+        "- ALWAYS direct action to qualified medical professionals. The chart informs; medicine treats.",
+        "",
+        "## Verdict",
+        f"- Verdict state: **{judgment.get('verdict')}**",
+        f"- Recovery prognosis band: **{prognosis}**",
+        "",
+        "## Illness Lord (10th — Roga of the Child)",
+        f"- 10th lord: **{tenth_lord}** in house {tenth_lord_house}",
+        f"- Combust: {tenth_lord_combust}",
+        f"- L10 ↔ L5 relationship: " +
+          ("Esrapha (illness separating — recovery indicated)" if illness_separating
+           else "applying (illness still pressing)" if illness_applying
+           else "no aspect within orb"),
+        "",
+        "## The Child (5th lord)",
+        f"- 5th lord: **{fifth_lord}** in house {fifth_lord_house}",
+        f"- Combust: {fifth_lord_combust}",
+        "",
+        "## Findings",
+    ]
+    for f in wb_findings:
+        prefix = '⚠' if f.get('severity') == 'caveat' else ('✓' if f.get('severity') == 'positive' else '·')
+        lines.append(f"  {prefix} **{f.get('name')}**: {f.get('detail')}")
+
+    lines += [
+        "",
+        "## Significators",
+        f"- Lagna lord ({querent_lord.get('name')}): {querent_lord.get('synthesis_label')}",
+        "",
+        "## Karya / Bhava Bala (10th)",
+        f"- 10th Bhava Bala: {bhava_target.get('verdict', '?')} "
+        f"(gross {bhava_target.get('gross_strength_pct', 0)}%, net {bhava_target.get('net_strength_pct', 0)}%)",
+        "",
+        "---",
+        "",
+        "GUARDRAILS:",
+        "- Acknowledge the parent's fear ONCE, briefly. Then move to the chart.",
+        "- NEVER predict death. NEVER predict 'no recovery'.",
+        "- Action cards point to MEDICAL FOLLOW-THROUGH, never alternative-substitution.",
+        "- Sensory remedy is for the PARENT'S equilibrium, never framed as 'cure the child'.",
+        "",
+        "Produce the JSON now.",
+    ]
+    return "\n".join(lines)
+
+
+def _build_putra_runaway_prompt(judgment, query_text, cast_meta):
+    """Runaway / estranged child — crisis_supportive tone."""
+    return_likelihood  = judgment.get('return_likelihood')
+    fifth_lord         = judgment.get('fifth_lord')
+    fifth_lord_house   = judgment.get('fifth_lord_house')
+    fifth_lord_retro   = judgment.get('fifth_lord_retro')
+    distance_to_l1     = judgment.get('distance_to_l1')
+    distance_to_cusp   = judgment.get('distance_to_cusp')
+    aagaman_findings   = judgment.get('findings') or []
+
+    querent_lord = judgment.get('querent_lord') or {}
+
+    lines = [
+        "# Putra Prashna · RUNAWAY / ESTRANGED CHILD · Aagaman (Return) Reading",
+        "",
+        "## Cast Context",
+        f"- Querent question: \"{query_text or '(not provided)'}\"",
+        f"- Place: {(cast_meta or {}).get('place_name', '(not provided)')}",
+        f"- Target: 8th — Bandhu Bhava of the Child (4th-from-5th = child's home/stability).",
+        "",
+        "## CRITICAL FRAMING",
+        "- This is an Aagaman (return) reading. The classical question: is the child's significator (L5) moving back toward the querent's chart-Lagna or its lord?",
+        "- L5 retrograde = the classical RETURN signal. L5 direct = no return signalled at this cast.",
+        "- The chart shows DIRECTION, not certainty of reunion. Speak with respect for the child's autonomy.",
+        "- NEVER promise a return. NEVER promise reconciliation. Read what the chart shows.",
+        "",
+        "## Aagaman Reading",
+        f"- Verdict: **{judgment.get('verdict')}**",
+        f"- Return likelihood band: **{return_likelihood}**",
+        "",
+        "## The Child's Significator (L5)",
+        f"- 5th lord: **{fifth_lord}** in house {fifth_lord_house}",
+        f"- L5 motion: **{'retrograde (classical RETURN signal)' if fifth_lord_retro else 'direct (no return signalled)'}**",
+        f"- L5 ↔ L1 angular distance: {distance_to_l1}°" if distance_to_l1 is not None else "",
+        f"- L5 ↔ Prashna Lagna cusp distance: {distance_to_cusp}°" if distance_to_cusp is not None else "",
+        "",
+        "## Markers",
+    ]
+    for f in aagaman_findings:
+        prefix = '⚠' if f.get('severity') == 'caveat' else ('✓' if f.get('severity') == 'positive' else '·')
+        lines.append(f"  {prefix} **{f.get('name')}**: {f.get('detail')}")
+
+    lines += [
+        "",
+        "## Significators",
+        f"- Lagna lord (you, {querent_lord.get('name')}): {querent_lord.get('synthesis_label')}",
+        f"  - {querent_lord.get('synthesis_narrative')}",
+        "",
+        "---",
+        "",
+        "GUARDRAILS:",
+        "- Speak as a steady adult to a steady adult. No infantilizing.",
+        "- Respect the child's autonomy. They are a separate person with their own chart-trajectory.",
+        "- Action cards: parent-side stability, open channels without aggressive pursuit, prepare for the form of return the chart actually signals.",
+        "- Sensory remedy promises composure, never reunion.",
+        "",
+        "Produce the JSON now.",
+    ]
+    return "\n".join(lines)
+
+
+def _build_putra_custody_prompt(judgment, query_text, cast_meta):
+    """Legal child custody — tactical_legal tone."""
+    winner       = judgment.get('winner')
+    winner_lord  = judgment.get('winner_lord')
+    lagna_lord_name = judgment.get('lagna_lord')
+    fifth_lord   = judgment.get('fifth_lord')
+    seventh_lord = judgment.get('seventh_lord')
+    l1_l5_aspect = judgment.get('l1_l5_aspect')
+    l1_l5_score  = judgment.get('l1_l5_score')
+    l7_l5_aspect = judgment.get('l7_l5_aspect')
+    l7_l5_score  = judgment.get('l7_l5_score')
+
+    querent_lord = judgment.get('querent_lord') or {}
+    catalyst     = judgment.get('core_catalyst') or {}
+
+    winner_label = {
+        'querent':   'the querent (the parent asking)',
+        'ex_spouse': 'the other parent',
+        'tied':      'NEITHER — both parents read at equivalent strength',
+    }.get(winner, 'unclear')
+
+    lines = [
+        "# Putra Prashna · LEGAL CHILD CUSTODY (route: legal_child_custody)",
+        "",
+        "## Cast Context",
+        f"- Querent question: \"{query_text or '(not provided)'}\"",
+        f"- Place: {(cast_meta or {}).get('place_name', '(not provided)')}",
+        f"- Target: 5th — Putra Bhava (the disputed child).",
+        "",
+        "## Competitive Ithasala Reading",
+        f"- L1 (you, {lagna_lord_name}) ↔ L5 ({fifth_lord} = child): **{l1_l5_aspect}** (score +{l1_l5_score})",
+        f"- L7 ({seventh_lord} = other parent) ↔ L5: **{l7_l5_aspect}** (score +{l7_l5_score})",
+        f"- Positional advantage: **{winner_label}**" + (f" (lord: {winner_lord})" if winner_lord else ""),
+        "",
+        "## Verdict",
+        f"- Verdict state: **{judgment.get('verdict')}**",
+        f"- Verdict text: {judgment.get('verdict_text')}",
+        "",
+        "## Significators",
+        f"- Lagna lord ({querent_lord.get('name')}): {querent_lord.get('synthesis_label')}",
+        f"- Target lord ({(judgment.get('quesited_lord') or {}).get('name')}): "
+        f"{(judgment.get('quesited_lord') or {}).get('synthesis_label')}",
+        "",
+        "## Core Catalyst",
+        f"- {catalyst.get('yoga')}: {catalyst.get('narrative')}",
+        "",
+        "---",
+        "",
+        "GUARDRAILS:",
+        "- COOL, TACTICAL, CLINICAL. No emotional language about fairness or righteousness.",
+        "- This is positional advantage in a Tajik reading — NEVER a prediction of legal certainty.",
+        "- Always remind: consult competent legal counsel; the chart informs, never replaces.",
+        "- Action cards: timing of filings/negotiations, documentation, when settlement is favored over litigation.",
+        "",
+        "Produce the JSON now.",
+    ]
+    return "\n".join(lines)
+
+
+def _build_putra_child_dev_prompt(judgment, query_text, cast_meta):
+    """
+    Child development & wellbeing reading. Per Prashna Marga Ch.16:
+    the 5th house IS the child; the 6th house IS their speech (2nd-of-5th).
+    Mercury (Vak-karaka) is the operative significator.
+    """
+    querent_lord = judgment.get('querent_lord') or {}
+    target_lord  = judgment.get('quesited_lord') or {}
+    karya        = judgment.get('karya_chain') or {}
+    bhava_target = judgment.get('bhava_bala_target') or {}
+    catalyst     = judgment.get('core_catalyst') or {}
+
+    # child_wellbeing_scan data (spread into normalized judgment)
+    cw_findings        = judgment.get('findings') or []
+    cw_verdict         = judgment.get('verdict')  # may collide with top-level verdict
+    fifth_lord         = judgment.get('fifth_lord')
+    fifth_lord_house   = judgment.get('fifth_lord_house')
+    fifth_lord_combust = judgment.get('fifth_lord_combust')
+    malefics_in_5th    = judgment.get('malefics_in_5th') or []
+    benefics_in_5th    = judgment.get('benefics_in_5th') or []
+    parent_child_aspect = judgment.get('parent_child_aspect')
+
+    # mercury_speech_affliction_check data
+    mercury_house         = judgment.get('mercury_house')
+    mercury_combust       = judgment.get('mercury_combust')
+    mercury_retro         = judgment.get('mercury_retrograde')
+    mercury_debilitated   = judgment.get('mercury_debilitated')
+    mercury_exalted       = judgment.get('mercury_exalted')
+    mercury_in_dushtana   = judgment.get('mercury_in_dushtana')
+    malefic_aspects       = judgment.get('malefic_aspects') or []
+    benefic_aspects       = judgment.get('benefic_aspects') or []
+    mercury_band          = judgment.get('band')
+
+    lines = [
+        "# Putra Prashna · CHILD DEVELOPMENT & HEALTH (route: child_development_health)",
+        "",
+        "## Cast Context",
+        f"- Querent question: \"{query_text or '(not provided)'}\"",
+        f"- Place: {(cast_meta or {}).get('place_name', '(not provided)')}",
+        f"- Target: 6th — Vak Bhava of the Child (2nd from 5th).",
+        f"- Operative significator: Mercury (Vak-karaka).",
+        "",
+        "## CRITICAL FRAMING (Prashna Marga Ch.16)",
+        "- The child already exists. This is NOT a fertility or family-size reading.",
+        "- The 5th house IS the child themselves (the child's Lagna in this reading).",
+        "- The 6th house of the radix IS the child's speech / verbal expression (counted as 2nd-from-5th).",
+        "- Mercury (Vak-karaka) is the diagnostic significator for speech and cognition. Jupiter (Putra Karaka) is NOT the primary read here.",
+        "",
+        "## Verdict",
+        f"- Verdict state: **{judgment.get('verdict')}**",
+        f"- Verdict text: {judgment.get('verdict_text')}",
+        "",
+        "## Mercury (Vak-karaka) · Speech Apparatus",
+        f"- Mercury house: {mercury_house}",
+        f"- Combust: {mercury_combust}  |  Retrograde: {mercury_retro}  |  Debilitated: {mercury_debilitated}  |  Exalted: {mercury_exalted}",
+        f"- In Dushtana (6/8/12): {mercury_in_dushtana}",
+        f"- Affliction band: **{mercury_band}**",
+    ]
+    if malefic_aspects:
+        lines.append(f"- Malefic aspects to Mercury: " + ", ".join(f"{m['planet']} ({m['yoga']})" for m in malefic_aspects))
+    if benefic_aspects:
+        lines.append(f"- Benefic aspects to Mercury: " + ", ".join(f"{b['planet']} ({b['yoga']})" for b in benefic_aspects))
+
+    lines += [
+        "",
+        "## The Child Themselves · 5th-Lord & 5th-House",
+        f"- 5th lord ({fifth_lord}) is in the {fifth_lord_house}th house" if fifth_lord_house else f"- 5th lord: {fifth_lord}",
+        f"- 5th lord combust: {fifth_lord_combust}",
+        f"- Malefics in 5th: {', '.join(malefics_in_5th) if malefics_in_5th else 'none'}",
+        f"- Benefics in 5th: {', '.join(benefics_in_5th) if benefics_in_5th else 'none'}",
+        f"- Parent ↔ Child aspect (Lagna lord ↔ 5L): {parent_child_aspect or 'none within orb'}",
+    ]
+    if cw_findings:
+        lines.append("- Wellbeing findings:")
+        for f in cw_findings:
+            prefix = '⚠' if f.get('severity') == 'caveat' else ('✓' if f.get('severity') == 'positive' else '·')
+            lines.append(f"  {prefix} **{f.get('name')}**: {f.get('detail')}")
+
+    lines += [
+        "",
+        "## Significators (orchestrator)",
+        f"- Lagna lord ({querent_lord.get('name')}): {querent_lord.get('synthesis_label')}",
+        f"  - {querent_lord.get('synthesis_narrative')}",
+        f"- Target lord ({target_lord.get('name')}): {target_lord.get('synthesis_label')}",
+        "",
+        "## Karya & Bhava Bala (6th house · the speech apparatus)",
+        f"- Karya: {karya.get('positive_satisfied', 0)} / 3 satisfied (primitive: {karya.get('verdict_primitive')})",
+        f"- 6th Bhava Bala: {bhava_target.get('verdict', '?')} "
+        f"(gross {bhava_target.get('gross_strength_pct', 0)}%, net {bhava_target.get('net_strength_pct', 0)}%)",
+        "",
+        "---",
+        "",
+        "ABSOLUTE GUARDRAILS:",
+        "- DO NOT mention 'family size', 'how many children', 'fertility', 'conception', 'IVF', 'future progeny'.",
+        "- The child IS HERE. The query is about their development, not about whether they will exist.",
+        "- Be warm but clinical. Diagnostic clarity, not platitudes.",
+        "- Action cards point to CONCRETE developmental support: speech therapy, paediatric assessment, structured cognitive practice.",
+        "- NEVER predict outcomes definitively. Describe architectures, tendencies, supports, friction.",
+        "",
+        "Produce the JSON now.",
+    ]
+    return "\n".join(lines)
+
+
+def _build_putra_progeny_capacity_prompt(judgment, query_text, cast_meta):
+    """Long-horizon progeny capacity reading (the original Putra builder)."""
     yogas             = judgment.get('yogas') or []
     family_size_band  = judgment.get('family_size_band')
     band_narrative    = judgment.get('band_narrative')
@@ -996,7 +1447,9 @@ def build_narrative_prompts(topic_id: str,
         )
 
     spec = PRASHNA_TOPICS[topic_id]
-    tone = spec.get("narrative_tone")
+    # Intent-routed topics (e.g. putra) put the route-resolved tone in the
+    # judgment itself. Prefer that; fall back to the spec default.
+    tone = judgment.get("narrative_tone") or spec.get("narrative_tone")
     if tone not in NARRATIVE_TONES:
         raise NarrativeError(
             f"Topic \'{topic_id}\' declares narrative_tone=\'{tone}\' "
