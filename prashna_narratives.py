@@ -344,9 +344,70 @@ OUTPUT FORMAT — STRICT JSON:
 
 Do not include any other keys. Do not nest. Do not use markdown inside string values.""",
 
+    # =================================================================
+    # PHASE 4D · 'executive_strategic' tone — Karma (Vritti: Career & Power)
+    # Reused by Sammana (Recognition & Honour) and Yuddha (Litigation) when those land.
+    # =================================================================
+    'executive_strategic': """You are Phalit, a senior Vedic Jyotisha consultant trained in the Tajik (Prashna) school, advising a sincere, senior professional querent on a career question — promotion, employer dynamic, startup pivot, or exit. The querent is an adult operator running a real career: corporate executive, founder, senior contributor. They need surgical, decision-grade counsel, not motivational language.
+
+ABSOLUTE TONE REQUIREMENTS — CRITICAL:
+- Corporate-power register. Decisive, surgical, mathematical. Architectural metaphors (throne, ceiling, anchor, runway, axis, gate) are welcome.
+- NO motivational language. NO "manifest your destiny," "the universe is aligning," "trust the process," "you've got this." NEVER.
+- NO moralism about ambition, money, leaving a boss, founding a business, or exiting a role. You are a diagnostic instrument, not a coach.
+- High-register English. Translate Sanskrit inline the first time (e.g. "Karma Bhava — the 10th house, the throne of action").
+- Cite the actual planets, houses, lords, aspects, and overlay findings. Never speak in generalities.
+- Address the querent directly in second person ("you", "your role", "your throne"), never name them.
+- Action-oriented. Every observation must close into a concrete corporate action: negotiate, document, secure, raise, build runway, found, exit, consolidate.
+- Honest about negative indicators. CONDITIONAL_SUBORDINATE and ABDICATION_SIGNAL must not be softened into hope. Name the architecture.
+
+CONSISTENCY REQUIREMENTS (per Atul's Karma Ch.13 spec — ALL MANDATORY):
+
+1. **KARMIKA TRANSFORMATION OVERRIDE — read this carefully.** If the prompt surfaces `karmika_transform_meta` with `fired` entries, the new label IS the truth and the prior label is a stale reading that no longer applies:
+   - Saturn → "Standing Power (Sthira)" — Saturn in the 10th in a Fixed sign (Taurus/Leo/Scorpio/Aquarius) or own sign (Capricorn/Aquarius). Frame as **unshakeable tenure**, immovable corporate position, slow but resilient. NEVER call this "thwarted", "weak", or "afflicted" — the Karmakaraka transformation explicitly bypasses the standard label.
+   - Mars → "Executive Command (Mangala Digbala)" — Mars in the 10th regardless of sign. Frame as **administrative command authority**. Even with afflicting aspects, the chart confers the right to execute. NEVER call this "weakened" or "depleted".
+   - If the transform fired, name it in `tranche_arc` and use the new label as the dominant frame. Cite the prior label only to acknowledge the override ("what would otherwise read as Thwarted Power resolves into Standing Power (Sthira)…").
+
+2. **VERDICT STATE VOCABULARY — Karma's five states are non-negotiable:**
+   - `YES` → seamless advancement. Name what is clearing the path (which lord, which yoga, which transit window).
+   - `YES_WITH_EFFORT` → secured after heavy negotiation. Name the negotiation arc. NOT "delays" — effort.
+   - `CONDITIONAL_SUBORDINATE` → the "Glass Ceiling" frame (Overlay B's voice: "the capacity to execute is undeniable, but your hands remain tied by an invisible institutional ceiling…"). The querent CAN do the work; the chair is just not coming. Frame as architectural ceiling, not personal failure.
+   - `ABDICATION_SIGNAL` → forced exit / severance. Overlay C's voice: "the chart captures an energy of severance — prepare your exit runway immediately." NEVER soften into "transition," "next chapter," or "new opportunity." Severance is the word.
+   - `NO` → will not materialize. Name the specific block (combust lord, dusthana placement, Esrapha separating).
+
+3. **VERDICT MODIFIERS — orthogonal to state, both must surface when present:**
+   - `FOUNDER_TRANSITION` — Overlay D fired. The chart endorses the startup pivot specifically: L7 strength exceeds L10, L7↔L11 positive yoga, L10 in Pariheena band. Frame as **the chart actively endorsing independence**, never as "fleeing failure." Voice: "the corporate anchor is dragging — the planetary velocity favors independent commercial risk."
+   - `REVERSAL_AT_THE_BORDER` — timing veto. The Tajik aspect was within 1° of completing, but the faster planet stationed retrograde inside the orb. The deal would have closed; it aborts at the gate. Frame as **timing veto, not architectural failure**. Recommend recasting after the planet resumes direct motion.
+
+4. **TARGET HOUSE — each intent points to a different house. Honor it:**
+   - `promotion_elevation` → H10 (Karma Bhava, the throne of action). Standard upward query.
+   - `employer_relationship` → H4 (Employer's Throne — 10th-from-7th, the Corporate Master Pivot). Explain this pivot once: "the 7th is your boss as a person; the 4th — counted as the 10th from the 7th — is where their institutional authority lives." This is where the boss's power, not the boss themselves, gets read.
+   - `career_pivot_startup` → H7 (Vyapara Axis, the business as a new identity). The 7th here is your founder identity, not a partner. L11 is the gains cross-check.
+   - `exit_resignation` → H12 (Vyaya Bhava, the severance axis). Severance, dissolution, runway. NOT a sin house here — the right exit IS the right move when the chart says so.
+
+5. **OVERLAY VOICE CUES — when an overlay fired (overlay_findings), match its register:**
+   - `rulership_confirmed` → "Command Architecture" — the throne recognizes your signature.
+   - `subordinate_trajectory` → "Glass Ceiling" — capacity is real; the ceiling is institutional.
+   - `abdication_signal` → "Forced Exit" / "Severance" — prepare the exit runway.
+   - `startup_pivot_crosscheck` → "Founder Transition" — the anchor is dragging; commercial risk is favored.
+
+6. **NATAL-PRASHNA HANDSHAKE** — if `horary_to_natal` activates a meaningful natal house (especially natal 10th, 6th, 11th), name it explicitly: "this question lands in your natal 10th — your career axis."
+
+7. **NO REMEDY OVER-REACH** — Phalit's Supreme Remedial Dossier handles gems, yantras, and full remedy stacks separately. The `sensory_remedy` tranche here is a disciplined lifestyle practice tied to the operative planet's day (Sun→Sunday, Saturn→Saturday, Mars→Tuesday, Mercury→Wednesday). Sūrya Namaskāra at sunrise for Sun-driven promotion. Disciplined Saturday work-block for Saturn. Hanuman Chalisa pre-pitch for Mars. Never prescribe expensive stones or substitution rituals.
+
+OUTPUT FORMAT — STRICT JSON:
+Return ONLY a single valid JSON object. No preamble, no markdown fences, no commentary outside the JSON. The JSON must have exactly these keys:
+{
+  "tranche_arc":       "150-220 word reading. Open by naming the Lagna lord (you) and the target lord (the throne / employer / business axis / severance axis depending on intent). State the synthesis_label for each — and if karmika_transform_meta fired, use the NEW label (Standing Power / Executive Command) as the dominant frame. Name which overlay fired and how it shaped the verdict. If verdict_modifier is present, name it.",
+  "tranche_strategy":  "150-220 word corporate-strategic guidance. Posture: negotiate, hold, push, exit, found. Concrete tactics: what to document, what to surface in the next 1:1, what equity / title / scope to anchor on, when to walk. If FOUNDER_TRANSITION fired, the strategy must shift to runway-building and commercial-risk endorsement. If ABDICATION_SIGNAL fired, strategy is exit-runway: severance negotiation, references, next-role positioning. Timing-references must align with tranche_timeline.",
+  "tranche_timeline":  "100-160 word timeline using actual Tajik aspect closure or transit windows. If REVERSAL_AT_THE_BORDER fired, name the failed completion and recommend recasting the question after the faster planet resumes direct motion. Frame in weeks-to-months for tactical actions, quarters-to-years for structural moves. NEVER give two contradicting end-points.",
+  "platinum_rule":     "30-50 word directive — the single most important corporate action. Action verb leading. Concrete: 'negotiate the equity grant before signing,' 'document the scope shift in writing this week,' 'build a six-month runway before the founding leap.' NEVER aspirational.",
+  "friction_gate":     "30-50 word warning — the single most important behaviour to AVOID. Concrete trigger or behaviour: 'do not surface the resignation conversation before the bonus cycle closes,' 'do not accept the title without the budget,' 'do not let the boss frame the exit as performance.'",
+  "sensory_remedy":    "30-50 word disciplined lifestyle practice tied to the operative planet's day. Sun (Sunday — Sūrya Namaskāra at sunrise), Saturn (Saturday — disciplined work-block, no leisure), Mars (Tuesday — Hanuman Chalisa pre-pitch), Mercury (Wednesday — clean clear written communication). Never prescribe gems or expensive remedies."
+}
+
+Do not include any other keys. Do not nest. Do not use markdown inside string values.""",
+
     # Tones reserved for upcoming topic types (filled in as topics land):
-    # 'tactical':  Shatru / Sangrama / Vivada — cold strategic counsel
-    # 'executive': Karma / Sammana — career advisory tone
     # 'clinical':  Roga / Daiva-Roga — medical Jyotisha specialist
     # 'metric':    Dhana / Vyapara / Bhumi-Labha — financial advisor
 }
@@ -1384,6 +1445,535 @@ def _build_kinship_user_prompt(judgment, query_text, cast_meta):
 
 
 # =================================================================
+# PHASE 4D · KARMA (Vritti — Career & Authority) builders
+# =================================================================
+# 4 intent-routed sub-builders + dispatcher. All share the
+# 'executive_strategic' system tone.
+#
+# Intents (precedence ordered, classified by classify_karma_intent):
+#   exit_resignation        → _build_karma_exit_prompt        (H12, Saturn)
+#   career_pivot_startup    → _build_karma_startup_prompt     (H7,  Mars)
+#   employer_relationship   → _build_karma_employer_prompt    (H4,  Mercury) [Corporate Master Pivot]
+#   promotion_elevation     → _build_karma_promotion_prompt   (H10, Sun)   [DEFAULT]
+#
+# Karmika transformation meta (Saturn-Sthira / Mars-Digbala) is
+# always surfaced via _format_karmika_transform_block, since the new
+# label IS the truth — the system prompt explicitly instructs the
+# model never to fall back to the prior label.
+# =================================================================
+
+
+def _format_karmika_transform_block(transform_meta):
+    """
+    Returns a markdown block describing fired Karmika transformations
+    (Saturn-Sthira and/or Mars-Digbala). Always emitted so the AI knows
+    whether to apply the override; emits "(none fired)" when count is 0.
+
+    Critical: the system prompt instructs the model to treat the
+    new_label as the dominant frame and NEVER use the prior_label
+    when a transformation has fired.
+    """
+    meta = transform_meta or {}
+    fired = meta.get('fired') or []
+    if not fired:
+        return ("## Karmika Transformation Meta\n"
+                "- No Karmika transformations fired (Saturn not in 10th in a Fixed/own sign; "
+                "Mars not in 10th). Use the standard synthesis_labels as-is.\n")
+    lines = ["## Karmika Transformation Meta — APPLY THESE LABELS",
+             "(The synthesis_label below has been re-written. The prior label is",
+             " a stale reading; do NOT use it. The new label IS the truth.)",
+             ""]
+    for entry in fired:
+        planet      = entry.get('planet', '?')
+        transform   = entry.get('transformation', '?')
+        new_label   = entry.get('new_label', '?')
+        prior_label = entry.get('prior_label', '?')
+        reason      = entry.get('reason', '')
+        lines.append(f"- **{planet}** → `{transform}`")
+        lines.append(f"  - NEW label (use this):  **{new_label}**")
+        lines.append(f"  - Prior label (stale):   {prior_label}")
+        lines.append(f"  - Reason: {reason}")
+    return "\n".join(lines) + "\n"
+
+
+def _format_karma_overlay_lines(overlays, overlay_names):
+    """
+    Returns markdown lines describing the firing state and narrative
+    of each named overlay. Skips silent (not fired) overlays cleanly.
+    """
+    overlays = overlays or {}
+    lines = []
+    for name in overlay_names:
+        entry = overlays.get(name) or {}
+        fired = entry.get('fired', False)
+        if fired:
+            narrative = entry.get('narrative') or '(no narrative)'
+            data      = entry.get('data') or {}
+            prefix = '🔥'
+            lines.append(f"  {prefix} **{name}** — FIRED")
+            lines.append(f"     Narrative: {narrative}")
+            if data:
+                # Compact key=value passthrough for the AI
+                kv = ", ".join(f"{k}={v}" for k, v in list(data.items())[:8])
+                lines.append(f"     Data: {kv}")
+        else:
+            lines.append(f"  ·  {name} — silent (not fired)")
+    return lines
+
+
+def _build_karma_user_prompt(judgment, query_text, cast_meta):
+    """
+    Dispatcher for Karma sub-module. Routes to the appropriate
+    intent-specific prompt builder based on judgment['intent'].
+
+    Routes:
+      exit_resignation        → _build_karma_exit_prompt
+      career_pivot_startup    → _build_karma_startup_prompt
+      employer_relationship   → _build_karma_employer_prompt
+      promotion_elevation     → _build_karma_promotion_prompt  (default)
+    """
+    intent = judgment.get('intent') or 'promotion_elevation'
+    if intent == 'exit_resignation':
+        return _build_karma_exit_prompt(judgment, query_text, cast_meta)
+    if intent == 'career_pivot_startup':
+        return _build_karma_startup_prompt(judgment, query_text, cast_meta)
+    if intent == 'employer_relationship':
+        return _build_karma_employer_prompt(judgment, query_text, cast_meta)
+    return _build_karma_promotion_prompt(judgment, query_text, cast_meta)
+
+
+def _build_karma_promotion_prompt(judgment, query_text, cast_meta):
+    """Promotion / elevation reading — target H10, Sun karaka."""
+    verdict       = judgment.get('verdict')
+    verdict_text  = judgment.get('verdict_text')
+    verdict_mod   = judgment.get('verdict_modifier')
+    target_house  = judgment.get('target_house')
+    target_role   = judgment.get('target_role')
+    secondary     = judgment.get('secondary_karaka')
+
+    querent_lord  = judgment.get('querent_lord') or {}
+    quesited_lord = judgment.get('quesited_lord') or {}
+    catalyst      = judgment.get('core_catalyst') or {}
+    bhava_target  = judgment.get('bhava_bala_target') or {}
+
+    overlays       = judgment.get('overlay_findings') or {}
+    transform_meta = judgment.get('karmika_transform_meta') or {}
+    h2n            = judgment.get('horary_to_natal') or {}
+
+    lines = [
+        "# Karma Prashna · PROMOTION / ELEVATION (route: promotion_elevation)",
+        "",
+        "## Cast Context",
+        f"- Querent question: \"{query_text or '(not provided)'}\"",
+        f"- Place: {(cast_meta or {}).get('place_name', '(not provided)')}",
+        f"- Target: **{target_role}** (H{target_house}, the throne of action)",
+        f"- Operative karakas: Lagna lord ({querent_lord.get('name')}) = you; "
+        f"10th lord ({quesited_lord.get('name')}) = the throne; "
+        f"secondary karaka **{secondary}** (Sun = Status-karaka).",
+        "",
+        "## CRITICAL FRAMING",
+        "- This is a STANDARD upward trajectory query — promotion, title, raise, scope expansion.",
+        "- Target is H10 directly (no pivot). The 10th lord IS the throne you are seeking.",
+        "- Sun's condition is the supplementary status read; Jupiter checked separately for benefic blessing.",
+        "",
+        "## Verdict",
+        f"- Verdict state: **{verdict}**",
+        f"- Verdict text: {verdict_text}",
+        f"- Verdict modifier: **{verdict_mod or '(none)'}**"
+        f"{'  — REVERSAL_AT_THE_BORDER means the aspect would have completed but the faster planet stationed retrograde inside 1° of completion. The deal aborts at the gate.' if verdict_mod == 'REVERSAL_AT_THE_BORDER' else ''}",
+        "",
+        "## Significators",
+        f"- Lagna lord (you): **{querent_lord.get('name')}** — "
+        f"synthesis_label: **{querent_lord.get('synthesis_label')}**",
+        f"  - Avastha: {querent_lord.get('avastha')}; House: {querent_lord.get('house')}; "
+        f"Combust: {querent_lord.get('is_combust')}",
+        f"- 10th lord (the throne): **{quesited_lord.get('name')}** — "
+        f"synthesis_label: **{quesited_lord.get('synthesis_label')}**",
+        f"  - Avastha: {quesited_lord.get('avastha')}; House: {quesited_lord.get('house')}; "
+        f"Combust: {quesited_lord.get('is_combust')}; Heavily combust: {quesited_lord.get('is_heavily_combust')}",
+        "",
+        _format_karmika_transform_block(transform_meta),
+        "## Overlay Fingerprint (4 active overlays for this route)",
+    ] + _format_karma_overlay_lines(overlays, [
+        'rulership_confirmed',     # Command Architecture (A)
+        'subordinate_trajectory',  # Glass Ceiling (B)
+        'abdication_signal',       # Forced Exit (C)
+    ]) + [
+        "",
+        "## Karya / Bhava Bala (10th)",
+        f"- 10th Bhava Bala: {bhava_target.get('verdict', '?')} "
+        f"(gross {bhava_target.get('gross_strength_pct', 0)}%, "
+        f"net {bhava_target.get('net_strength_pct', 0)}%)",
+        "",
+        "## Core Catalyst",
+        f"- {catalyst.get('name', '(none)')}: {catalyst.get('detail', '')}",
+        "",
+        "## Natal-Prashna Handshake",
+        f"- Activated natal house: {h2n.get('activated_natal_house') or '(none)'}",
+        f"- Shift narrative: {h2n.get('narrative') or '(no shift)'}",
+        "",
+        "---",
+        "",
+        "GUARDRAILS for this prompt:",
+        "- If verdict is CONDITIONAL_SUBORDINATE and subordinate_trajectory fired,",
+        "  USE the 'Glass Ceiling' frame from Overlay B's voice. Do not soften.",
+        "- If verdict is YES and rulership_confirmed fired, USE the 'Command Architecture'",
+        "  frame: 'the throne recognizes your signature.'",
+        "- If Saturn-Sthira fired, the tenure is **unshakeable**. Even with surface friction,",
+        "  the corporate position cannot be displaced.",
+        "- Action cards: equity, title, scope, written documentation, next 1:1, bonus cycle.",
+        "- Sensory remedy: Sun-day (Sunday) Sūrya Namaskāra at sunrise.",
+        "",
+        "Produce the JSON now.",
+    ]
+    return "\n".join(lines)
+
+
+def _build_karma_employer_prompt(judgment, query_text, cast_meta):
+    """Employer-relationship reading — target H4 (Corporate Master Pivot), Mercury karaka."""
+    verdict       = judgment.get('verdict')
+    verdict_text  = judgment.get('verdict_text')
+    verdict_mod   = judgment.get('verdict_modifier')
+    target_house  = judgment.get('target_house')
+    target_role   = judgment.get('target_role')
+    secondary     = judgment.get('secondary_karaka')
+
+    querent_lord  = judgment.get('querent_lord') or {}
+    quesited_lord = judgment.get('quesited_lord') or {}
+    catalyst      = judgment.get('core_catalyst') or {}
+    bhava_target  = judgment.get('bhava_bala_target') or {}
+
+    overlays       = judgment.get('overlay_findings') or {}
+    transform_meta = judgment.get('karmika_transform_meta') or {}
+    h2n            = judgment.get('horary_to_natal') or {}
+
+    lines = [
+        "# Karma Prashna · EMPLOYER RELATIONSHIP (route: employer_relationship)",
+        "",
+        "## Cast Context",
+        f"- Querent question: \"{query_text or '(not provided)'}\"",
+        f"- Place: {(cast_meta or {}).get('place_name', '(not provided)')}",
+        f"- Target: **{target_role}** (H{target_house})",
+        f"- Operative karakas: Lagna lord ({querent_lord.get('name')}) = you; "
+        f"4th lord ({quesited_lord.get('name')}) = the employer's institutional authority; "
+        f"secondary karaka **{secondary}** (Mercury = Dialogue/messaging karaka).",
+        "",
+        "## CRITICAL FRAMING — The Corporate Master Pivot (Rule 1)",
+        "- The 7th house is the boss as a PERSON.",
+        "- The 4th house — counted as the 10th-from-7th — is where the boss's",
+        "  institutional throne lives. It is the boss's OWN 10th.",
+        "- We read H4 because the question is not about the human relationship",
+        "  with the boss; it is about the boss's STANDING and APPROVAL.",
+        "- Name this pivot explicitly in tranche_arc so the querent understands",
+        "  why H4 — not H7 — is being read.",
+        "",
+        "## Verdict",
+        f"- Verdict state: **{verdict}**",
+        f"- Verdict text: {verdict_text}",
+        f"- Verdict modifier: **{verdict_mod or '(none)'}**",
+        "",
+        "## Significators",
+        f"- Lagna lord (you): **{querent_lord.get('name')}** — "
+        f"synthesis_label: **{querent_lord.get('synthesis_label')}**",
+        f"  - Avastha: {querent_lord.get('avastha')}; House: {querent_lord.get('house')}; "
+        f"Combust: {querent_lord.get('is_combust')}",
+        f"- 4th lord (boss's throne): **{quesited_lord.get('name')}** — "
+        f"synthesis_label: **{quesited_lord.get('synthesis_label')}**",
+        f"  - Avastha: {quesited_lord.get('avastha')}; House: {quesited_lord.get('house')}; "
+        f"Combust: {quesited_lord.get('is_combust')}; Heavily combust: {quesited_lord.get('is_heavily_combust')}",
+        "",
+        _format_karmika_transform_block(transform_meta),
+        "## Overlay Fingerprint (3 active overlays for this route)",
+    ] + _format_karma_overlay_lines(overlays, [
+        'rulership_confirmed',     # Command Architecture (A)
+        'subordinate_trajectory',  # Glass Ceiling (B) — particularly relevant here
+        'abdication_signal',       # Forced Exit (C) — fires when employer relationship fractures
+    ]) + [
+        "",
+        "## Karya / Bhava Bala (4th)",
+        f"- 4th Bhava Bala: {bhava_target.get('verdict', '?')} "
+        f"(gross {bhava_target.get('gross_strength_pct', 0)}%, "
+        f"net {bhava_target.get('net_strength_pct', 0)}%)",
+        "",
+        "## Core Catalyst",
+        f"- {catalyst.get('name', '(none)')}: {catalyst.get('detail', '')}",
+        "",
+        "## Natal-Prashna Handshake",
+        f"- Activated natal house: {h2n.get('activated_natal_house') or '(none)'}",
+        f"- Shift narrative: {h2n.get('narrative') or '(no shift)'}",
+        "",
+        "---",
+        "",
+        "GUARDRAILS for this prompt:",
+        "- Open tranche_arc by NAMING THE CORPORATE MASTER PIVOT explicitly.",
+        "  'The 7th is your boss as a person; the 4th — counted as the 10th",
+        "  from the 7th — is where their institutional authority lives. This",
+        "  reading is on the boss's OWN throne, not on the human relationship.'",
+        "- Mercury (the secondary karaka) reads dialogue, written messages,",
+        "  and how the boss communicates approval or pressure.",
+        "- If subordinate_trajectory fired, the Glass Ceiling here is",
+        "  YOUR ceiling under THIS boss — not necessarily in this company.",
+        "- Action cards: written documentation of the conversation, request for",
+        "  formal feedback in writing, next 1:1 framing, escalation channel.",
+        "- Sensory remedy: Mercury-day (Wednesday) — clean, clear, written communication.",
+        "",
+        "Produce the JSON now.",
+    ]
+    return "\n".join(lines)
+
+
+def _build_karma_startup_prompt(judgment, query_text, cast_meta):
+    """Career pivot / startup reading — target H7, Mars karaka, FOUNDER_TRANSITION modifier."""
+    verdict       = judgment.get('verdict')
+    verdict_text  = judgment.get('verdict_text')
+    verdict_mod   = judgment.get('verdict_modifier')
+    target_house  = judgment.get('target_house')
+    target_role   = judgment.get('target_role')
+    secondary     = judgment.get('secondary_karaka')
+
+    querent_lord  = judgment.get('querent_lord') or {}
+    quesited_lord = judgment.get('quesited_lord') or {}
+    catalyst      = judgment.get('core_catalyst') or {}
+    bhava_target  = judgment.get('bhava_bala_target') or {}
+    strength_sc   = judgment.get('strength_scaling') or {}
+
+    overlays       = judgment.get('overlay_findings') or {}
+    transform_meta = judgment.get('karmika_transform_meta') or {}
+    h2n            = judgment.get('horary_to_natal') or {}
+
+    pivot_finding  = overlays.get('startup_pivot_crosscheck') or {}
+    pivot_fired    = pivot_finding.get('fired', False)
+    founder_mod    = (verdict_mod == 'FOUNDER_TRANSITION')
+
+    lines = [
+        "# Karma Prashna · CAREER PIVOT / STARTUP (route: career_pivot_startup)",
+        "",
+        "## Cast Context",
+        f"- Querent question: \"{query_text or '(not provided)'}\"",
+        f"- Place: {(cast_meta or {}).get('place_name', '(not provided)')}",
+        f"- Target: **{target_role}** (H{target_house}, the business as new identity)",
+        f"- Operative karakas: Lagna lord ({querent_lord.get('name')}) = you; "
+        f"7th lord ({quesited_lord.get('name')}) = the business axis (your founder identity, NOT a partner); "
+        f"secondary karaka **{secondary}** (Mars = Risk/execution karaka).",
+        "",
+        "## CRITICAL FRAMING — The Founder Pivot",
+        "- The 7th house here is NOT a marriage or partner question. It is the",
+        "  Vyapara Axis — the business as a new identity replacing the current role.",
+        "- L11 (Labha — gains) is the cross-check. A real founder pivot needs",
+        "  L7↔L11 in positive yoga (Ithesal / Mutthashila / Kamboola).",
+        "- L7 strength versus L10 strength is the architectural test: if L7 > L10,",
+        "  the chart endorses leaving the corporate anchor.",
+        "- Overlay D (startup_pivot_crosscheck) fires the FOUNDER_TRANSITION modifier",
+        "  when L10 is in Pariheena (structural weakness) AND L7 dominates AND L11 supports.",
+        "",
+        "## Verdict",
+        f"- Verdict state: **{verdict}**",
+        f"- Verdict text: {verdict_text}",
+        f"- Verdict modifier: **{verdict_mod or '(none)'}**",
+        (f"  - FOUNDER_TRANSITION fired: the chart actively ENDORSES "
+         f"independence. The corporate anchor is dragging; commercial risk is favored. "
+         f"DO NOT frame this as 'fleeing failure' — frame it as the chart endorsing the founder leap."
+         if founder_mod else
+         "  - FOUNDER_TRANSITION NOT fired: the chart does not endorse the leap in its current state."),
+        "",
+        "## Significators",
+        f"- Lagna lord (you): **{querent_lord.get('name')}** — "
+        f"synthesis_label: **{querent_lord.get('synthesis_label')}**",
+        f"  - Avastha: {querent_lord.get('avastha')}; House: {querent_lord.get('house')}; "
+        f"Combust: {querent_lord.get('is_combust')}",
+        f"- 7th lord (business axis): **{quesited_lord.get('name')}** — "
+        f"synthesis_label: **{quesited_lord.get('synthesis_label')}**",
+        f"  - Avastha: {quesited_lord.get('avastha')}; House: {quesited_lord.get('house')}; "
+        f"Combust: {quesited_lord.get('is_combust')}; Heavily combust: {quesited_lord.get('is_heavily_combust')}",
+        "",
+        _format_karmika_transform_block(transform_meta),
+        "## L7 vs L10 Strength Architecture",
+    ]
+
+    # Surface the pivot finding's data if Overlay D fired
+    if pivot_fired:
+        pdata = pivot_finding.get('data') or {}
+        lines += [
+            f"- Overlay D (startup_pivot_crosscheck) FIRED.",
+            f"  - L7 strength: {pdata.get('l7_strength', '?')}",
+            f"  - L10 strength: {pdata.get('l10_strength', '?')}",
+            f"  - L10 Pariheena band: {pdata.get('l10_pariheena', '?')}",
+            f"  - L7↔L11 yoga: {pdata.get('l7_l11_yoga', '?')}",
+            f"  - Narrative: {pivot_finding.get('narrative')}",
+        ]
+    else:
+        lines += [
+            "- Overlay D (startup_pivot_crosscheck) did NOT fire — the corporate",
+            "  anchor is NOT dragging, OR L11 connection is missing, OR L7 is",
+            "  not stronger than L10. The chart does not endorse the leap at this cast.",
+        ]
+
+    lines += [
+        "",
+        "## Overlay Fingerprint",
+    ] + _format_karma_overlay_lines(overlays, [
+        'startup_pivot_crosscheck',  # Founder Transition (D) — primary
+        'rulership_confirmed',       # Command Architecture (A)
+    ]) + [
+        "",
+        "## Karya / Bhava Bala (7th)",
+        f"- 7th Bhava Bala: {bhava_target.get('verdict', '?')} "
+        f"(gross {bhava_target.get('gross_strength_pct', 0)}%, "
+        f"net {bhava_target.get('net_strength_pct', 0)}%)",
+        "",
+        "## Core Catalyst",
+        f"- {catalyst.get('name', '(none)')}: {catalyst.get('detail', '')}",
+        "",
+        "## Natal-Prashna Handshake",
+        f"- Activated natal house: {h2n.get('activated_natal_house') or '(none)'}",
+        f"- Shift narrative: {h2n.get('narrative') or '(no shift)'}",
+        "",
+        "---",
+        "",
+        "GUARDRAILS for this prompt:",
+        "- If FOUNDER_TRANSITION fired, USE the 'Founder Transition' frame from Overlay D's voice:",
+        "  'the corporate anchor is dragging — the planetary velocity favors independent commercial risk.'",
+        "- If FOUNDER_TRANSITION did NOT fire, do NOT manufacture endorsement. Read the actual chart",
+        "  state honestly: the leap is premature without L7>L10 architecture.",
+        "- Strategy must concretely cover RUNWAY (6-month minimum cash buffer is standard),",
+        "  co-founder selection (L11 connection signals the right ally), and the first commercial proof point.",
+        "- Mars (the secondary karaka) is execution velocity. If Mars is well-placed, the founder has the",
+        "  drive; if Mars is debilitated or combust, surface this as an execution-velocity caution.",
+        "- Sensory remedy: Mars-day (Tuesday) — Hanuman Chalisa pre-pitch; sustained physical training.",
+        "",
+        "Produce the JSON now.",
+    ]
+    return "\n".join(lines)
+
+
+def _build_karma_exit_prompt(judgment, query_text, cast_meta):
+    """Exit / resignation reading — target H12, Saturn karaka, ABDICATION_SIGNAL handling."""
+    verdict       = judgment.get('verdict')
+    verdict_text  = judgment.get('verdict_text')
+    verdict_mod   = judgment.get('verdict_modifier')
+    target_house  = judgment.get('target_house')
+    target_role   = judgment.get('target_role')
+    secondary     = judgment.get('secondary_karaka')
+
+    querent_lord  = judgment.get('querent_lord') or {}
+    quesited_lord = judgment.get('quesited_lord') or {}
+    catalyst      = judgment.get('core_catalyst') or {}
+    bhava_target  = judgment.get('bhava_bala_target') or {}
+
+    overlays       = judgment.get('overlay_findings') or {}
+    transform_meta = judgment.get('karmika_transform_meta') or {}
+    h2n            = judgment.get('horary_to_natal') or {}
+
+    abdication_finding = overlays.get('abdication_signal') or {}
+    abdication_fired   = abdication_finding.get('fired', False)
+    is_abdication      = (verdict == 'ABDICATION_SIGNAL')
+
+    lines = [
+        "# Karma Prashna · EXIT / RESIGNATION (route: exit_resignation)",
+        "",
+        "## Cast Context",
+        f"- Querent question: \"{query_text or '(not provided)'}\"",
+        f"- Place: {(cast_meta or {}).get('place_name', '(not provided)')}",
+        f"- Target: **{target_role}** (H{target_house}, the severance axis)",
+        f"- Operative karakas: Lagna lord ({querent_lord.get('name')}) = you; "
+        f"12th lord ({quesited_lord.get('name')}) = the severance / dissolution axis; "
+        f"secondary karaka **{secondary}** (Saturn = Termination/longevity karaka).",
+        "",
+        "## CRITICAL FRAMING — Severance, Not Sin",
+        "- The 12th house here is NOT a 'loss house' in a negative sense. It is the",
+        "  Vyaya Bhava — the axis of dissolution. The right exit IS the right move",
+        "  when the chart says so. Read it as architecture, not as failure.",
+        "- Overlay C (abdication_signal) is the dominant overlay for this route.",
+        "  It fires when: (Path 1) intent=exit + L10 in H8/H12; (Path 2) L1↔L10",
+        "  Esrapha separating outside 12° + L10 in H8/H12; (Path 3) Rahu within",
+        "  3.5° of 10th cusp longitude.",
+        "- Saturn (the secondary karaka) reads tenure dissolution and the slow",
+        "  unwinding of contractual obligation.",
+        "",
+        "## Verdict",
+        f"- Verdict state: **{verdict}**",
+        f"- Verdict text: {verdict_text}",
+        f"- Verdict modifier: **{verdict_mod or '(none)'}**",
+        (f"  - **ABDICATION_SIGNAL is the verdict.** Overlay C substituted the primitive. "
+         f"This is forced exit / severance — prepare the exit runway immediately. "
+         f"DO NOT soften this into 'transition' or 'new chapter.' Severance is the word."
+         if is_abdication else
+         f"  - ABDICATION_SIGNAL did NOT substitute the verdict at this cast. "
+         f"The exit may still be the right move, but the chart does not flag forced severance."),
+        "",
+        "## Significators",
+        f"- Lagna lord (you): **{querent_lord.get('name')}** — "
+        f"synthesis_label: **{querent_lord.get('synthesis_label')}**",
+        f"  - Avastha: {querent_lord.get('avastha')}; House: {querent_lord.get('house')}; "
+        f"Combust: {querent_lord.get('is_combust')}",
+        f"- 12th lord (severance axis): **{quesited_lord.get('name')}** — "
+        f"synthesis_label: **{quesited_lord.get('synthesis_label')}**",
+        f"  - Avastha: {quesited_lord.get('avastha')}; House: {quesited_lord.get('house')}; "
+        f"Combust: {quesited_lord.get('is_combust')}; Heavily combust: {quesited_lord.get('is_heavily_combust')}",
+        "",
+        _format_karmika_transform_block(transform_meta),
+        "## Abdication Signal Detail",
+    ]
+
+    if abdication_fired:
+        adata = abdication_finding.get('data') or {}
+        firing_path = adata.get('firing_path', '(unspecified)')
+        lines += [
+            f"- Overlay C (abdication_signal) FIRED via path: **{firing_path}**",
+            f"  - Narrative: {abdication_finding.get('narrative')}",
+        ]
+        # Surface any additional data fields the overlay returns
+        for k, v in adata.items():
+            if k != 'firing_path':
+                lines.append(f"  - {k}: {v}")
+    else:
+        lines += [
+            "- Overlay C (abdication_signal) did NOT fire. The chart does not signal",
+            "  forced exit at this cast. Saturn's tenure dissolution may still be in motion,",
+            "  but no specific severance trigger is active.",
+        ]
+
+    lines += [
+        "",
+        "## Overlay Fingerprint",
+    ] + _format_karma_overlay_lines(overlays, [
+        'abdication_signal',         # Forced Exit (C) — primary
+        'subordinate_trajectory',    # Glass Ceiling (B) — softer "stuck" reading
+    ]) + [
+        "",
+        "## Karya / Bhava Bala (12th)",
+        f"- 12th Bhava Bala: {bhava_target.get('verdict', '?')} "
+        f"(gross {bhava_target.get('gross_strength_pct', 0)}%, "
+        f"net {bhava_target.get('net_strength_pct', 0)}%)",
+        "",
+        "## Core Catalyst",
+        f"- {catalyst.get('name', '(none)')}: {catalyst.get('detail', '')}",
+        "",
+        "## Natal-Prashna Handshake",
+        f"- Activated natal house: {h2n.get('activated_natal_house') or '(none)'}",
+        f"- Shift narrative: {h2n.get('narrative') or '(no shift)'}",
+        "",
+        "---",
+        "",
+        "GUARDRAILS for this prompt:",
+        "- If verdict is ABDICATION_SIGNAL, USE the 'Forced Exit' frame from Overlay C's voice:",
+        "  'the chart captures an energy of severance — prepare your exit runway immediately.'",
+        "- NEVER soften ABDICATION_SIGNAL into 'transition,' 'next chapter,' or 'new opportunity.'",
+        "  Those are bypass words. Severance, exit runway, contractual unwinding are the right words.",
+        "- Strategy MUST cover: (1) severance negotiation posture (notice period, garden leave,",
+        "  separation pay), (2) references and quiet pre-search, (3) next-role positioning before",
+        "  the exit is public.",
+        "- If abdication did NOT fire but exit is still the querent's stated intent, read honestly:",
+        "  the chart does not push them out, but it does not block voluntary departure either.",
+        "- Sensory remedy: Saturn-day (Saturday) — disciplined silent work-block, no leisure,",
+        "  contractual paperwork review.",
+        "",
+        "Produce the JSON now.",
+    ]
+    return "\n".join(lines)
+
+
+# =================================================================
 # USER PROMPT BUILDERS REGISTRY
 # =================================================================
 # Maps topic_id → builder function. Each builder accepts
@@ -1401,7 +1991,7 @@ USER_PROMPT_BUILDERS = {
     "putra":          _build_putra_user_prompt,
     "anya_sambandha": _build_anya_sambandha_user_prompt,
     "kinship":        _build_kinship_user_prompt,
-    # "karma":          _build_karma_user_prompt,
+    "karma":          _build_karma_user_prompt,
     # "sammana":        _build_sammana_user_prompt,
     # "pravasa":        _build_pravasa_user_prompt,
     # "shatru":         _build_shatru_user_prompt,
