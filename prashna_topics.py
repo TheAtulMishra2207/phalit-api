@@ -410,6 +410,34 @@ _KARMA_PROMOTION_KEYWORDS = (
     'पदोन्नति', 'तरक्की', 'प्रमोशन', 'वेतन वृद्धि',
 )
 
+# Aspiration-override phrases. These intercept role keywords ('ceo', 'manager',
+# 'executive', 'director') that ALSO appear in _KARMA_EMPLOYER_KEYWORDS but
+# here describe a role the QUERENT is asking about BECOMING (not about their
+# boss). Checked between STARTUP and EMPLOYER in classify_karma_intent so that
+# "Will I become a top 100 CEO?" routes to promotion_elevation, not to
+# employer_relationship via the bare 'ceo' substring match.
+_KARMA_PROMOTION_ASPIRATION_OVERRIDES = (
+    # Aspirational verbs + role nouns
+    'become a ceo', 'become ceo', 'becoming a ceo', 'becoming ceo',
+    'be a ceo', 'be ceo', 'being a ceo', 'being ceo',
+    'become an executive', 'be an executive',
+    'become a manager', 'be a manager',
+    'become a director', 'be a director',
+    'become president', 'be president',
+    "i'll be a ceo", 'i will be a ceo', 'i will become a ceo',
+    'i want to be a ceo', 'i want to become a ceo',
+    # Ranking / aspirational tier
+    'top ceo', 'top 10', 'top ten', 'top 100', 'top hundred',
+    'one of the top', 'as a ceo', 'as ceo',
+    'future ceo', 'aspiring ceo',
+    'ceos in india', 'ceo in india',
+    # Climb / reach metaphors
+    'reach the top', 'rise to the top', 'climb to the top',
+    'will i be', 'will i become', 'will i make it',
+    # Devanagari
+    'सीईओ बन', 'मैनेजर बन', 'शीर्ष पर', 'शीर्ष',
+)
+
 
 def classify_karma_intent(query_text: Optional[str]) -> str:
     """
@@ -418,6 +446,9 @@ def classify_karma_intent(query_text: Optional[str]) -> str:
     Precedence (highest → lowest priority):
         1. exit_resignation
         2. career_pivot_startup
+        2b. aspiration_override → promotion_elevation
+            (intercepts before EMPLOYER consumes 'ceo'/'manager'/etc when the
+             querent is asking about BECOMING that role, not about their boss)
         3. employer_relationship
         4. promotion_elevation  (default)
 
@@ -432,6 +463,13 @@ def classify_karma_intent(query_text: Optional[str]) -> str:
     # 2. STARTUP — second priority; founder/equity/quit-to-start
     if any(kw in q for kw in _KARMA_STARTUP_KEYWORDS):
         return 'career_pivot_startup'
+
+    # 2b. ASPIRATION OVERRIDE — intercepts EMPLOYER keyword matches when the
+    #     querent is asking about BECOMING a CEO/manager/exec/director rather
+    #     than about THEIR boss who holds that role. Without this, "Will I
+    #     become a top 100 CEO?" hits the bare 'ceo' substring and misroutes.
+    if any(kw in q for kw in _KARMA_PROMOTION_ASPIRATION_OVERRIDES):
+        return 'promotion_elevation'
 
     # 3. EMPLOYER — third priority; specific authority figure or approval
     if any(kw in q for kw in _KARMA_EMPLOYER_KEYWORDS):
@@ -3263,7 +3301,27 @@ def _synthesize_verdict(state: Dict, spec: Dict) -> Dict:
     if primitive == 'failure':
         base = 'NO'
     elif primitive == 'conditional':
-        base = 'CONDITIONAL' if 'CONDITIONAL' in allowed_states else 'YES_WITH_DELAYS'
+        # Allow the natural 'CONDITIONAL' vocabulary to flow ONLY when the
+        # topic either (a) accepts CONDITIONAL directly in allowed_states
+        # (e.g. Vivaha), or (b) provides a verdict_remap entry for CONDITIONAL
+        # (e.g. Karma → CONDITIONAL_SUBORDINATE). For topics that do neither
+        # — notably Garbha, which keeps CONDITIONAL out of allowed_states and
+        # relies on overlay SUBSTITUTION to refine YES_WITH_DELAYS into
+        # CONDITIONAL_MEDICAL / CONDITIONAL_THIRD_PARTY — preserve the
+        # historic fallback to YES_WITH_DELAYS so the overlay substitution
+        # paths remain reachable.
+        #
+        # Previously this line short-circuited unconditionally to
+        # YES_WITH_DELAYS when CONDITIONAL wasn't in allowed_states, which
+        # caused Karma to mis-render conditional primitives as YES_WITH_EFFORT
+        # (the verdict_remap then mapped YES_WITH_DELAYS → YES_WITH_EFFORT
+        # and the intended CONDITIONAL → CONDITIONAL_SUBORDINATE path was
+        # never seen).
+        _remap = spec.get('verdict_remap') or {}
+        if 'CONDITIONAL' in allowed_states or 'CONDITIONAL' in _remap:
+            base = 'CONDITIONAL'
+        else:
+            base = 'YES_WITH_DELAYS'
     elif primitive == 'success' and modifier == 'with_delays':
         base = 'YES_WITH_DELAYS'
     elif primitive in ('success', 'confirmed'):
