@@ -188,6 +188,8 @@ def _resolve_intent_route(spec: Dict, topic_id: str,
             intent = classify_putra_intent(horizon_text)
         elif topic_id == 'garbha':
             intent = classify_garbha_intent(horizon_text)
+        elif topic_id == 'karma':
+            intent = classify_karma_intent(horizon_text)
         else:
             intent = spec.get('default_intent')
 
@@ -207,7 +209,241 @@ def _resolve_intent_route(spec: Dict, topic_id: str,
 
 
 # =================================================================
+# PHASE 4D · KARMIKA CONTAINER · MATHEMATICAL GUARDRAILS
+# =================================================================
+# Per Atul's Step 1 Karmika & Yaatra clearance (3-guardrail spec):
+#
+#   Rule 1 — Corporate Master Pivot: resolved at intent-routing time.
+#     For employer_relationship intent, target_house = 4 (10th-from-7th
+#     = boss's throne). See karma topic registry intent_routing.
+#
+#   Rule 2 — Saturn/Mars functional transformation: implemented below
+#     as apply_karmika_avastha_transformation(). Runs in the orchestrator
+#     AFTER standard avastha computation but BEFORE the 4 Karma overlays,
+#     so that overlays read the transformed labels.
+#
+#   Rule 3 — Velocity-aware timing + REVERSAL_AT_THE_BORDER: implemented
+#     in prashna_engine.compute_phal_kaal (signed velocities) and the
+#     _check_reversal_at_border helper. Surfaced via the standard/derived
+#     vector return dict's verdict_modifier field.
+# =================================================================
+
+# Karmika sign sets for Saturn-Sthira test
+_FIXED_SIGNS_INDICES = {1, 4, 7, 10}      # Taurus, Leo, Scorpio, Aquarius
+_SATURN_OWN_SIGNS    = {9, 10}            # Capricorn, Aquarius
+
+_KARMIKA_TOPICS = {'karma', 'sammana', 'pravasa'}
+
+
+def apply_karmika_avastha_transformation(chart_data: Dict,
+                                          avasthas: Dict[str, Dict]) -> Dict:
+    """
+    Karmika & Yaatra Rule 2 — Saturn/Mars functional transformation.
+
+    Mutates the avasthas dict IN-PLACE when Karmika conditions are met
+    (caller must pass a fresh avasthas dict or accept the mutation):
+
+      • Saturn in 10th house AND in a Fixed sign (Taurus, Leo, Scorpio,
+        Aquarius) OR in its own sign (Capricorn, Aquarius):
+          → synthesis_label re-labeled "Standing Power (Sthira)"
+          → outcome re-narrated as unshakeable corporate position
+          → karmika_transformed flag added for downstream consumers
+
+      • Mars in 10th house (regardless of affliction):
+          → synthesis_label re-labeled "Executive Command (Mangala Digbala)"
+          → outcome re-narrated as administrative authority
+          → karmika_transformed flag added
+
+    Returns a metadata dict describing which transformations fired,
+    suitable for diagnostic display. Returns {'fired': []} if neither
+    condition matched.
+
+    This function is IDEMPOTENT — re-running it on an already-transformed
+    avasthas dict has no additional effect (transformations have unique
+    synthesis_label markers).
+    """
+    fired: List[Dict] = []
+
+    # ── Saturn check ──
+    saturn_data = (chart_data.get('planets') or {}).get('Saturn') or {}
+    saturn_sign = saturn_data.get('sign_index')
+    saturn_house = _planet_house(chart_data, 'Saturn')
+
+    if (saturn_house == 10 and saturn_sign is not None
+            and (saturn_sign in _FIXED_SIGNS_INDICES
+                 or saturn_sign in _SATURN_OWN_SIGNS)):
+        sign_name = SIGNS[saturn_sign] if 0 <= saturn_sign < 12 else f"sign #{saturn_sign}"
+        is_own = saturn_sign in _SATURN_OWN_SIGNS
+        is_fixed = saturn_sign in _FIXED_SIGNS_INDICES
+        # Re-label
+        prior = avasthas.get('Saturn', {})
+        prior_label = prior.get('synthesis_label', 'Unspecified')
+        avasthas['Saturn'] = {
+            **prior,
+            'synthesis_label': 'Standing Power (Sthira)',
+            'karmika_transformed': True,
+            'karmika_reason': (
+                f"Saturn in 10th house in "
+                f"{'own sign ' if is_own else ''}"
+                f"{sign_name}"
+                f"{' (Fixed)' if is_fixed and not is_own else ''}"
+                f" — Karmakaraka triggers Sthira (immovable corporate position) "
+                f"and bypasses the standard '{prior_label}' label."
+            ),
+            'karmika_prior_label': prior_label,
+            'outcome': (
+                'Unshakeable, highly resilient, slow-moving corporate position. '
+                'Even when the chart shows friction elsewhere, Saturn here '
+                'guarantees the tenure cannot be displaced by external pressure.'
+            ),
+        }
+        fired.append({
+            'planet': 'Saturn',
+            'transformation': 'standing_power_sthira',
+            'reason': avasthas['Saturn']['karmika_reason'],
+            'prior_label': prior_label,
+            'new_label': 'Standing Power (Sthira)',
+        })
+
+    # ── Mars check ──
+    mars_data = (chart_data.get('planets') or {}).get('Mars') or {}
+    mars_house = _planet_house(chart_data, 'Mars')
+    mars_sign = mars_data.get('sign_index')
+
+    if mars_house == 10:
+        sign_name = SIGNS[mars_sign] if (mars_sign is not None
+                                          and 0 <= mars_sign < 12) else 'unknown sign'
+        prior = avasthas.get('Mars', {})
+        prior_label = prior.get('synthesis_label', 'Unspecified')
+        avasthas['Mars'] = {
+            **prior,
+            'synthesis_label': 'Executive Command (Mangala Digbala)',
+            'karmika_transformed': True,
+            'karmika_reason': (
+                f"Mars in 10th house in {sign_name} — absolute Digbala "
+                f"(directional strength) in the throne. Triggers executive "
+                f"command overlay regardless of affliction, overriding the "
+                f"standard '{prior_label}' label."
+            ),
+            'karmika_prior_label': prior_label,
+            'outcome': (
+                'Administrative command authority. Even with afflicting aspects, '
+                'Mars here grants the native a decisive hand in operations — '
+                'the chart confers the right to execute, not merely participate.'
+            ),
+        }
+        fired.append({
+            'planet': 'Mars',
+            'transformation': 'executive_command_digbala',
+            'reason': avasthas['Mars']['karmika_reason'],
+            'prior_label': prior_label,
+            'new_label': 'Executive Command (Mangala Digbala)',
+        })
+
+    return {'fired': fired, 'count': len(fired)}
+
+
+# =================================================================
+# PHASE 4D · KARMA INTENT CLASSIFIER (4 routes)
+# =================================================================
+# Precedence (most specific → least specific):
+#   1. exit_resignation       — termination/severance language
+#   2. career_pivot_startup   — leaving corporate, building business
+#   3. employer_relationship  — about a specific authority figure
+#   4. promotion_elevation    — default (raise, title, scale)
+#
+# Atul's Ch 13 keyword anchors (Part 2.2):
+#   promotion_elevation:    promotion, raise, title change, scale up
+#   employer_relationship:  boss, CEO, board, management, reporting
+#   career_pivot_startup:   quit job, start business, equity, founder
+#   exit_resignation:       fire me, laid off, resign, severance, leave
+# =================================================================
+
+_KARMA_EXIT_KEYWORDS = (
+    'fire me', 'fired', 'firing', 'getting fired',
+    'laid off', 'lay off', 'layoff', 'redundant', 'redundancy',
+    'resign', 'resignation', 'resigning',
+    'severance', 'severence',
+    'leave the job', 'leave the company', 'leave my job', 'quit and leave',
+    'forced exit', 'forced out', 'asked to leave',
+    'terminated', 'termination',
+    'exit the company', 'leaving employer',
+    'भीतर से निकाल', 'बर्खास्त', 'इस्तीफा', 'त्यागपत्र',
+)
+
+_KARMA_STARTUP_KEYWORDS = (
+    'start business', 'start a business', 'starting business', 'start my business',
+    'start up', 'startup', 'launch startup', 'launch a startup',
+    'quit job', 'quit my job', 'leave job to start', 'leave corporate',
+    'become founder', 'as a founder', 'become entrepreneur',
+    'co-founder', 'cofounder',
+    'equity stake', 'take equity', 'equity offer',
+    'build my own', 'start my own', 'own venture', 'own company',
+    'go independent', 'go solo', 'consulting practice',
+    'व्यवसाय शुरू', 'अपना काम', 'फाउंडर',
+)
+
+_KARMA_EMPLOYER_KEYWORDS = (
+    'boss', 'my boss', 'the boss',
+    'ceo', 'my ceo', 'the ceo',
+    'manager', 'my manager', 'reporting manager',
+    'board', 'the board', 'board of directors',
+    'management', 'senior management', 'leadership team',
+    'supervisor', 'my supervisor',
+    'vc ', ' vc', 'venture capital', 'venture capitalist',
+    'investor approval', 'investor sign',
+    'will my boss', 'will my ceo', 'will the boss', 'will the ceo',
+    'will management', 'will the board',
+    'reporting line', 'reporting structure',
+    'approve my', 'approving my', 'sign off on', 'green light',
+    'मालिक', 'बॉस', 'सीईओ',
+)
+
+_KARMA_PROMOTION_KEYWORDS = (
+    'promotion', 'promoted', 'get promoted', 'getting promoted',
+    'raise', 'pay raise', 'salary raise', 'salary hike', 'hike',
+    'title change', 'new title', 'title bump', 'promoted to',
+    'scale up', 'scale my role', 'expand my role',
+    'next level', 'senior role', 'senior position',
+    'elevation', 'elevate', 'step up',
+    'designation change', 'better designation',
+    'पदोन्नति', 'तरक्की', 'प्रमोशन', 'वेतन वृद्धि',
+)
+
+
+def classify_karma_intent(query_text: Optional[str]) -> str:
+    """
+    Classify a Karma query into one of 4 sub-intents.
+
+    Precedence (highest → lowest priority):
+        1. exit_resignation
+        2. career_pivot_startup
+        3. employer_relationship
+        4. promotion_elevation  (default)
+
+    Returns one of the 4 intent strings.
+    """
+    q = (query_text or '').lower()
+
+    # 1. EXIT — highest priority; if user mentions firing/severance, route here
+    if any(kw in q for kw in _KARMA_EXIT_KEYWORDS):
+        return 'exit_resignation'
+
+    # 2. STARTUP — second priority; founder/equity/quit-to-start
+    if any(kw in q for kw in _KARMA_STARTUP_KEYWORDS):
+        return 'career_pivot_startup'
+
+    # 3. EMPLOYER — third priority; specific authority figure or approval
+    if any(kw in q for kw in _KARMA_EMPLOYER_KEYWORDS):
+        return 'employer_relationship'
+
+    # 4. PROMOTION — default for "promotion / raise / scale" or generic Karma
+    return 'promotion_elevation'
+
+
+# =================================================================
 # PRASHNA_TOPICS REGISTRY
+
 # =================================================================
 # Each topic declares:
 #   - container:        Phase-4 UI hub (vaivahika | karmika_yaatra | arthika |
@@ -448,6 +684,115 @@ PRASHNA_TOPICS: Dict[str, Dict] = {
         'verdict_states':       ['YES', 'YES_WITH_DELAYS', 'CONDITIONAL', 'NO'],
         'verdict_modifiers':    [],
         'narrative_tone':       'pragmatic',
+    },
+
+    # =================================================================
+    # Phase 4D · Karmika & Yaatra · Karma (Ch 13)
+    # =================================================================
+    # Career, Authority, Rulership. 4 intent routes per Atul's Part 2.2
+    # mapping. Saturn/Mars functional transformation (Rule 2) is applied
+    # at the orchestrator level before overlays run, so overlays read
+    # transformed avastha labels via state['avasthas'].
+    #
+    # verdict_remap: re-codes the default verdict vocabulary into the
+    # Karmika container vocabulary (YES_WITH_DELAYS → YES_WITH_EFFORT,
+    # CONDITIONAL → CONDITIONAL_SUBORDINATE). Applied in _synthesize_verdict
+    # after primitive resolution.
+    'karma': {
+        'container':            'karmika_yaatra',
+        'display_name':         'Karma · Career & Authority',
+        'sanskrit_name':        'कर्म',
+        'required_inputs':      [],
+        'optional_inputs':      ['natal_lagna_sign', 'full_query', 'intent'],
+        'sincerity_mode':       'standard',
+        'long_horizon_extras':  False,
+        'karmika_avastha_transform': True,   # signals orchestrator hook
+        'verdict_states': [
+            'YES', 'YES_WITH_EFFORT',
+            'CONDITIONAL_SUBORDINATE',
+            'ABDICATION_SIGNAL',
+            'NO',
+        ],
+        'verdict_modifiers': ['FOUNDER_TRANSITION', 'REVERSAL_AT_THE_BORDER'],
+        'verdict_remap': {
+            'YES_WITH_DELAYS':       'YES_WITH_EFFORT',
+            'CONDITIONAL':           'CONDITIONAL_SUBORDINATE',
+            'CONDITIONAL_MEDICAL':   'CONDITIONAL_SUBORDINATE',
+            'CONDITIONAL_THIRD_PARTY': 'CONDITIONAL_SUBORDINATE',
+        },
+        # Default fields (used when no intent classified, e.g. test harness)
+        'target_house':         10,
+        'target_role':          '10th — Karma Bhava (Sovereign Throne)',
+        'overlays': [
+            'sincerity_option_c',
+            'rulership_confirmed',
+            'subordinate_trajectory',
+            'abdication_signal',
+        ],
+        'narrative_tone':       'executive_strategic',
+        'default_intent':       'promotion_elevation',
+        'intent_routing': {
+            'promotion_elevation': {
+                # Standard upward trajectory query — target H10 directly
+                'target_house':       10,
+                'target_role':        '10th — Karma Bhava (Sovereign Throne)',
+                'secondary_karaka':   'Sun',   # Status karaka; Jupiter checked supplementally
+                'overlays': [
+                    'sincerity_option_c',
+                    'rulership_confirmed',
+                    'subordinate_trajectory',
+                    'abdication_signal',
+                ],
+                'narrative_tone':     'executive_strategic',
+            },
+            'employer_relationship': {
+                # Rule 1 — Corporate Master Pivot. Target is the boss as a PERSON
+                # (7th from your Lagna), but the action/approval we read on is
+                # 10th-from-7th = H4 of the Prashna chart. We set target_house
+                # to 4 so the orchestrator builds Karya + Bhava Bala on that
+                # axis — that's where the boss's institutional authority lives.
+                'target_house':       4,
+                'target_role':        ("4th — Employer's Throne "
+                                        "(10th-from-7th · Corporate Master Pivot)"),
+                'secondary_karaka':   'Mercury',  # Dialogue/messaging karaka
+                'overlays': [
+                    'sincerity_option_c',
+                    'rulership_confirmed',
+                    'subordinate_trajectory',
+                    'abdication_signal',
+                ],
+                'narrative_tone':     'executive_strategic',
+            },
+            'career_pivot_startup': {
+                # Target H7 (the business axis as the querent's new identity).
+                # Overlay D (startup_pivot_crosscheck) does the L7-vs-L10
+                # competition and the L11 (gains) cross-check.
+                'target_house':       7,
+                'target_role':        '7th — Vyapara Axis (Business Identity)',
+                'secondary_karaka':   'Mars',   # Risk/execution karaka
+                'overlays': [
+                    'sincerity_option_c',
+                    'startup_pivot_crosscheck',
+                    'rulership_confirmed',
+                ],
+                'narrative_tone':     'executive_strategic',
+            },
+            'exit_resignation': {
+                # Target H12 — the house of severance, loss, and dissolution
+                # of the current role. Overlay C (abdication_signal) handles
+                # the forced-exit logic; subordinate_trajectory catches
+                # softer "stuck" readings.
+                'target_house':       12,
+                'target_role':        '12th — Vyaya Bhava (Severance Axis)',
+                'secondary_karaka':   'Saturn',  # Termination/longevity karaka
+                'overlays': [
+                    'sincerity_option_c',
+                    'abdication_signal',
+                    'subordinate_trajectory',
+                ],
+                'narrative_tone':     'executive_strategic',
+            },
+        },
     },
 }
 
@@ -2255,6 +2600,470 @@ def overlay_nakta_bridge_relay(chart: Dict, state: Dict, inputs: Dict) -> Dict:
 
 
 # =================================================================
+# PHASE 4D · KARMIKA CONTAINER · KARMA OVERLAYS (Chapter 13)
+# =================================================================
+# Atul's locked Karma corpus (Part 2.3): 4 IF-THEN overlays operating
+# on the Karya success chain output + Tajik aspects + planetary house
+# placements. All overlays receive the transformed avasthas dict
+# (via state['avasthas']) — see apply_karmika_avastha_transformation.
+#
+# Verdict pipeline interaction:
+#   - rulership_confirmed:    metadata + narrative; no verdict mutation
+#                              (base YES from karya is preserved)
+#   - subordinate_trajectory: verdict_downgrade YES → CONDITIONAL_SUBORDINATE
+#   - abdication_signal:      verdict_substitution forcing ABDICATION_SIGNAL
+#                              from any primitive
+#   - startup_pivot_crosscheck: verdict_substitution forcing YES + modifier
+#                                FOUNDER_TRANSITION (career_pivot_startup intent)
+# =================================================================
+
+
+# Positive Tajik yogas (used by all 4 Karma overlays)
+_KARMA_POSITIVE_YOGAS = {'Ithesal', 'Mutthashila', 'Kamboola'}
+_KARMA_NEGATIVE_YOGAS = {'Esrapha', 'Manaoo', 'Esrapha (separating)'}
+
+# Supportive aspect houses-from-Lagna (3rd/5th/9th/11th counted as benefic
+# placements from L1 for traditional sunlight). 4th/7th/8th/10th/12th
+# considered neutral or afflicting in this context.
+_SUPPORTIVE_HOUSES_FROM_LAGNA = {3, 5, 9, 11}
+
+# Kendra (1,4,7,10) and Trikona (5,9) — the angular/trinal placements.
+_KENDRA_TRIKONA = {1, 4, 5, 7, 9, 10}
+
+# Dusthana houses where authority decays
+_DUSTHANA_HOUSES = {6, 8, 12}
+
+
+def _karma_supportive_aspect_to_lagna(chart: Dict, planet: str) -> Optional[Dict]:
+    """
+    Returns aspect dict if `planet` is in a supportive house-count from
+    the Prashna Lagna (3/5/9/11), else None.
+
+    Per Atul's Overlay A clause 3 — Sun or Jupiter must "cast a supportive
+    aspect" onto the Prashna Lagna. In Tajik horary, support from these
+    classical benefics is counted by their house-distance from the Lagna
+    rather than full graha-drishti.
+    """
+    p_house = _planet_house(chart, planet)
+    if p_house is None:
+        return None
+    if p_house in _SUPPORTIVE_HOUSES_FROM_LAGNA:
+        return {
+            'planet': planet,
+            'house_from_lagna': p_house,
+            'kind': 'supportive_distance',
+            'narrative': (
+                f'{planet} occupies the {p_house}th house from the Prashna '
+                f'Lagna — classical benefic distance, casting support onto L1.'
+            ),
+        }
+    return None
+
+
+def overlay_rulership_confirmed(chart: Dict, state: Dict, inputs: Dict) -> Dict:
+    """
+    Karma Overlay A — Executive Ascent Trigger ("Command Architecture").
+
+    Fires when all three conditions hold:
+      1. Karya success chain to the target house (10 for promotion,
+         4 for employer pivot) returns success.
+      2. The target lord is placed in a Kendra (1/4/7/10) or
+         Trikona (5/9) — angular/trinal strength.
+      3. Sun OR Jupiter casts a supportive aspect (occupies the
+         3rd/5th/9th/11th house) onto the Prashna Lagna.
+
+    Output: fired=True, no verdict mutation (base YES from karya is
+    preserved); narrative tags the verdict as 'Command Architecture'.
+    """
+    target = state['target']
+    target_house = target['house']
+    target_lord = target['lord']
+    karya = state['karya']
+
+    # Condition 1: karya chain success
+    karya_succeeds = karya.get('verdict_primitive') in ('success', 'confirmed')
+    if not karya_succeeds:
+        return _empty_finding('rulership_confirmed')
+
+    # Condition 2: target lord in Kendra or Trikona
+    target_lord_house = _planet_house(chart, target_lord)
+    in_kendra_trikona = target_lord_house in _KENDRA_TRIKONA
+
+    # Condition 3: Sun OR Jupiter supportive to Lagna
+    sun_support  = _karma_supportive_aspect_to_lagna(chart, 'Sun')
+    jup_support  = _karma_supportive_aspect_to_lagna(chart, 'Jupiter')
+    benefic_support = sun_support or jup_support
+
+    if not (in_kendra_trikona and benefic_support):
+        return _empty_finding('rulership_confirmed')
+
+    benefic = benefic_support['planet']
+    narrative = (
+        f'The throne recognizes your signature. The Karya chain to H{target_house} '
+        f"({target['role']}) closes cleanly, the target lord {target_lord} occupies "
+        f'a strong angular/trinal house (H{target_lord_house}), and {benefic} '
+        f'(classical benefic) casts support onto the Prashna Lagna from H'
+        f"{benefic_support['house_from_lagna']}. The authority you are seeking is "
+        f'mathematically aligned with your current trajectory; the management layer '
+        f'sees you as a natural custodian of power.'
+    )
+
+    return {
+        'overlay': 'rulership_confirmed',
+        'fired': True,
+        'synthesis_tag': 'Command Architecture',
+        'data': {
+            'target_lord': target_lord,
+            'target_lord_house': target_lord_house,
+            'target_lord_in_kendra_trikona': True,
+            'benefic_support': benefic,
+            'benefic_support_detail': benefic_support,
+            'karya_succeeded': True,
+        },
+        'narrative': narrative,
+    }
+
+
+def overlay_subordinate_trajectory(chart: Dict, state: Dict, inputs: Dict) -> Dict:
+    """
+    Karma Overlay B — Glass Ceiling Lock.
+
+    Fires when there is an active Ithesal applying-aspect between L1 and
+    L_target, BUT one of the following structural blockers is present:
+      a. The target lord is combust (within 6° of the Sun)
+      b. The target lord is placed in a Dusthana (6/8/12)
+      c. Saturn casts a square (90°) or opposition (180°) aspect onto L1
+         (-4 friction penalty)
+
+    Output: fired=True; verdict_downgrade YES → CONDITIONAL_SUBORDINATE.
+    """
+    lagna_sign = chart.get('lagna_sign', 0)
+    lagna_lord = SIGN_LORDS[lagna_sign]
+    target = state['target']
+    target_lord = target['lord']
+
+    if lagna_lord == target_lord:
+        # Self-rule — no Ithesal because no two lords
+        return _empty_finding('subordinate_trajectory')
+
+    # Active Ithesal L1↔L_target? Use pairwise_aspect for the Tajik reading.
+    # NOTE: in this engine's Tajik model, yoga == 'Ithesal' is by definition
+    # the applying configuration (faster planet behind slower); yoga ==
+    # 'Esrapha' is the separating configuration. So we don't need to check
+    # an extra applying_or_separating key — the yoga name carries the direction.
+    asp = pairwise_aspect(lagna_lord, target_lord, chart)
+    has_ithesal = (asp.get('within_orb') and asp.get('yoga') == 'Ithesal')
+
+    if not has_ithesal:
+        return _empty_finding('subordinate_trajectory')
+
+    # Structural blockers
+    blockers = []
+
+    # Blocker (a): target lord combust
+    is_combust = _is_combust(chart.get('planets', {}), target_lord)
+    if is_combust:
+        blockers.append({
+            'kind': 'target_combust',
+            'narrative': f'{target_lord} is combust by the Sun — burning ambition that cannot crystallize as title.',
+        })
+
+    # Blocker (b): target lord in Dusthana (6/8/12)
+    target_lord_house = _planet_house(chart, target_lord)
+    in_dusthana = target_lord_house in _DUSTHANA_HOUSES
+    if in_dusthana:
+        blockers.append({
+            'kind': 'target_lord_in_dusthana',
+            'house': target_lord_house,
+            'narrative': (
+                f'{target_lord} occupies H{target_lord_house} (Dusthana) — the '
+                f'institutional layer denies the formal title even when execution succeeds.'
+            ),
+        })
+
+    # Blocker (c): Saturn ↔ L1 negative Tajik aspect (-4 friction penalty)
+    # In this engine's model, any Saturn-L1 Esrapha (separating within orb) is
+    # the mathematical analog of the classical "square/opposition" friction
+    # Atul's spec calls out — Saturn's malefic angular pressure on Lagna lord.
+    if lagna_lord != 'Saturn':
+        saturn_asp_l1 = pairwise_aspect('Saturn', lagna_lord, chart)
+        saturn_friction = (saturn_asp_l1.get('within_orb')
+                            and saturn_asp_l1.get('yoga') in ('Esrapha',))
+        if saturn_friction:
+            blockers.append({
+                'kind': 'saturn_friction',
+                'aspect_yoga': saturn_asp_l1.get('yoga'),
+                'absolute_separation': saturn_asp_l1.get('absolute_separation'),
+                'narrative': (
+                    f'Saturn casts a separating ({saturn_asp_l1.get("yoga")}) '
+                    f'aspect on the Lagna lord at '
+                    f'{saturn_asp_l1.get("absolute_separation", "?")}° — '
+                    f'-4 friction penalty, slowing the ascent.'
+                ),
+            })
+
+    if not blockers:
+        return _empty_finding('subordinate_trajectory')
+
+    blocker_summary = '; '.join(b['narrative'] for b in blockers)
+    narrative = (
+        f'The capacity to execute is undeniable — the Ithesal between '
+        f'{lagna_lord} (L1) and {target_lord} (L{target["house"]}) is applying — '
+        f'but your hands remain tied by an invisible institutional ceiling. '
+        f'{blocker_summary} You will be handed the responsibility of the role '
+        f'without the formal title or matching compensation.'
+    )
+
+    return {
+        'overlay': 'subordinate_trajectory',
+        'fired': True,
+        'synthesis_tag': 'Glass Ceiling',
+        'verdict_downgrade': {
+            'from_states': ['YES', 'YES_WITH_EFFORT'],
+            'to': 'CONDITIONAL_SUBORDINATE',
+            'reason': 'Subordinate Trajectory overlay — structural blockers on target lord/Lagna',
+        },
+        'data': {
+            'lagna_lord': lagna_lord,
+            'target_lord': target_lord,
+            'ithesal_active': True,
+            'blockers': blockers,
+        },
+        'narrative': narrative,
+    }
+
+
+def overlay_abdication_signal(chart: Dict, state: Dict, inputs: Dict) -> Dict:
+    """
+    Karma Overlay C — Termination / Exit Trigger.
+
+    Three independent firing paths:
+      Path 1: intent == 'exit_resignation' AND 10th Lord in 12th or 8th
+      Path 2: L1 separating from L10 (Eshrapha, outside 12° orb) AND
+              10th Lord in 12th or 8th
+      Path 3: Rahu conjoins the 10th house cusp within 3.5° precision orb
+
+    Output: fired=True; verdict_substitution forcing ABDICATION_SIGNAL
+    from any karya primitive (this overlay overrides positive readings).
+    """
+    intent = inputs.get('intent', '')
+    lagna_sign = chart.get('lagna_sign', 0)
+    lagna_lord = SIGN_LORDS[lagna_sign]
+
+    # 10th lord (always evaluated regardless of intent — the throne axis)
+    tenth_sign = (lagna_sign + 9) % 12
+    tenth_lord = SIGN_LORDS[tenth_sign]
+    tenth_lord_house = _planet_house(chart, tenth_lord)
+    tenth_lord_in_8_or_12 = tenth_lord_house in (8, 12)
+
+    fired_paths: List[Dict] = []
+
+    # Path 1: exit_resignation intent + L10 in 8 or 12
+    if intent == 'exit_resignation' and tenth_lord_in_8_or_12:
+        fired_paths.append({
+            'path': 'intent_plus_dusthana',
+            'narrative': (
+                f'The user is explicitly framing a severance question, and '
+                f'{tenth_lord} (10th Lord) is placed in H{tenth_lord_house} '
+                f"({'loss of status' if tenth_lord_house == 12 else 'sudden collapse'}). "
+                f'The exit is structurally confirmed.'
+            ),
+        })
+
+    # Path 2: L1 ↔ L10 separating Eshrapha outside orb + L10 in 8 or 12
+    if lagna_lord != tenth_lord:
+        asp_l1_l10 = pairwise_aspect(lagna_lord, tenth_lord, chart)
+        l1_separating = (asp_l1_l10.get('applying_or_separating') == 'separating'
+                          and asp_l1_l10.get('yoga') in ('Esrapha', 'Esrapha (separating)'))
+        # "Outside 12° orb" = orb_used > 12 OR within_orb is False
+        outside_orb = (not asp_l1_l10.get('within_orb', False)) or \
+                      (asp_l1_l10.get('orb_used', 999) > 12.0)
+        if l1_separating and outside_orb and tenth_lord_in_8_or_12:
+            fired_paths.append({
+                'path': 'eshrapha_outside_orb',
+                'narrative': (
+                    f'{lagna_lord} (L1) is separating from {tenth_lord} (L10) '
+                    f'in Eshrapha outside the 12° orb, AND {tenth_lord} is placed '
+                    f'in H{tenth_lord_house}. The chart shows the link to the '
+                    f'10th-house authority is already broken; you have walked '
+                    f'past the threshold without realizing it.'
+                ),
+            })
+
+    # Path 3: Rahu within 3.5° of the 10th cusp longitude
+    # 10th cusp longitude (whole-sign) = (lagna_sign + 9) * 30 = start of 10th sign
+    tenth_cusp_lon = ((lagna_sign + 9) % 12) * 30.0
+    rahu_lon = _get_planet_longitude_safe(chart, 'Rahu')
+    if rahu_lon is not None:
+        # Distance from Rahu to 10th cusp (in degrees, smallest arc)
+        diff = abs((rahu_lon - tenth_cusp_lon + 180) % 360 - 180)
+        if diff <= 3.5:
+            fired_paths.append({
+                'path': 'rahu_cusp_conjunction',
+                'rahu_longitude': round(rahu_lon, 3),
+                'cusp_longitude': round(tenth_cusp_lon, 3),
+                'orb_deg': round(diff, 3),
+                'narrative': (
+                    f'Rahu sits at {round(rahu_lon, 2)}° — only {round(diff, 2)}° '
+                    f'from the 10th house cusp ({round(tenth_cusp_lon, 2)}°). '
+                    f'Within the 3.5° precision orb, this signals an obsessive '
+                    f'destabilization of the position itself; the throne is '
+                    f'about to be uprooted.'
+                ),
+            })
+
+    if not fired_paths:
+        return _empty_finding('abdication_signal')
+
+    fired_summary = ' || '.join(f'[{p["path"]}]' for p in fired_paths)
+    overall_narrative = (
+        f'The chart captures an energy of severance via {len(fired_paths)} '
+        f"convergent path{'s' if len(fired_paths) > 1 else ''} ({fired_summary}). "
+        f'The current corporate structure cannot hold your weight, and '
+        f'attempting to sustain your positioning here will result in an abrupt, '
+        f'forced displacement. Prepare your exit runway immediately — the '
+        f'decision will be made for you, not by you.'
+    )
+
+    return {
+        'overlay': 'abdication_signal',
+        'fired': True,
+        'synthesis_tag': 'Abdication',
+        'verdict_substitution': {
+            'new_state': 'ABDICATION_SIGNAL',
+            'when_primitives': ['success', 'confirmed', 'conditional', 'failure'],
+            'reason': 'Abdication Signal overlay fired',
+        },
+        'data': {
+            'lagna_lord':       lagna_lord,
+            'tenth_lord':       tenth_lord,
+            'tenth_lord_house': tenth_lord_house,
+            'fired_paths':      fired_paths,
+            'paths_count':      len(fired_paths),
+        },
+        'narrative': overall_narrative,
+    }
+
+
+def overlay_startup_pivot_crosscheck(chart: Dict, state: Dict, inputs: Dict) -> Dict:
+    """
+    Karma Overlay D — Founder Transition.
+
+    Fires when ALL four conditions hold AND the query is career_pivot_startup:
+      1. Intent == 'career_pivot_startup'
+      2. L7 (Business axis) has higher Tajik Strength Scaling than L10 (Job)
+      3. L7 forms a positive aspect with L11 (Gains)
+      4. L10 is in a Pariheena (weakened) band
+
+    Pariheena = synthesis_label in {Forming Weakness, Brittle Failure,
+                                     Thwarted Power, Functional Failure,
+                                     Fading Trace, Phantom}.
+
+    Output: fired=True; verdict_substitution forcing YES + modifier_flag
+    FOUNDER_TRANSITION.
+    """
+    intent = inputs.get('intent', '')
+    if intent != 'career_pivot_startup':
+        return _empty_finding('startup_pivot_crosscheck')
+
+    lagna_sign = chart.get('lagna_sign', 0)
+    seventh_sign  = (lagna_sign + 6) % 12   # H7 (business)
+    tenth_sign    = (lagna_sign + 9) % 12   # H10 (job)
+    eleventh_sign = (lagna_sign + 10) % 12  # H11 (gains)
+
+    seventh_lord  = SIGN_LORDS[seventh_sign]
+    tenth_lord    = SIGN_LORDS[tenth_sign]
+    eleventh_lord = SIGN_LORDS[eleventh_sign]
+
+    avasthas = state.get('avasthas') or {}
+    pariheena_labels = {
+        'Forming Weakness', 'Brittle Failure', 'Thwarted Power',
+        'Functional Failure', 'Fading Trace', 'Phantom',
+        'Forming Mediocrity',
+    }
+
+    # Condition 2: L7 has higher strength than L10
+    strength = state.get('strength_scaling') or {}
+    l7_score = (strength.get('per_planet', {}) or {}).get(seventh_lord, {}).get('score')
+    l10_score = (strength.get('per_planet', {}) or {}).get(tenth_lord, {}).get('score')
+    if l7_score is None or l10_score is None:
+        # Fall back to avastha priority comparison
+        l7_pri = (avasthas.get(seventh_lord, {}) or {}).get('priority_index', 99)
+        l10_pri = (avasthas.get(tenth_lord, {}) or {}).get('priority_index', 99)
+        l7_stronger = l7_pri < l10_pri  # lower priority_index = stronger
+        score_basis = 'avastha_priority'
+    else:
+        l7_stronger = l7_score > l10_score
+        score_basis = 'strength_scaling'
+
+    if not l7_stronger:
+        return _empty_finding('startup_pivot_crosscheck')
+
+    # Condition 3: L7 ↔ L11 positive aspect
+    if seventh_lord == eleventh_lord:
+        l7_l11_positive = True
+        asp_summary = 'self-rule (L7 IS L11)'
+    else:
+        asp_7_11 = pairwise_aspect(seventh_lord, eleventh_lord, chart)
+        l7_l11_positive = (asp_7_11.get('within_orb')
+                            and asp_7_11.get('yoga') in _KARMA_POSITIVE_YOGAS)
+        asp_summary = asp_7_11.get('yoga', 'none')
+
+    if not l7_l11_positive:
+        return _empty_finding('startup_pivot_crosscheck')
+
+    # Condition 4: L10 in Pariheena band
+    l10_label = (avasthas.get(tenth_lord, {}) or {}).get('synthesis_label', '')
+    l10_pariheena = l10_label in pariheena_labels
+
+    if not l10_pariheena:
+        return _empty_finding('startup_pivot_crosscheck')
+
+    narrative = (
+        f'The corporate anchor is dragging. {tenth_lord} (L10 · the Job) shows '
+        f'"{l10_label}" — a Pariheena band where the institutional path is '
+        f'structurally weak. Meanwhile {seventh_lord} (L7 · the Business axis) '
+        f'is stronger ({score_basis}) AND forms a positive {asp_summary} with '
+        f'{eleventh_lord} (L11 · Gains). The planetary velocity favors '
+        f'independent commercial risk over institutional safety. Shift your '
+        f'assets to the 7th axis now — the chart is mathematically endorsing '
+        f'the founder transition.'
+    )
+
+    return {
+        'overlay': 'startup_pivot_crosscheck',
+        'fired': True,
+        'synthesis_tag': 'Founder Transition',
+        'verdict_substitution': {
+            'new_state': 'YES',
+            'when_primitives': ['success', 'confirmed', 'conditional', 'failure'],
+            'reason': 'Startup pivot crosscheck — chart endorses founder transition',
+        },
+        'verdict_modifier_flag': 'FOUNDER_TRANSITION',
+        'data': {
+            'seventh_lord':   seventh_lord,
+            'tenth_lord':     tenth_lord,
+            'eleventh_lord':  eleventh_lord,
+            'l7_score':       l7_score,
+            'l10_score':      l10_score,
+            'score_basis':    score_basis,
+            'l7_stronger':    True,
+            'l7_l11_aspect':  asp_summary,
+            'l10_synthesis_label': l10_label,
+            'l10_pariheena':  True,
+        },
+        'narrative': narrative,
+    }
+
+
+def _get_planet_longitude_safe(chart: Dict, planet_name: str) -> Optional[float]:
+    """Compact wrapper around planets dict access — returns longitude or None."""
+    p = (chart.get('planets') or {}).get(planet_name) or {}
+    lon = p.get('longitude')
+    return float(lon) % 360.0 if lon is not None else None
+
+
+# =================================================================
 # OVERLAY REGISTRY
 # =================================================================
 
@@ -2292,6 +3101,11 @@ OVERLAY_REGISTRY: Dict[str, Callable] = {
     # Phase 4D · Kinship & Alliances overlays
     'alliance_reciprocity_check': overlay_alliance_reciprocity_check,
     'nakta_bridge_relay':        overlay_nakta_bridge_relay,
+    # Phase 4D · Karmika & Yaatra · Karma (Ch 13) overlays
+    'rulership_confirmed':       overlay_rulership_confirmed,
+    'subordinate_trajectory':    overlay_subordinate_trajectory,
+    'abdication_signal':         overlay_abdication_signal,
+    'startup_pivot_crosscheck':  overlay_startup_pivot_crosscheck,
 }
 
 
@@ -2409,19 +3223,29 @@ def _finalize_state(state: Dict) -> None:
 _VERDICT_TEXTS = {
     'YES':                   'Yes — outcome indicated within the Prashna horizon',
     'YES_WITH_DELAYS':       'Yes — with initial delays or circumstantial support required',
+    'YES_WITH_EFFORT':       'Yes — advancement secured only after heavy negotiation or structural changes',
     'CONDITIONAL':           'Conditional — depends on circumstantial support',
     'CONDITIONAL_MEDICAL':   ('Conditional — assisted intervention (IVF / IUI / surrogacy) '
                               'is the indicated path'),
     'CONDITIONAL_THIRD_PARTY': 'Conditional — only via intermediary or alternative path',
+    'CONDITIONAL_SUBORDINATE': ('Conditional — no immediate elevation; the trajectory remains '
+                                'bound to a subordinate execution layer'),
     'HIGH_RISK':             'Yes — but with significant risk; medical monitoring essential',
+    'ABDICATION_SIGNAL':     ('Forced exit — sudden loss of authority, resignation, '
+                              'or displacement from the current position'),
     'NO':                    'No — outcome not indicated within the Prashna horizon',
 }
 
 # Verdict severity for promotion ordering (higher number = more severe)
 _VERDICT_SEVERITY = {
-    'YES': 1, 'YES_WITH_DELAYS': 2, 'CONDITIONAL': 3,
+    'YES': 1,
+    'YES_WITH_DELAYS': 2, 'YES_WITH_EFFORT': 2,
+    'CONDITIONAL': 3,
     'CONDITIONAL_MEDICAL': 4, 'CONDITIONAL_THIRD_PARTY': 4,
-    'HIGH_RISK': 6, 'NO': 5,
+    'CONDITIONAL_SUBORDINATE': 4,
+    'NO': 5,
+    'HIGH_RISK': 6,
+    'ABDICATION_SIGNAL': 7,   # Karma-specific: forced exit > simple NO
 }
 
 
@@ -2446,6 +3270,27 @@ def _synthesize_verdict(state: Dict, spec: Dict) -> Dict:
         base = 'YES'
     else:
         base = 'YES_WITH_DELAYS'
+
+    # --- Step 1b: Topic-level verdict remap ---
+    # Some containers (Karmika) use a vocabulary divergent from the default
+    # Vaivahika states. E.g. Karma uses YES_WITH_EFFORT in place of
+    # YES_WITH_DELAYS and CONDITIONAL_SUBORDINATE in place of CONDITIONAL.
+    # The remap is applied AFTER base resolution but BEFORE substitution/
+    # downgrade/promotion, so overlays operate on the remapped vocabulary.
+    verdict_remap = spec.get('verdict_remap') or {}
+    if base in verdict_remap and verdict_remap[base] in allowed_states:
+        base = verdict_remap[base]
+    # If base STILL isn't in allowed_states (e.g. CONDITIONAL fell through
+    # but topic doesn't accept it), fall back to the closest equivalent
+    if base not in allowed_states:
+        # Find any state in allowed with same severity tier
+        target_severity = _VERDICT_SEVERITY.get(base, 3)
+        candidates = sorted(
+            [(s, _VERDICT_SEVERITY.get(s, 99)) for s in allowed_states],
+            key=lambda x: abs(x[1] - target_severity)
+        )
+        if candidates:
+            base = candidates[0][0]
 
     # --- Step 2: Apply verdict_substitution if primitive matches ---
     # (Kamboola/Gada substitute failure→YES_WITH_DELAYS;
@@ -2545,6 +3390,16 @@ def prashna_topic_judgment(chart_data: Dict, topic_id: str, **inputs) -> Dict:
     aspects = detect_all_aspects(chart_data)
     strength = compute_strength_scaling(chart_data)
 
+    # ===== 2b. Karmika container hook — Rule 2 functional transformation =====
+    # Saturn/Mars synthesis-label rewriting MUST happen before overlays run,
+    # so that subordinate_trajectory et al. read the transformed labels.
+    # Idempotent and a no-op for non-Karmika topics.
+    karmika_transform_meta = None
+    if effective_spec.get('karmika_avastha_transform') or topic_id in _KARMIKA_TOPICS:
+        karmika_transform_meta = apply_karmika_avastha_transformation(
+            chart_data, avasthas
+        )
+
     initial_bhava = compute_bhava_bala(chart_data, initial_target_house)
     initial_karya = karya_success_chain(chart_data, initial_target_house)
 
@@ -2563,6 +3418,10 @@ def prashna_topic_judgment(chart_data: Dict, topic_id: str, **inputs) -> Dict:
         'bhava':     initial_bhava,
         'bhava_net': initial_bhava.get('net_strength_pct', 0),
         'sincerity': sincerity,
+        # Karmika-related diagnostic data, exposed to overlays
+        'avasthas':         avasthas,                   # transformed if Karmika
+        'strength_scaling': strength,                   # for startup_pivot_crosscheck
+        'karmika_transform_meta': karmika_transform_meta,
         # Collected mutations (deferred)
         'pending_caps':           [],
         'pending_substitutions':  [],
@@ -2692,6 +3551,8 @@ def prashna_topic_judgment(chart_data: Dict, topic_id: str, **inputs) -> Dict:
         'intent':                classified_intent,  # None for non-Garbha
         # Per-overlay findings (flat for UI rendering)
         'overlay_findings':      overlay_data,
+        # Karmika container metadata (None for non-Karmika topics)
+        'karmika_transform_meta': state.get('karmika_transform_meta'),
         # Verdict resolution trace
         'verdict_trace': {
             'primitive':       state['karya']['verdict_primitive'],
