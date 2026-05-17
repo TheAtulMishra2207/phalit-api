@@ -1547,6 +1547,97 @@ def _get_planet_longitude(planet_name: str, chart_data: Dict) -> Optional[float]
     return float(lon) % 360.0
 
 
+def _get_planet_signed_velocity(planet_name: str, chart_data: Dict) -> float:
+    """
+    Returns SIGNED daily motion in degrees: positive for direct motion,
+    negative for retrograde. Used for relative-velocity computation in
+    timing engines (Karmika & Yaatra Rule 3 — velocity-to-distance).
+
+    For "which planet is faster" comparisons (motility selection),
+    callers should continue using _get_planet_velocity (abs value).
+    """
+    p = (chart_data.get('planets') or {}).get(planet_name) or {}
+    is_retro = bool(p.get('retrograde', False))
+    abs_vel = _get_planet_velocity(planet_name, chart_data)
+    return -abs_vel if is_retro else abs_vel
+
+
+def _compute_signed_relative_velocity(p1: str, p2: str,
+                                       chart_data: Dict) -> Tuple[float, str]:
+    """
+    Returns (rel_vel, approach_kind) per Karmika & Yaatra Rule 3:
+
+        Δt = θ / |V_L1 ± V_Target|
+        + (sum) when one planet is retrograde, one direct (mutual approach)
+        - (difference) when both same direction (chase)
+
+    Using SIGNED velocities, `abs(v1_signed - v2_signed)` resolves all four
+    cases correctly:
+      - both direct:    abs(+a - +b) = |a - b|        (chase)
+      - one retrograde: abs(+a - -b) = |a + b|        (mutual approach)
+      - both retrograde:abs(-a - -b) = |b - a|        (chase, reversed)
+
+    approach_kind is 'chase' or 'mutual_approach' (informational).
+    """
+    v1_s = _get_planet_signed_velocity(p1, chart_data)
+    v2_s = _get_planet_signed_velocity(p2, chart_data)
+    rel_vel = abs(v1_s - v2_s)
+    if rel_vel < 0.001:
+        rel_vel = max(abs(v1_s), abs(v2_s), 0.01)
+    # Detect retrograde-direct configuration (mutual approach)
+    p1_retro = (chart_data.get('planets') or {}).get(p1, {}).get('retrograde', False)
+    p2_retro = (chart_data.get('planets') or {}).get(p2, {}).get('retrograde', False)
+    approach_kind = 'mutual_approach' if (p1_retro != p2_retro) else 'chase'
+    return rel_vel, approach_kind
+
+
+def _check_reversal_at_border(faster_planet: str, slower_planet: str,
+                                deg_remaining: float,
+                                chart_data: Dict) -> Optional[Dict]:
+    """
+    Karmika & Yaatra Rule 3 Guardrail:
+    If the FASTER planet is Stationary Retrograde within 1° of completing
+    an Ithesal/approach, the timing window must append the modifier
+    REVERSAL_AT_THE_BORDER (trip aborted at the gate, expat recalled).
+
+    Stationary = |daily motion| < 0.15° (well below mean motion for any
+    of the 7 classical planets and Rahu/Ketu).
+
+    Returns dict with verdict_modifier + narrative, or None if not triggered.
+    """
+    if deg_remaining > 1.0:
+        return None
+    p = (chart_data.get('planets') or {}).get(faster_planet) or {}
+    is_retro = bool(p.get('retrograde', False))
+    abs_vel = _get_planet_velocity(faster_planet, chart_data)
+    # Stationary threshold: well under each planet's mean motion
+    STATIONARY_THRESHOLD = {
+        'Sun': 0.50, 'Moon': 6.00, 'Mercury': 0.60, 'Venus': 0.70,
+        'Mars': 0.25, 'Jupiter': 0.04, 'Saturn': 0.02,
+        'Rahu': 0.03, 'Ketu': 0.03,
+    }
+    threshold = STATIONARY_THRESHOLD.get(faster_planet, 0.10)
+    is_stationary = abs_vel < threshold
+    if not (is_retro and is_stationary):
+        return None
+    return {
+        'verdict_modifier': 'REVERSAL_AT_THE_BORDER',
+        'narrative': (
+            f'{faster_planet} is Stationary Retrograde within '
+            f'{round(deg_remaining, 2)}° of completing the approach to '
+            f'{slower_planet}. The Ithesal is mathematically at the gate but '
+            f'will not close — the trip is aborted at the boundary, or the '
+            f'authority recalls the candidate before the appointment is '
+            f'formalized. Treat the outcome as already withdrawn.'
+        ),
+        'faster_planet': faster_planet,
+        'is_retrograde': True,
+        'is_stationary': True,
+        'abs_velocity': round(abs_vel, 4),
+        'deg_remaining': round(deg_remaining, 3),
+    }
+
+
 def _angular_separation(lon_a: float, lon_b: float) -> float:
     """Smallest unsigned angular distance, 0..180."""
     d = abs((lon_a - lon_b) % 360.0)
@@ -1628,9 +1719,16 @@ def compute_phal_kaal(chart_data: Dict, vector_type: str,
         unit = MOTILITY_UNIT[motility]
 
         deg_dist = _angular_separation(l1_lon, target_lon)
-        # Daily relative motion
-        rel_vel = abs(l1_vel - target_vel) or max(l1_vel, target_vel, 0.01)
+        # SIGNED relative motion (Karmika Rule 3): handles retrograde-direct
+        # approach correctly via abs(v_signed_1 - v_signed_2).
+        rel_vel, approach_kind = _compute_signed_relative_velocity(
+            lagna_lord, target_lord, chart_data)
         days = deg_dist / rel_vel
+
+        # Reversal-at-the-border guardrail
+        reversal = _check_reversal_at_border(
+            faster, target_lord if faster == lagna_lord else lagna_lord,
+            deg_dist, chart_data)
 
         # Convert to motility-appropriate unit
         if unit == 'days':
@@ -1650,6 +1748,9 @@ def compute_phal_kaal(chart_data: Dict, vector_type: str,
                             f'faster planet ({faster}) is in {motility} sign — '
                             f'time unit scales to {unit}.'),
             'motility':    motility,
+            'approach_kind': approach_kind,
+            'verdict_modifier': reversal['verdict_modifier'] if reversal else None,
+            'reversal_at_border': reversal,
             'data': {
                 'lagna_lord':   lagna_lord, 'l1_longitude': round(l1_lon, 3),
                 'l1_velocity':  round(l1_vel, 3),
@@ -1661,6 +1762,7 @@ def compute_phal_kaal(chart_data: Dict, vector_type: str,
                 'days_raw':     round(days, 2),
                 'faster_planet': faster,
                 'faster_curr_sign': faster_curr_sign,
+                'approach_kind': approach_kind,
             },
         }
 
@@ -1682,8 +1784,14 @@ def compute_phal_kaal(chart_data: Dict, vector_type: str,
         unit = MOTILITY_UNIT[motility]
 
         deg_dist = _angular_separation(l1_lon, derived_lon)
-        rel_vel = abs(l1_vel - derived_vel) or max(l1_vel, derived_vel, 0.01)
+        rel_vel, approach_kind = _compute_signed_relative_velocity(
+            lagna_lord, derived_lord, chart_data)
         days = deg_dist / rel_vel
+
+        # Reversal-at-the-border check (faster of the two)
+        faster_d = lagna_lord if l1_vel >= derived_vel else derived_lord
+        slower_d = derived_lord if l1_vel >= derived_vel else lagna_lord
+        reversal_d = _check_reversal_at_border(faster_d, slower_d, deg_dist, chart_data)
 
         amount = round(days, 1) if unit == 'days' else \
                  round(days / 7.0, 1) if unit == 'weeks' else \
@@ -1699,6 +1807,9 @@ def compute_phal_kaal(chart_data: Dict, vector_type: str,
                             f'{round(deg_dist, 2)}° at {round(rel_vel, 3)}°/day; '
                             f'derived lord is in a {motility} sign.'),
             'motility':    motility,
+            'approach_kind': approach_kind,
+            'verdict_modifier': reversal_d['verdict_modifier'] if reversal_d else None,
+            'reversal_at_border': reversal_d,
             'data': {
                 'derived_house': derived_house, 'derived_lord': derived_lord,
                 'derived_longitude': round(derived_lon, 3),
@@ -1706,6 +1817,7 @@ def compute_phal_kaal(chart_data: Dict, vector_type: str,
                 'deg_dist': round(deg_dist, 3), 'rel_vel': round(rel_vel, 3),
                 'days_raw': round(days, 2),
                 'lagna_lord': lagna_lord,
+                'approach_kind': approach_kind,
             },
         }
 
@@ -1726,8 +1838,8 @@ def compute_phal_kaal(chart_data: Dict, vector_type: str,
         slower, slow_lon, slow_vel = (p2, lon2, vel2) if vel1 >= vel2 else (p1, lon1, vel1)
 
         deg_to_midpoint = _angular_separation(fast_lon, midpoint)
-        # Faster planet effectively closes the gap at (fast_vel - slow_vel)
-        rel_vel = abs(fast_vel - slow_vel) or max(fast_vel, slow_vel, 0.01)
+        # SIGNED rel-vel: closure rate of faster onto the midpoint, retrograde-aware
+        rel_vel, approach_kind = _compute_signed_relative_velocity(p1, p2, chart_data)
         days = deg_to_midpoint / rel_vel
 
         # Motility from the faster planet's current sign
@@ -1770,7 +1882,7 @@ def compute_phal_kaal(chart_data: Dict, vector_type: str,
                     'motility': None, 'data': {}}
 
         current_sep = _angular_separation(lon1, lon2)
-        rel_vel = abs(vel1 - vel2) or max(vel1, vel2, 0.01)
+        rel_vel, approach_kind = _compute_signed_relative_velocity(p1, p2, chart_data)
 
         if direction == 'clear':
             # Time to exceed 12° orb
