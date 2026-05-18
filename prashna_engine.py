@@ -317,7 +317,8 @@ def _sign_lord_signs(planet_name: str) -> List[int]:
     return out
 
 
-def compute_avastha_band_synthesis(avastha_state: str, band_key: Optional[str]) -> Dict:
+def compute_avastha_band_synthesis(avastha_state: str, band_key: Optional[str],
+                                    house_placement: Optional[int] = None) -> Dict:
     """
     Per Atul's audit: resolve the contradiction between an Avastha (a strength
     classification) and a degree-band (also a strength classification) when they
@@ -334,31 +335,52 @@ def compute_avastha_band_synthesis(avastha_state: str, band_key: Optional[str]) 
         - Last Hurrah        (auspicious + Culminating — declining but effective)
         - Functional Failure (Sandhi — drowned regardless of Avastha)
         - Phantom            (Sadyo-Gata — too fresh; results unstable)
+
+    `house_placement` (optional): the planet's house from Lagna (1-12).
+    When provided and in (6, 8, 12) — i.e. a Dusthana — the auspiciousness
+    rating is clamped to inauspicious before classification. This routes
+    Deepta+Pragalbha+H8 to 'Thwarted Power' (the structurally honest label)
+    instead of 'Full Power', and Deepta+Culminating+H8 to 'Brittle Failure'
+    instead of 'Last Hurrah'. The dusthana frame occludes the delivery
+    channel even when degree-band + avastha individually signal capacity.
+    The dampening is recorded in the return dict as `dusthana_dampened`
+    so callers/UI can surface the override transparently.
     """
     auspiciousness = AVASTHA_AUSPICIOUSNESS.get(avastha_state, 3)
+    dusthana_dampened = False
+
+    # Dusthana dampening — house frame override per Atul's audit (Bug 3).
+    # A planet in 6/8/12 from Lagna cannot deliver its full auspicious
+    # nature regardless of degree-band + avastha signaling. Clamp to
+    # inauspicious so the label vocabulary ('Thwarted Power', 'Brittle
+    # Failure', 'Forming Weakness') reflects the occluded delivery.
+    if house_placement in (6, 8, 12):
+        if auspiciousness >= 3:
+            auspiciousness = 2  # force inauspicious bracket
+            dusthana_dampened = True
+
     is_inauspicious = auspiciousness < 3
     is_auspicious = auspiciousness >= 5
 
     if band_key == 'sandhi':
-        return {
+        result = {
             'synthesis_label': 'Functional Failure',
             'synthesis_narrative': (
                 "Drowning in Gandanta (sign-junction). Avastha is moot — the "
                 "planet cannot deliver, even with strong dignity elsewhere."
             ),
         }
-    if band_key == 'sadyo_gata':
-        return {
+    elif band_key == 'sadyo_gata':
+        result = {
             'synthesis_label': 'Phantom',
             'synthesis_narrative': (
                 "Just entered the sign — the energy is unfamiliar. Avastha "
                 "classifications are provisional; results remain phantom-like."
             ),
         }
-
-    if band_key == 'pragalbha':
+    elif band_key == 'pragalbha':
         if is_inauspicious:
-            return {
+            result = {
                 'synthesis_label': 'Thwarted Power',
                 'synthesis_narrative': (
                     "Peak Bala (Pragalbha) — the planet has the raw capacity "
@@ -367,25 +389,25 @@ def compute_avastha_band_synthesis(avastha_state: str, band_key: Optional[str]) 
                     "enough to redirect the outcome. High-stakes struggle."
                 ),
             }
-        if is_auspicious:
-            return {
+        elif is_auspicious:
+            result = {
                 'synthesis_label': 'Full Power',
                 'synthesis_narrative': (
                     f"Pragalbha + {avastha_state} — full capacity AND favourable "
                     "dignity. The planet delivers cleanly within its remit."
                 ),
             }
-        return {
-            'synthesis_label': 'Standing Power',
-            'synthesis_narrative': (
-                f"Pragalbha + {avastha_state} — strong capacity, ambiguous "
-                "dignity. Outcome depends on which planet wins the support battle."
-            ),
-        }
-
-    if band_key == 'udaya':
+        else:
+            result = {
+                'synthesis_label': 'Standing Power',
+                'synthesis_narrative': (
+                    f"Pragalbha + {avastha_state} — strong capacity, ambiguous "
+                    "dignity. Outcome depends on which planet wins the support battle."
+                ),
+            }
+    elif band_key == 'udaya':
         if is_inauspicious:
-            return {
+            result = {
                 'synthesis_label': 'Forming Weakness',
                 'synthesis_narrative': (
                     f"Udaya (still building) + {avastha_state} — the affliction "
@@ -393,25 +415,25 @@ def compute_avastha_band_synthesis(avastha_state: str, band_key: Optional[str]) 
                     "time. Acting early may pre-empt the worst phase."
                 ),
             }
-        if is_auspicious:
-            return {
+        elif is_auspicious:
+            result = {
                 'synthesis_label': 'Building Power',
                 'synthesis_narrative': (
                     f"Udaya + {avastha_state} — momentum is gathering on the "
                     "favourable side. Results materialise as the planet matures."
                 ),
             }
-        return {
-            'synthesis_label': 'Forming Mediocrity',
-            'synthesis_narrative': (
-                "Udaya in a neutral state — no narrative pull either way; "
-                "outcomes hinge on environmental triggers."
-            ),
-        }
-
-    if band_key == 'culminating':
+        else:
+            result = {
+                'synthesis_label': 'Forming Mediocrity',
+                'synthesis_narrative': (
+                    "Udaya in a neutral state — no narrative pull either way; "
+                    "outcomes hinge on environmental triggers."
+                ),
+            }
+    elif band_key == 'culminating':
         if is_inauspicious:
-            return {
+            result = {
                 'synthesis_label': 'Brittle Failure',
                 'synthesis_narrative': (
                     f"Culminating + {avastha_state} — the planet is desperate "
@@ -419,8 +441,8 @@ def compute_avastha_band_synthesis(avastha_state: str, band_key: Optional[str]) 
                     "brittle, costly results. Cut losses where possible."
                 ),
             }
-        if is_auspicious:
-            return {
+        elif is_auspicious:
+            result = {
                 'synthesis_label': 'Last Hurrah',
                 'synthesis_narrative': (
                     f"Culminating + {avastha_state} — fading favour, but "
@@ -428,21 +450,34 @@ def compute_avastha_band_synthesis(avastha_state: str, band_key: Optional[str]) 
                     "Time-bound window."
                 ),
             }
-        return {
-            'synthesis_label': 'Fading Trace',
+        else:
+            result = {
+                'synthesis_label': 'Fading Trace',
+                'synthesis_narrative': (
+                    "Culminating in a neutral state — energy receding without a "
+                    "clear directional pull."
+                ),
+            }
+    else:
+        # No band info — fall back to Avastha-only label
+        result = {
+            'synthesis_label': avastha_state,
             'synthesis_narrative': (
-                "Culminating in a neutral state — energy receding without a "
-                "clear directional pull."
+                f"{avastha_state} state — see Avastha column for outcome signature."
             ),
         }
 
-    # No band info — fall back to Avastha-only label
-    return {
-        'synthesis_label': avastha_state,
-        'synthesis_narrative': (
-            f"{avastha_state} state — see Avastha column for outcome signature."
-        ),
-    }
+    # Attach dusthana dampening metadata + narrative addendum
+    result['dusthana_dampened'] = dusthana_dampened
+    if dusthana_dampened:
+        result['dusthana_house'] = house_placement
+        result['synthesis_narrative'] += (
+            f" House override: the H{house_placement} (Dusthana) placement "
+            f"occludes what would otherwise read as a stronger label — "
+            f"{avastha_state} dignity has no clean delivery channel from a "
+            f"6/8/12 frame."
+        )
+    return result
 
 
 # =================================================================
@@ -1272,7 +1307,15 @@ def compute_avasthas(chart_data: Dict) -> Dict[str, Dict]:
                     )
 
             # Avastha+Band cross-product synthesis (Atul's "Thwarted Power" fix)
-            synthesis = compute_avastha_band_synthesis(winning, band_key)
+            # Now also passes the planet's house from Lagna so that dusthana
+            # placement (6/8/12) can dampen the label correctly — preventing
+            # mismatches like a Deepta Moon in H8 being labelled 'Last Hurrah'
+            # or 'Full Power' when it should read as 'Brittle Failure' /
+            # 'Thwarted Power'.
+            lagna_sign = chart_data.get('lagna_sign', 0)
+            p_sign = pdata.get('sign_index')
+            house_from_lagna = (((p_sign - lagna_sign) % 12) + 1) if p_sign is not None else None
+            synthesis = compute_avastha_band_synthesis(winning, band_key, house_from_lagna)
 
             result[planet_name] = {
                 'avastha': winning,
@@ -1281,11 +1324,16 @@ def compute_avasthas(chart_data: Dict) -> Dict[str, Dict]:
                 'priority_index': AVASTHA_PRECEDENCE.index(winning),
                 'all_qualifying': qualifying,
                 'degree_band': deg_band,
+                'house_from_lagna': house_from_lagna,
                 'synthesis_label': synthesis['synthesis_label'],
                 'synthesis_narrative': synthesis['synthesis_narrative'],
+                'dusthana_dampened': synthesis.get('dusthana_dampened', False),
             }
         else:
-            synthesis = compute_avastha_band_synthesis('Neutral', band_key)
+            lagna_sign = chart_data.get('lagna_sign', 0)
+            p_sign = pdata.get('sign_index')
+            house_from_lagna = (((p_sign - lagna_sign) % 12) + 1) if p_sign is not None else None
+            synthesis = compute_avastha_band_synthesis('Neutral', band_key, house_from_lagna)
             result[planet_name] = {
                 'avastha': 'Neutral',
                 'condition': 'No specific state qualified',
@@ -1293,8 +1341,10 @@ def compute_avasthas(chart_data: Dict) -> Dict[str, Dict]:
                 'priority_index': 99,
                 'all_qualifying': [],
                 'degree_band': deg_band,
+                'house_from_lagna': house_from_lagna,
                 'synthesis_label': synthesis['synthesis_label'],
                 'synthesis_narrative': synthesis['synthesis_narrative'],
+                'dusthana_dampened': synthesis.get('dusthana_dampened', False),
             }
 
     return result
@@ -2865,6 +2915,15 @@ def karya_success_chain(chart_data: Dict, target_house_num: int) -> Dict:
         'andha_parivartana': andha_parivartana,
         'verdict_primitive': verdict_primitive,
         'verdict_modifier': verdict_modifier,
+        # Surface the L1↔L_target aspect dict computed at the top of this
+        # function (line ~2684, `asp = pairwise_aspect(lagna_lord, target_lord)`).
+        # This lets the orchestrator's core_catalyst selector pick this up as
+        # the decisive Tajik connection when no other overlay carries it —
+        # e.g. for Karma topics where nakta_abhara_scan is NOT in the overlay
+        # list. Before this surface, Karma queries always reported
+        # "Core catalyst: None" even when Overlay B confirmed an active
+        # Ithesal between L1 and L_target.
+        'l1_target_aspect': asp,
     }
 
 
