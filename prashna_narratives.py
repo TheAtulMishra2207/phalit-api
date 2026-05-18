@@ -1521,6 +1521,332 @@ def _format_karma_overlay_lines(overlays, overlay_names):
     return lines
 
 
+def _format_sammana_overlay_lines(overlays, overlay_names):
+    """Alias of _format_karma_overlay_lines — same generic shape works for Sammana."""
+    return _format_karma_overlay_lines(overlays, overlay_names)
+
+
+def _format_sammana_modifier_guidance(verdict_mod):
+    """Return the modifier-specific framing block as a list of lines."""
+    if verdict_mod == 'PUBLIC_COMMENDATION':
+        return [
+            "  — PUBLIC_COMMENDATION (L3↔L11 Ithesal): the commendation channel is",
+            "    actively coupling with the public arena. Recognition will land with",
+            "    maximum public visibility and industry-wide fanfare. Use this in the",
+            "    Strategy + Timeline framing.",
+        ]
+    if verdict_mod == 'MUTED_RECEPTION':
+        return [
+            "  — MUTED_RECEPTION (L3↔L11 Esrapha — separating): the commendation channel",
+            "    and the public arena are decoupling. You may win the recognition, but",
+            "    the announcement will be handled poorly or lack systemic visibility.",
+            "    Reflect this gap explicitly in the narrative.",
+        ]
+    if verdict_mod == 'THRONE_OCCLUDED':
+        return [
+            "  — THRONE_OCCLUDED (Mushita Sovereignty): the target lord is structurally",
+            "    dark (combust + dusthana + auspicious avastha). Capacity is real but",
+            "    visibility is occluded. Frame this as institutional opacity, not",
+            "    personal failure.",
+        ]
+    return []
+
+
+def _format_sammana_yama_section(credit_finding):
+    """If credit_theft_check fired the L7-Yama-binds path, emit a special block."""
+    if not (credit_finding or {}).get('fired'):
+        return []
+    details = ((credit_finding or {}).get('data') or {}).get('path_details') or []
+    lines = []
+    for d in details:
+        if d.get('path') == 'L7_yama_binds_L1_L11':
+            lines.append("")
+            lines.append("## YAMA BINDER DETECTED (Manager Interception)")
+            lines.append(f"- L7 ({d.get('l7_lord')}) sits at the geometric midpoint of the")
+            lines.append(f"  L1→L11 arc — within the 3.5° interception orb.")
+            lines.append(f"- Midpoint longitude: {d.get('midpoint_longitude')}°; "
+                         f"distance from midpoint: {d.get('distance_from_midpoint')}°")
+            lines.append("- USE THIS FRAMING in the narrative: a reporting manager or executive")
+            lines.append("  intermediary is mathematically positioned to intercept the light")
+            lines.append("  traveling between you and public recognition. This is not a personal")
+            lines.append("  affront; it is an architectural interception — the manager will")
+            lines.append("  absorb the credit through their own L7 position on the arc.")
+    return lines
+
+
+def _build_sammana_user_prompt(judgment, query_text, cast_meta):
+    """
+    Dispatcher for Sammana sub-module. Routes to the appropriate
+    intent-specific prompt builder based on judgment['intent'].
+
+    Routes:
+      industry_award       → _build_sammana_industry_award_prompt (default)
+      internal_validation  → _build_sammana_internal_validation_prompt
+    """
+    intent = judgment.get('intent') or 'industry_award'
+    if intent == 'internal_validation':
+        return _build_sammana_internal_validation_prompt(judgment, query_text, cast_meta)
+    return _build_sammana_industry_award_prompt(judgment, query_text, cast_meta)
+
+
+def _build_sammana_industry_award_prompt(judgment, query_text, cast_meta):
+    """Industry award / peer / public recognition reading — target H11, Jupiter karaka."""
+    verdict       = judgment.get('verdict')
+    verdict_text  = judgment.get('verdict_text')
+    verdict_mod   = judgment.get('verdict_modifier')
+    target_house  = judgment.get('target_house')
+    target_role   = judgment.get('target_role')
+    secondary     = judgment.get('secondary_karaka')
+
+    querent_lord  = judgment.get('querent_lord') or {}
+    quesited_lord = judgment.get('quesited_lord') or {}
+    catalyst      = judgment.get('core_catalyst') or {}
+    bhava_target  = judgment.get('bhava_bala_target') or {}
+
+    overlays = judgment.get('overlay_findings') or {}
+    h2n      = judgment.get('horary_to_natal') or {}
+
+    credit_finding = overlays.get('credit_theft_check') or {}
+
+    lines = [
+        "# Sammana Prashna · INDUSTRY AWARD / PEER VALIDATION (route: industry_award)",
+        "",
+        "## Cast Context",
+        f"- Querent question: \"{query_text or '(not provided)'}\"",
+        f"- Place: {(cast_meta or {}).get('place_name', '(not provided)')}",
+        f"- Target: **{target_role}** (H{target_house}, the public reception arena)",
+        f"- Operative karakas: Lagna lord ({querent_lord.get('name')}) = you; "
+        f"11th lord ({quesited_lord.get('name')}) = the public reception channel; "
+        f"secondary karaka **{secondary}** (Jupiter = Honor / Accolade karaka).",
+        "",
+        "## CRITICAL FRAMING — SAMMANA, NOT KARMA",
+        "- This is a RECOGNITION query — reputation, formal accolades, peer/industry validation,",
+        "  award materialization, public standing. NOT title/salary/scope (that's Karma's domain).",
+        "- Sammana is the INTANGIBLE socio-professional currency: the validation of your work",
+        "  by your peer network or industry. Architecture is read on H11 (Labha — public",
+        "  circles), with Jupiter as the honor-karaka and the 11th lord as the reception channel.",
+        "- Verdict vocabulary (use ONLY these — do not invent synonyms):",
+        "    YES                  → Radiant Validation; award materializes cleanly",
+        "    YES_WITH_FRICTION    → recognition lands but accompanied by peer envy / politics",
+        "    CONDITIONAL_PRIVY    → granted internally / behind closed doors, hidden from public",
+        "    OBSCURED_VALIDATION  → credit absorbed silently by a superior",
+        "    NO                   → no recognition materializes within this Prashna horizon",
+        "- DO NOT use Karma frames: no 'throne', no 'glass ceiling', no 'bonus', no 'scope expansion'.",
+        "  The Sammana vocabulary is: accolade, commendation, recognition, validation,",
+        "  peer respect, public visibility, citation, public receipts.",
+        "",
+        "## Verdict",
+        f"- Verdict state: **{verdict}**",
+        f"- Verdict text: {verdict_text}",
+        f"- Verdict modifier: **{verdict_mod or '(none)'}**",
+    ]
+    lines.extend(_format_sammana_modifier_guidance(verdict_mod))
+
+    lines.extend([
+        "",
+        "## Significators",
+        f"- Lagna lord (you): **{querent_lord.get('name')}** — "
+        f"synthesis_label: **{querent_lord.get('synthesis_label')}**",
+        f"  - Avastha: {querent_lord.get('avastha')}; House: {querent_lord.get('house')}; "
+        f"Combust: {querent_lord.get('is_combust')}",
+        f"- 11th lord (the public reception channel): **{quesited_lord.get('name')}** — "
+        f"synthesis_label: **{quesited_lord.get('synthesis_label')}**",
+        f"  - Avastha: {quesited_lord.get('avastha')}; House: {quesited_lord.get('house')}; "
+        f"Combust: {quesited_lord.get('is_combust')}",
+        "",
+        "## Overlay Fingerprint (6 overlays for industry_award route)",
+    ])
+    lines.extend(_format_sammana_overlay_lines(overlays, [
+        'sincerity_option_c',
+        'accolade_materialization',  # A — YES generator (Radiant Validation)
+        'peer_envy_scan',            # C — YES_WITH_FRICTION
+        'peer_recognition_axis',     # E — modifier flag (PUBLIC_COMMENDATION / MUTED_RECEPTION)
+        'executive_privy_lock',      # F — CONDITIONAL_PRIVY
+        'credit_theft_check',        # B — OBSCURED_VALIDATION (incl Yama Binder)
+    ]))
+    lines.extend(_format_sammana_yama_section(credit_finding))
+
+    lines.extend([
+        "",
+        "## Karya / Bhava Bala (11th)",
+        f"- 11th Bhava Bala: {bhava_target.get('verdict', '?')} "
+        f"(gross {bhava_target.get('gross_strength_pct', 0)}%, "
+        f"net {bhava_target.get('net_strength_pct', 0)}%)",
+        "",
+        "## Core Catalyst",
+        f"- {catalyst.get('yoga', catalyst.get('name', '(none)'))}: "
+        f"{catalyst.get('narrative', catalyst.get('detail', ''))}",
+        "",
+        "## Natal-Prashna Handshake",
+        f"- Activated natal house: {h2n.get('activated_natal_house') or '(none)'}",
+        f"- Shift narrative: {h2n.get('narrative') or '(no shift)'}",
+        "",
+        "---",
+        "",
+        "GUARDRAILS for this prompt:",
+        "- If verdict is YES and accolade_materialization fired, USE 'Radiant Validation'",
+        "  frame: 'the public architecture is completely clear — your signature has broken",
+        "   through the noise; the wider ecosystem is prepared to acknowledge your contribution",
+        "   on record.'",
+        "- If verdict is YES_WITH_FRICTION and peer_envy_scan fired, USE 'Peer Envy' (Shatru-Drishti)",
+        "  frame: 'the accolade lands, but undercurrents of professional envy tighten political",
+        "   friction from lateral colleagues — step into the recognition with clinical poise.'",
+        "- If verdict is CONDITIONAL_PRIVY and executive_privy_lock fired, USE 'Closed-Door",
+        "  Recognition' frame: 'private equity of status, not public currency — the decision-makers",
+        "   reward you behind closed doors, but the organizational grid prevents public record.'",
+        "- If verdict is OBSCURED_VALIDATION and credit_theft_check fired, USE 'Obscured Validation'",
+        "  frame: 'an institutional intermediary is positioned to intercept the light — your",
+        "   contribution will be absorbed silently. Secure your public receipts immediately.'",
+        "- If the Yama Binder path fired, EXPLICITLY name the binder dynamic: a reporting",
+        "  manager mathematically positioned to intercept the credit. Do not soften this.",
+        "- Action cards: published evidence, public commits, conference talks, written",
+        "  documentation, third-party endorsements, social proof, paper trail, asking for written",
+        "  acknowledgement on Slack / email before any verbal credit-claim.",
+        "- Sensory remedy: Thursday (Jupiter's day) — recite the Guru Stuti or perform Vishnu",
+        "  Sahasranama at noon (Jupiter's hora). Yellow cloth, turmeric on the forehead. Jupiter",
+        "  governs honor and formal blessings; this is the karaka invocation for industry_award.",
+        "",
+        "Produce the JSON now.",
+    ])
+    return "\n".join(lines)
+
+
+def _build_sammana_internal_validation_prompt(judgment, query_text, cast_meta):
+    """Internal / executive / board recognition reading — target H10, Sun karaka."""
+    verdict       = judgment.get('verdict')
+    verdict_text  = judgment.get('verdict_text')
+    verdict_mod   = judgment.get('verdict_modifier')
+    target_house  = judgment.get('target_house')
+    target_role   = judgment.get('target_role')
+    secondary     = judgment.get('secondary_karaka')
+
+    querent_lord  = judgment.get('querent_lord') or {}
+    quesited_lord = judgment.get('quesited_lord') or {}
+    catalyst      = judgment.get('core_catalyst') or {}
+    bhava_target  = judgment.get('bhava_bala_target') or {}
+
+    overlays = judgment.get('overlay_findings') or {}
+    h2n      = judgment.get('horary_to_natal') or {}
+
+    credit_finding   = overlays.get('credit_theft_check') or {}
+    radiance_finding = overlays.get('kendra_solar_radiance') or {}
+
+    lines = [
+        "# Sammana Prashna · INTERNAL / EXECUTIVE VALIDATION (route: internal_validation)",
+        "",
+        "## Cast Context",
+        f"- Querent question: \"{query_text or '(not provided)'}\"",
+        f"- Place: {(cast_meta or {}).get('place_name', '(not provided)')}",
+        f"- Target: **{target_role}** (H{target_house}, the vertical-authority axis)",
+        f"- Operative karakas: Lagna lord ({querent_lord.get('name')}) = you; "
+        f"10th lord ({quesited_lord.get('name')}) = the executive layer; "
+        f"secondary karaka **{secondary}** (Sun = Radiance / Visibility karaka).",
+        "",
+        "## CRITICAL FRAMING — INTERNAL, NOT INDUSTRY",
+        "- This is a query about INTERNAL recognition — boss validation, executive board attention,",
+        "  CEO acknowledgment, internal awards, senior-leadership visibility. NOT industry/peer",
+        "  awards (that's industry_award route).",
+        "- The architecture: H10 (Karma — vertical standing / executive layer) is the target.",
+        "  Sun is the karaka, because Sun governs visibility and radiance up the org chart.",
+        "  The 'Solar Radiance' pattern (Overlay D) is the structurally cleanest YES — Sun",
+        "  in Kendra, alone in its sign-arc, with L10 angular.",
+        "- Verdict vocabulary (use ONLY these — do not invent synonyms):",
+        "    YES                  → Solar Radiance; full executive-layer attention",
+        "    YES_WITH_FRICTION    → recognition arrives but accompanied by internal politics",
+        "    CONDITIONAL_PRIVY    → recognized at the top but hidden from peer record",
+        "    OBSCURED_VALIDATION  → credit absorbed silently by a senior superior",
+        "    NO                   → no executive validation materializes this cycle",
+        "- DO NOT use Karma frames either: this is NOT a promotion query. Sammana_internal is about",
+        "  whether the SENIOR LAYER SEES you — not whether they promote you or pay you. The",
+        "  vocabulary is: executive face time, board exposure, internal commendation, senior",
+        "  sponsorship, top-tier visibility.",
+        "",
+        "## Verdict",
+        f"- Verdict state: **{verdict}**",
+        f"- Verdict text: {verdict_text}",
+        f"- Verdict modifier: **{verdict_mod or '(none)'}**",
+    ]
+    lines.extend(_format_sammana_modifier_guidance(verdict_mod))
+
+    lines.extend([
+        "",
+        "## Significators",
+        f"- Lagna lord (you): **{querent_lord.get('name')}** — "
+        f"synthesis_label: **{querent_lord.get('synthesis_label')}**",
+        f"  - Avastha: {querent_lord.get('avastha')}; House: {querent_lord.get('house')}; "
+        f"Combust: {querent_lord.get('is_combust')}",
+        f"- 10th lord (the executive layer): **{quesited_lord.get('name')}** — "
+        f"synthesis_label: **{quesited_lord.get('synthesis_label')}**",
+        f"  - Avastha: {quesited_lord.get('avastha')}; House: {quesited_lord.get('house')}; "
+        f"Combust: {quesited_lord.get('is_combust')}",
+        "",
+        "## Overlay Fingerprint (6 overlays for internal_validation route)",
+    ])
+    lines.extend(_format_sammana_overlay_lines(overlays, [
+        'sincerity_option_c',
+        'kendra_solar_radiance',     # D — YES generator (Solar Radiance)
+        'credit_theft_check',        # B — OBSCURED_VALIDATION (incl Yama Binder)
+        'peer_envy_scan',            # C — YES_WITH_FRICTION
+        'executive_privy_lock',      # F — CONDITIONAL_PRIVY
+        'peer_recognition_axis',     # E — modifier flag
+    ]))
+
+    # Solar Radiance special block
+    if radiance_finding.get('fired'):
+        rd = radiance_finding.get('data') or {}
+        lines.append("")
+        lines.append("## SOLAR RADIANCE DETECTED")
+        lines.append(f"- Sun in H{rd.get('sun_house')} at {rd.get('sun_deg_in_sign')}° of its sign")
+        lines.append(f"- L10 ({rd.get('l10_lord')}) in H{rd.get('l10_lord_house')} (Kendra/Trikona)")
+        lines.append("- USE 'Solar Radiance' framing: the vertical axis of corporate authority is")
+        lines.append("  fully illuminated. The sovereign layer — board, CEO, executive stakeholders —")
+        lines.append("  is paying direct attention. This is the structurally cleanest possible read")
+        lines.append("  for an internal validation YES.")
+
+    lines.extend(_format_sammana_yama_section(credit_finding))
+
+    lines.extend([
+        "",
+        "## Karya / Bhava Bala (10th)",
+        f"- 10th Bhava Bala: {bhava_target.get('verdict', '?')} "
+        f"(gross {bhava_target.get('gross_strength_pct', 0)}%, "
+        f"net {bhava_target.get('net_strength_pct', 0)}%)",
+        "",
+        "## Core Catalyst",
+        f"- {catalyst.get('yoga', catalyst.get('name', '(none)'))}: "
+        f"{catalyst.get('narrative', catalyst.get('detail', ''))}",
+        "",
+        "## Natal-Prashna Handshake",
+        f"- Activated natal house: {h2n.get('activated_natal_house') or '(none)'}",
+        f"- Shift narrative: {h2n.get('narrative') or '(no shift)'}",
+        "",
+        "---",
+        "",
+        "GUARDRAILS for this prompt:",
+        "- If verdict is YES and kendra_solar_radiance fired, USE 'Solar Radiance' frame:",
+        "  'the vertical axis of corporate authority is fully illuminated; the sovereign",
+        "   layer of leadership is paying direct attention to your trajectory.'",
+        "- If verdict is YES_WITH_FRICTION, the friction is internal — politics from peers",
+        "  who notice executive attention. Different texture from industry_award friction.",
+        "- If verdict is CONDITIONAL_PRIVY and executive_privy_lock fired, this is THE",
+        "  archetypal Sammana_internal pattern — use the 'Closed-Door Recognition' frame:",
+        "  recognition is granted at the top but the org structurally prevents it from",
+        "  surfacing publicly. Frame this clinically — private equity of status, not",
+        "  public currency.",
+        "- If verdict is OBSCURED_VALIDATION, the absorber is a SENIOR superior (not lateral",
+        "  peer). The narrative should reflect upward credit-flow, not sideways credit-theft.",
+        "- Action cards: executive face-time, board memos, skip-level requests, sponsorship",
+        "  conversations, asking for executive-level shoutouts in town halls, getting credit",
+        "  in EMAIL where senior leadership is CC'd (paper trail at the executive layer).",
+        "- Sensory remedy: Sunday (Sun's day) Sūrya Namaskāra at sunrise (12+ rounds), facing",
+        "  east. Sun is the Status/Radiance karaka for internal_validation. Disciplined,",
+        "  unbroken Sunday practice activates the solar authority axis for the cycle.",
+        "",
+        "Produce the JSON now.",
+    ])
+    return "\n".join(lines)
+
+
 def _build_karma_user_prompt(judgment, query_text, cast_meta):
     """
     Dispatcher for Karma sub-module. Routes to the appropriate
@@ -1992,7 +2318,7 @@ USER_PROMPT_BUILDERS = {
     "anya_sambandha": _build_anya_sambandha_user_prompt,
     "kinship":        _build_kinship_user_prompt,
     "karma":          _build_karma_user_prompt,
-    # "sammana":        _build_sammana_user_prompt,
+    "sammana":        _build_sammana_user_prompt,
     # "pravasa":        _build_pravasa_user_prompt,
     # "shatru":         _build_shatru_user_prompt,
     # "vivada":         _build_vivada_user_prompt,
