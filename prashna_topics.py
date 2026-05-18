@@ -3828,16 +3828,24 @@ def overlay_executive_privy_lock(chart: Dict, state: Dict, inputs: Dict) -> Dict
     if l10_house not in _KENDRA_TRIKONA:
         return _empty_finding('executive_privy_lock')
 
-    # Condition 2b: L10 positive Ithesal with L1 (self-rule counts as full coupling)
+    # Condition 2b: L10 positive Tajik aspect with L1 (self-rule counts as full coupling).
+    # Per Atul's spec, "positive aspect" is the full positive Tajik family —
+    # _KARMA_POSITIVE_YOGAS = {Ithesal, Mutthashila, Kamboola}. Prior version
+    # gated on Ithesal only, which caused the overlay to stay silent when
+    # the coupling came through Mutthashila or Kamboola — surfacing a
+    # CONDITIONAL_PRIVY verdict via verdict_remap with no overlay attribution.
     if lagna_lord == l10_lord:
         l10_l1_coupled = True
         coupling_kind = 'self_rule'
         coupling_orb = None
+        coupling_yoga = None
     else:
         asp = pairwise_aspect(lagna_lord, l10_lord, chart)
-        l10_l1_coupled = (asp.get('within_orb') and asp.get('yoga') == 'Ithesal')
-        coupling_kind = 'ithesal' if l10_l1_coupled else None
+        asp_yoga = asp.get('yoga')
+        l10_l1_coupled = bool(asp.get('within_orb') and asp_yoga in _KARMA_POSITIVE_YOGAS)
+        coupling_kind = 'positive_tajik_yoga' if l10_l1_coupled else None
         coupling_orb = asp.get('absolute_separation') if l10_l1_coupled else None
+        coupling_yoga = asp_yoga if l10_l1_coupled else None
 
     if not l10_l1_coupled:
         return _empty_finding('executive_privy_lock')
@@ -3862,7 +3870,9 @@ def overlay_executive_privy_lock(chart: Dict, state: Dict, inputs: Dict) -> Dict
     narrative = (
         f"The validation is real, but its echo is strictly restricted. The "
         f"executive layer ({l10_lord}) is fully engaged — sitting in H{l10_house} "
-        f"(Kendra/Trikona) and coupling with your Lagna lord. But {compromise_reason}. "
+        f"(Kendra/Trikona) and coupling with your Lagna lord "
+        f"({coupling_kind}{(' via ' + coupling_yoga) if coupling_yoga else ''}). "
+        f"But {compromise_reason}. "
         f"The decision-makers recognize and reward your contribution behind closed "
         f"doors, but the organizational grid prevents this validation from "
         f"becoming a matter of public record or lateral peer praise. You hold "
@@ -3882,6 +3892,7 @@ def overlay_executive_privy_lock(chart: Dict, state: Dict, inputs: Dict) -> Dict
             'l10_lord':                  l10_lord,
             'l10_lord_house':            l10_house,
             'l10_l1_coupling_kind':      coupling_kind,
+            'l10_l1_coupling_yoga':      coupling_yoga,
             'l10_l1_coupling_orb':       coupling_orb,
             'l11_lord':                  l11_lord,
             'l11_lord_house':            l11_house,
@@ -4145,7 +4156,20 @@ def _synthesize_verdict(state: Dict, spec: Dict) -> Dict:
     # The remap is applied AFTER base resolution but BEFORE substitution/
     # downgrade/promotion, so overlays operate on the remapped vocabulary.
     verdict_remap = spec.get('verdict_remap') or {}
+    remap_applied = None
     if base in verdict_remap and verdict_remap[base] in allowed_states:
+        # Capture the remap step for transparency in verdict_trace — this
+        # is what surfaces e.g. "primitive=conditional was remapped via
+        # sammana_remap from CONDITIONAL → CONDITIONAL_PRIVY" when no
+        # overlay substitution fires. Without this trace entry, the
+        # diagnostic shows all overlays silent but a non-base final state,
+        # which made users (correctly) wonder where the mutation came from.
+        remap_applied = {
+            'from': base,
+            'to':   verdict_remap[base],
+            'source': 'verdict_remap',
+            'reason': f"Topic-level verdict_remap: {base} → {verdict_remap[base]}",
+        }
         base = verdict_remap[base]
     # If base STILL isn't in allowed_states (e.g. CONDITIONAL fell through
     # but topic doesn't accept it), fall back to the closest equivalent
@@ -4157,7 +4181,20 @@ def _synthesize_verdict(state: Dict, spec: Dict) -> Dict:
             key=lambda x: abs(x[1] - target_severity)
         )
         if candidates:
-            base = candidates[0][0]
+            fallback_to = candidates[0][0]
+            if fallback_to != base:
+                # Record this as a remap-style fallback too — same diagnostic
+                # transparency principle. The user should be able to see when
+                # a state got coerced via severity-tier matching.
+                remap_applied = {
+                    'from': base,
+                    'to':   fallback_to,
+                    'source': 'severity_fallback',
+                    'reason': f"Severity-tier coercion: {base} → {fallback_to} "
+                              f"(target severity {target_severity}, available "
+                              f"states {sorted(allowed_states)})",
+                }
+            base = fallback_to
 
     # --- Step 2: Apply verdict_substitution if primitive matches ---
     # (Kamboola/Gada substitute failure→YES_WITH_DELAYS;
@@ -4204,6 +4241,7 @@ def _synthesize_verdict(state: Dict, spec: Dict) -> Dict:
         'substitution_applied': substitution_applied,
         'downgrade_applied': downgrade_applied,
         'promotion_applied': promotion_applied,
+        'remap_applied':    remap_applied,
     }
 
 
@@ -4423,6 +4461,7 @@ def prashna_topic_judgment(chart_data: Dict, topic_id: str, **inputs) -> Dict:
         # Verdict resolution trace
         'verdict_trace': {
             'primitive':       state['karya']['verdict_primitive'],
+            'remap':           verdict['remap_applied'],
             'substitution':    verdict['substitution_applied'],
             'downgrade':       verdict['downgrade_applied'],
             'promotion':       verdict['promotion_applied'],
