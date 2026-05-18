@@ -3654,6 +3654,29 @@ def _select_core_catalyst(state: Dict, findings: List[Dict],
                 'source_overlay': name,
             }
 
+    # Priority 1.5: Direct L1↔L_target Tajik aspect from karya_success_chain.
+    # karya_success_chain ALWAYS computes pairwise_aspect(L1, L_target) for
+    # Rule 1 and now surfaces it in the return dict as `l1_target_aspect`.
+    # This is the catch-all for topics (notably Karma) where the
+    # nakta_abhara_scan overlay isn't run — Overlay B may have confirmed
+    # the Ithesal but its data shouldn't have to be the catalyst's
+    # sole carrier. Using karya's own aspect computation also covers
+    # the inverse case: Ithesal exists, Overlay B doesn't fire (no
+    # blockers), and yet karya succeeded — we still want to surface
+    # the connecting yoga rather than fall through to "None".
+    k_asp = karya.get('l1_target_aspect') or {}
+    if (karya.get('positive_satisfied', 0) >= 1
+            and k_asp.get('within_orb')
+            and k_asp.get('yoga') not in (None, 'None')):
+        return {
+            'yoga': k_asp.get('yoga'),
+            'between': [lagna_descriptor, target_descriptor],
+            'narrative': k_asp.get('narrative', ''),
+            'source_overlay': 'karya_chain_rule1',
+            'absolute_separation': k_asp.get('absolute_separation'),
+            'orb_used': k_asp.get('orb_used'),
+        }
+
     # Priority 2: L1↔L_target direct aspect via nakta_abhara_scan data
     nakta_finding = fired_findings_by_name.get('nakta_abhara_scan') or {}
     nakta_data = nakta_finding.get('data') or {}
