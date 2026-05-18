@@ -2257,6 +2257,105 @@ def detect_nakta(p_a: str, p_b: str, chart_data: Dict) -> Optional[Dict]:
 
 
 # =================================================================
+# YAMA BINDER — Tajik interception detection
+# Per Atul's Sammana Ch.14 spec: a third planet sitting at the geometric
+# midpoint of the L1→L11 (or L1→target) arc, within a 3.5° absolute orb,
+# intercepts the light traveling between the two principal lords. Used
+# by Sammana Overlay B (credit_theft_check) where L7 binding L1↔L11
+# signals the boss intercepting peer/industry recognition.
+# =================================================================
+
+def is_yama_binder(principal_a: str, binder: str, principal_b: str,
+                    chart_data: Dict, midpoint_orb: float = 3.5) -> Dict:
+    """
+    Detect whether `binder` is a Yama Binder intercepting the forward
+    zodiacal arc from principal_a to principal_b.
+
+    Two conditions:
+        1. The binder's longitude falls zodiacally between principal_a
+           and principal_b on the FORWARD arc (handles 0°/360° wrap).
+        2. The binder is within `midpoint_orb` (default 3.5°) of the
+           geometric midpoint of that forward arc.
+
+    Returns dict:
+        is_binder:                bool
+        forward_arc_degrees:      float — the size of the a→b forward arc
+        binder_position_on_arc:   float — distance from a along the arc
+        midpoint_longitude:       float — geometric midpoint of the arc
+        distance_from_midpoint:   float — absolute distance to midpoint
+        reason:                   str   — why fired / why didn't
+        narrative:                str   — human-readable summary
+    """
+    planets = chart_data.get('planets', {})
+    lon_a  = planets.get(principal_a, {}).get('longitude')
+    lon_b  = planets.get(binder,      {}).get('longitude')
+    lon_c  = planets.get(principal_b, {}).get('longitude')
+
+    if None in (lon_a, lon_b, lon_c):
+        return {
+            'is_binder': False,
+            'reason': 'missing_longitude',
+            'narrative': f"Cannot evaluate Yama Binder — longitude missing for one of "
+                         f"{principal_a}/{binder}/{principal_b}.",
+        }
+
+    # Forward arc from principal_a to principal_b (zodiacal direction)
+    forward_arc = (lon_c - lon_a) % 360.0
+
+    if forward_arc < 0.01:
+        return {
+            'is_binder': False,
+            'reason': 'principals_conjoined',
+            'forward_arc_degrees': round(forward_arc, 4),
+            'narrative': f"{principal_a} and {principal_b} are effectively conjoined "
+                         f"({forward_arc:.2f}° apart) — no arc for a binder to intercept.",
+        }
+
+    # Binder's position along the forward arc (0 = at a, forward_arc = at b)
+    binder_position = (lon_b - lon_a) % 360.0
+    on_arc = 0.0 < binder_position < forward_arc
+
+    if not on_arc:
+        return {
+            'is_binder': False,
+            'reason': 'binder_off_arc',
+            'forward_arc_degrees': round(forward_arc, 4),
+            'binder_position_on_arc': round(binder_position, 4),
+            'narrative': (f"{binder} at {lon_b:.2f}° is NOT zodiacally between "
+                          f"{principal_a} ({lon_a:.2f}°) and {principal_b} ({lon_c:.2f}°) "
+                          f"on the forward arc — no interception."),
+        }
+
+    # Geometric midpoint of the forward arc
+    midpoint = (lon_a + forward_arc / 2.0) % 360.0
+    # Absolute distance between binder and midpoint (shorter of the two arcs around the zodiac)
+    d_forward  = (midpoint - lon_b) % 360.0
+    d_backward = (lon_b - midpoint) % 360.0
+    distance_from_midpoint = min(d_forward, d_backward)
+
+    is_binder_flag = distance_from_midpoint <= midpoint_orb
+
+    return {
+        'is_binder': is_binder_flag,
+        'forward_arc_degrees':    round(forward_arc, 4),
+        'binder_position_on_arc': round(binder_position, 4),
+        'midpoint_longitude':     round(midpoint, 4),
+        'distance_from_midpoint': round(distance_from_midpoint, 4),
+        'midpoint_orb_used':      midpoint_orb,
+        'reason': 'binder_active' if is_binder_flag else 'binder_outside_orb',
+        'narrative': (
+            f"{binder} at {lon_b:.2f}° intercepts the {principal_a}→{principal_b} "
+            f"arc within {distance_from_midpoint:.2f}° of the midpoint "
+            f"({midpoint:.2f}°) — Yama Binder active."
+            if is_binder_flag else
+            f"{binder} at {lon_b:.2f}° sits on the {principal_a}→{principal_b} arc "
+            f"but {distance_from_midpoint:.2f}° from the midpoint — outside the "
+            f"{midpoint_orb}° interception orb."
+        ),
+    }
+
+
+# =================================================================
 # ABHARA YOGA — when malefics interfere with a positive L1↔L7 aspect
 # Per Atul's audit: even if the aspect mathematically exists, a malefic
 # sitting between or aspecting the link makes the cost too high, shifting
