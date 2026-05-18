@@ -46,8 +46,10 @@ from prashna_engine import (
     detect_long_horizon_query,
     # Internal helpers
     _planet_house, _is_combust,
+    is_yama_binder,
     # Constants
     GARBHA_LONG_HORIZON_EXTRAS,
+    AVASTHA_AUSPICIOUSNESS,
 )
 
 
@@ -190,6 +192,12 @@ def _resolve_intent_route(spec: Dict, topic_id: str,
             intent = classify_garbha_intent(horizon_text)
         elif topic_id == 'karma':
             intent = classify_karma_intent(horizon_text)
+        elif topic_id == 'sammana':
+            # Sammana accepts an optional `recognition_scope` enum input
+            # which is the authoritative signal (per Atul's Gap 5 lock);
+            # falls back to keyword classification on horizon_text otherwise.
+            intent = classify_sammana_intent(horizon_text,
+                                              inputs.get('recognition_scope'))
         else:
             intent = spec.get('default_intent')
 
@@ -751,7 +759,7 @@ PRASHNA_TOPICS: Dict[str, Dict] = {
             'ABDICATION_SIGNAL',
             'NO',
         ],
-        'verdict_modifiers': ['FOUNDER_TRANSITION', 'REVERSAL_AT_THE_BORDER'],
+        'verdict_modifiers': ['FOUNDER_TRANSITION', 'REVERSAL_AT_THE_BORDER', 'THRONE_OCCLUDED'],
         'verdict_remap': {
             'YES_WITH_DELAYS':       'YES_WITH_EFFORT',
             'CONDITIONAL':           'CONDITIONAL_SUBORDINATE',
@@ -766,6 +774,7 @@ PRASHNA_TOPICS: Dict[str, Dict] = {
             'rulership_confirmed',
             'subordinate_trajectory',
             'abdication_signal',
+            'mushita_sovereignty',
         ],
         'narrative_tone':       'executive_strategic',
         'default_intent':       'promotion_elevation',
@@ -780,6 +789,7 @@ PRASHNA_TOPICS: Dict[str, Dict] = {
                     'rulership_confirmed',
                     'subordinate_trajectory',
                     'abdication_signal',
+                    'mushita_sovereignty',
                 ],
                 'narrative_tone':     'executive_strategic',
             },
@@ -827,6 +837,85 @@ PRASHNA_TOPICS: Dict[str, Dict] = {
                     'sincerity_option_c',
                     'abdication_signal',
                     'subordinate_trajectory',
+                ],
+                'narrative_tone':     'executive_strategic',
+            },
+        },
+    },
+
+    # =================================================================
+    # SAMMANA · Recognition & Honour (Ch 14)
+    # Container: Karmika & Yaatra · second of 3 sub-modules
+    # =================================================================
+    'sammana': {
+        'display_name': 'Sammana · Recognition & Honour',
+        'container':    'karmika_yaatra',
+        'sanskrit_name': 'सम्मान',
+        'description': (
+            'Reputation, formal accolades, peer/public validation, internal '
+            'recognition, and the materialization (or theft) of credit. '
+            'Read on H11 (Labha — public reception) or H10 (Karma — vertical '
+            'standing), with Jupiter and Sun as karakas.'
+        ),
+        'required_inputs':      [],  # recognition_scope optional; classifier handles absence
+        'verdict_states': [
+            'YES', 'YES_WITH_FRICTION', 'CONDITIONAL_PRIVY',
+            'OBSCURED_VALIDATION', 'NO',
+        ],
+        'verdict_modifiers': [
+            'PUBLIC_COMMENDATION',  # L3↔L11 Ithesal (Overlay E)
+            'MUTED_RECEPTION',      # L3↔L11 Esrapha (Overlay E)
+        ],
+        # Map default-vocabulary primitives into Sammana's vocabulary
+        'verdict_remap': {
+            'YES_WITH_DELAYS':         'YES_WITH_FRICTION',
+            'CONDITIONAL':             'CONDITIONAL_PRIVY',
+            'CONDITIONAL_MEDICAL':     'CONDITIONAL_PRIVY',
+            'CONDITIONAL_THIRD_PARTY': 'CONDITIONAL_PRIVY',
+        },
+
+        # Default fields (used when no intent classified)
+        'target_house':         11,
+        'target_role':          '11th — Labha Bhava (Public Reception)',
+        'overlays': [
+            'sincerity_option_c',
+            'accolade_materialization',
+            'peer_envy_scan',
+            'peer_recognition_axis',
+            'executive_privy_lock',
+            'credit_theft_check',
+        ],
+        'narrative_tone':       'executive_strategic',
+        'default_intent':       'industry_award',
+
+        'intent_routing': {
+            'industry_award': {
+                # External / peer / industry recognition — target H11, Jupiter karaka
+                'target_house':       11,
+                'target_role':        '11th — Labha Bhava (Public Reception)',
+                'secondary_karaka':   'Jupiter',  # Honor karaka
+                'overlays': [
+                    'sincerity_option_c',
+                    'accolade_materialization',   # Overlay A — YES generator
+                    'peer_envy_scan',             # Overlay C — YES_WITH_FRICTION
+                    'peer_recognition_axis',      # Overlay E — modifier flag
+                    'executive_privy_lock',       # Overlay F — CONDITIONAL_PRIVY
+                    'credit_theft_check',         # Overlay B — OBSCURED_VALIDATION
+                ],
+                'narrative_tone':     'executive_strategic',
+            },
+            'internal_validation': {
+                # Internal / executive / board recognition — target H10, Sun karaka
+                'target_house':       10,
+                'target_role':        '10th — Karma Bhava (Vertical Standing)',
+                'secondary_karaka':   'Sun',      # Radiance karaka
+                'overlays': [
+                    'sincerity_option_c',
+                    'kendra_solar_radiance',      # Overlay D — YES generator
+                    'credit_theft_check',         # Overlay B — OBSCURED_VALIDATION
+                    'peer_envy_scan',             # Overlay C — YES_WITH_FRICTION
+                    'executive_privy_lock',       # Overlay F — CONDITIONAL_PRIVY
+                    'peer_recognition_axis',      # Overlay E — modifier flag
                 ],
                 'narrative_tone':     'executive_strategic',
             },
@@ -2671,6 +2760,113 @@ _KENDRA_TRIKONA = {1, 4, 5, 7, 9, 10}
 # Dusthana houses where authority decays
 _DUSTHANA_HOUSES = {6, 8, 12}
 
+# =================================================================
+# SAMMANA (Ch 14) · CONSTANTS — Recognition & Honour
+# =================================================================
+
+_SAMMANA_TOPICS = {'sammana'}
+
+# Upachaya houses (3, 10, 11) — the houses of growing/maturing affairs.
+# Used by Sammana Overlay A: L11 in Kendra OR Upachaya is structurally
+# strong for public recognition.
+_UPACHAYA_HOUSES = {3, 10, 11}
+
+# Yama Binder midpoint precision orb (per Atul's Gap 4 lock).
+_YAMA_BINDER_ORB = 3.5
+
+# Sandhi-band thresholds for Sun's own-light occlusion check
+# (kendra_solar_radiance Overlay D condition 3). Sun must NOT be in
+# the first or last degree of its sign — neither freshly arrived
+# (sadyo-gata) nor at the edge of the abyss (sandhi).
+_SUN_SANDHI_LOW  = 1.0
+_SUN_SANDHI_HIGH = 29.0
+
+# Sun-cluster orb — Sun's radiance is diluted when ANY other classical
+# planet sits within 12° of it. The Sun is busy combusting its companion
+# rather than illuminating the throne. (Gap 1, condition 3.)
+_SUN_CLUSTER_ORB = 12.0
+
+# Recognition-scope enum mapping (Gap 5 lock). The frontend passes one
+# of these four values; the classifier maps each to one of the 2 intents.
+_RECOGNITION_SCOPE_TO_INTENT = {
+    'INDUSTRY_AWARD':              'industry_award',
+    'PEER_ACKNOWLEDGMENT':         'industry_award',
+    'INTERNAL_VALIDATION':         'internal_validation',
+    'EXECUTIVE_BOARD_RECOGNITION': 'internal_validation',
+}
+
+_VALID_RECOGNITION_SCOPES = tuple(_RECOGNITION_SCOPE_TO_INTENT.keys())
+
+# Keyword anchors for fallback classification when recognition_scope
+# is not supplied. industry_award covers external/peer/industry signals;
+# internal_validation covers boss/board/team internal signals.
+_SAMMANA_INDUSTRY_AWARD_KEYWORDS = (
+    # Awards / honors / industry recognition
+    'award', 'awards', 'industry award', 'won the award', 'win the award',
+    'trophy', 'medal', 'honor', 'honour', 'honors', 'honours',
+    'fellowship', 'fellow', 'laureate',
+    'recognition', 'recognised', 'recognized',
+    'prize', 'prizes', 'top award', 'industry recognition',
+    # Public/peer-network signals
+    'public recognition', 'industry visibility', 'industry standing',
+    'peer recognition', 'peer acknowledgment', 'peer acknowledgement',
+    'peer praise', 'peer respect', 'peer validation', 'will my peers',
+    # Commendation / media
+    'commendation', 'media coverage', 'press coverage', 'feature in',
+    'profiled in', 'cover story', 'magazine feature',
+    # Devanagari
+    'पुरस्कार', 'सम्मान', 'मान', 'प्रतिष्ठा',
+)
+
+_SAMMANA_INTERNAL_VALIDATION_KEYWORDS = (
+    # Boss / board / executive layer
+    'boss recognize', 'boss validate', 'boss acknowledg', 'boss\'s validation',
+    'board recognize', 'board acknowledg', 'board validate',
+    'ceo recognize', 'ceo acknowledg', 'ceo validate',
+    'executive recognition', 'executive validation', 'executive board',
+    'senior leadership', 'senior management',
+    # Internal channels
+    'internal recognition', 'internal validation', 'internal acknowledgment',
+    'internal award', 'company award', 'company recognition',
+    'team recognition', 'team validation',
+    'town hall', 'all hands recognition',
+    'closed door', 'behind closed doors',
+    'private recognition', 'quiet recognition',
+    # Devanagari
+    'आंतरिक सम्मान', 'भीतर का सम्मान',
+)
+
+
+def classify_sammana_intent(query_text: Optional[str],
+                             recognition_scope: Optional[str] = None) -> str:
+    """
+    Classify a Sammana query into one of 2 sub-intents.
+
+    Precedence:
+        1. If recognition_scope enum supplied, use the direct mapping
+           (per Atul's Gap 5 lock). This is the AUTHORITATIVE signal —
+           the frontend dropdown captures user intent unambiguously.
+        2. Else fall back to keyword classification on query_text:
+              industry_award  ← award/peer/recognition/honor language
+              internal_validation ← boss/board/CEO/executive language
+        3. Default: industry_award (the more common Sammana query in practice).
+
+    Returns one of: 'industry_award' | 'internal_validation'.
+    """
+    if recognition_scope and recognition_scope in _RECOGNITION_SCOPE_TO_INTENT:
+        return _RECOGNITION_SCOPE_TO_INTENT[recognition_scope]
+
+    q = (query_text or '').lower()
+
+    # Internal beats industry_award when BOTH match — "boss" wins over generic "recognition"
+    if any(kw in q for kw in _SAMMANA_INTERNAL_VALIDATION_KEYWORDS):
+        return 'internal_validation'
+
+    if any(kw in q for kw in _SAMMANA_INDUSTRY_AWARD_KEYWORDS):
+        return 'industry_award'
+
+    return 'industry_award'  # default
+
 
 def _karma_supportive_aspect_to_lagna(chart: Dict, planet: str) -> Optional[Dict]:
     """
@@ -3101,6 +3297,602 @@ def _get_planet_longitude_safe(chart: Dict, planet_name: str) -> Optional[float]
     return float(lon) % 360.0 if lon is not None else None
 
 
+def _supportive_aspect_to_house(chart: Dict, planet: str,
+                                  reference_house: int) -> Optional[Dict]:
+    """
+    Generalized version of `_karma_supportive_aspect_to_lagna`. Returns
+    an aspect dict if `planet` occupies a supportive house-distance
+    (3/5/9/11) FROM the given `reference_house` (1 for Lagna, 11 for the
+    11th cusp, etc), else None.
+
+    Sammana Overlay A uses this with reference_house=11 to test whether
+    Jupiter "casts a supportive aspect onto the 11th cusp" — i.e. Jupiter
+    sits 3/5/9/11 houses forward from H11. Same helper with reference=1
+    reproduces the legacy Karma behaviour (supportive to L1).
+    """
+    p_house = _planet_house(chart, planet)
+    if p_house is None:
+        return None
+
+    # Forward house-count from reference: 1-indexed
+    house_count_from_ref = ((p_house - reference_house) % 12) + 1
+
+    if house_count_from_ref in _SUPPORTIVE_HOUSES_FROM_LAGNA:
+        return {
+            'planet': planet,
+            'house_from_lagna':     p_house,
+            'house_from_reference': house_count_from_ref,
+            'reference_house':      reference_house,
+            'kind': 'supportive_distance',
+            'narrative': (
+                f'{planet} occupies the {house_count_from_ref}th house from H'
+                f'{reference_house} — classical benefic distance, casting '
+                f'support onto H{reference_house}.'
+            ),
+        }
+    return None
+
+
+# =================================================================
+# KARMA · OVERLAY E — Occluded Throne ("Mushita Sovereignty")
+# Hotfix per Atul: when L10 reads as luminous (auspicious avastha) but
+# combust by Sun while sitting in dusthana, flag the structural darkness
+# as a verdict modifier so the narrative engine doesn't miss it.
+# =================================================================
+
+def overlay_mushita_sovereignty(chart: Dict, state: Dict, inputs: Dict) -> Dict:
+    """
+    Karma Overlay E — Occluded Throne ("Mushita Sovereignty").
+
+    Fires when the target lord shows a structurally dark configuration:
+      1. Target lord is COMBUST (within combustion orb of the Sun)
+      2. Target lord is in DUSTHANA (6/8/12)
+      3. Target lord's avastha is AUSPICIOUS (AVASTHA_AUSPICIOUSNESS >= 5
+         — i.e. Deepta, Adhiveerya, Mudita, or similarly luminous states)
+
+    Output: verdict_modifier_flag THRONE_OCCLUDED + synthesis_tag
+    'Occluded Throne'. Does NOT mutate verdict state — the verdict NO
+    already comes from karya failure or downgrade overlays. This
+    overlay's job is to label WHY the NO is structural rather than
+    tactical, so the narrative tone surfaces the right framing.
+    """
+    target = state['target']
+    target_lord = target['lord']
+    planets = chart.get('planets', {})
+
+    # Condition 1: target lord in dusthana
+    target_lord_house = _planet_house(chart, target_lord)
+    if target_lord_house not in _DUSTHANA_HOUSES:
+        return _empty_finding('mushita_sovereignty')
+
+    # Condition 2: target lord is combust by Sun
+    if not _is_combust(planets, target_lord):
+        return _empty_finding('mushita_sovereignty')
+
+    # Condition 3: target lord's avastha is strongly auspicious
+    avasthas = state.get('avasthas') or {}
+    target_av = avasthas.get(target_lord, {}) or {}
+    avastha_name = target_av.get('avastha', 'Neutral')
+    auspiciousness = AVASTHA_AUSPICIOUSNESS.get(avastha_name, 3)
+    if auspiciousness < 5:
+        return _empty_finding('mushita_sovereignty')
+
+    narrative = (
+        f"Mushita Sovereignty — the throne-lord {target_lord} operates under "
+        f"solar combustion in H{target_lord_house} (Dusthana). Even with the "
+        f"{avastha_name} avastha (auspiciousness {auspiciousness}/7), the chart "
+        f"shows the Sun cannibalizing the very lord of the querent's career axis. "
+        f"Capacity is real; visibility is occluded; the throne is structurally "
+        f"dark within this Prashna horizon."
+    )
+
+    return {
+        'overlay': 'mushita_sovereignty',
+        'fired': True,
+        'synthesis_tag': 'Occluded Throne',
+        'verdict_modifier_flag': 'THRONE_OCCLUDED',
+        'data': {
+            'target_lord':            target_lord,
+            'target_lord_house':      target_lord_house,
+            'target_lord_combust':    True,
+            'target_lord_avastha':    avastha_name,
+            'avastha_auspiciousness': auspiciousness,
+        },
+        'narrative': narrative,
+    }
+
+
+# =================================================================
+# SAMMANA (Ch 14) · 6 OVERLAYS — Recognition & Honour
+# =================================================================
+
+def overlay_accolade_materialization(chart: Dict, state: Dict, inputs: Dict) -> Dict:
+    """
+    Sammana Overlay A — Radiant Validation (Gap 1 spec lock).
+
+    Conditions:
+      1. karya_success_chain(target=11) succeeds
+      2. L11 in Kendra (1/4/7/10), Trikona (5/9), OR Upachaya (3/10/11)
+      3. Jupiter casts a supportive aspect (in H3/5/9/11) onto L1
+         OR onto the 11th cusp
+
+    Output: verdict_substitution → YES; synthesis_tag 'Radiant Validation'.
+    Fires only for the H11 target (industry_award route).
+    """
+    target = state['target']
+    if target['house'] != 11:
+        return _empty_finding('accolade_materialization')
+
+    karya = state['karya']
+    if karya.get('verdict_primitive') not in ('success', 'confirmed'):
+        return _empty_finding('accolade_materialization')
+
+    l11_lord = target['lord']
+    l11_lord_house = _planet_house(chart, l11_lord)
+    in_kendra_trikona = l11_lord_house in _KENDRA_TRIKONA
+    in_upachaya = l11_lord_house in _UPACHAYA_HOUSES
+    if not (in_kendra_trikona or in_upachaya):
+        return _empty_finding('accolade_materialization')
+
+    jup_to_l1  = _supportive_aspect_to_house(chart, 'Jupiter', 1)
+    jup_to_h11 = _supportive_aspect_to_house(chart, 'Jupiter', 11)
+    jup_support = jup_to_l1 or jup_to_h11
+    if not jup_support:
+        return _empty_finding('accolade_materialization')
+
+    placement_kind = (
+        'Kendra/Trikona' if in_kendra_trikona else 'Upachaya'
+    )
+    target_label = "L1 (Lagna)" if jup_to_l1 else "the 11th cusp"
+
+    narrative = (
+        f"The public architecture is completely clear. The industry validation, "
+        f"award, or formal commendation you are tracking is mathematically pulling "
+        f"toward you. The 11th lord {l11_lord} sits in H{l11_lord_house} "
+        f"({placement_kind} — a structurally favourable house), the karya chain to "
+        f"H11 closes cleanly, and Jupiter (honor-karaka) casts a supportive aspect "
+        f"({jup_support.get('house_from_reference')}th from {target_label}). Your "
+        f"signature has broken through the noise; the wider ecosystem is prepared "
+        f"to acknowledge your contribution on record."
+    )
+
+    return {
+        'overlay': 'accolade_materialization',
+        'fired': True,
+        'synthesis_tag': 'Radiant Validation',
+        'verdict_substitution': {
+            'when_primitives': ['success', 'confirmed', 'conditional'],
+            'new_state':       'YES',
+            'reason':          'Accolade Materialization — full architecture for public recognition',
+        },
+        'data': {
+            'l11_lord':                       l11_lord,
+            'l11_lord_house':                 l11_lord_house,
+            'l11_placement_kind':             placement_kind,
+            'jupiter_support_target':         'l1' if jup_to_l1 else 'h11',
+            'jupiter_house_from_reference':   jup_support.get('house_from_reference'),
+        },
+        'narrative': narrative,
+    }
+
+
+def overlay_credit_theft_check(chart: Dict, state: Dict, inputs: Dict) -> Dict:
+    """
+    Sammana Overlay B — Obscured Validation (credit-theft pattern).
+
+    Three independent firing paths per spec:
+      Path 1 (L1_L11_dusthana): L1↔L11 Ithesal within orb AND L11 in H12 or H6
+      Path 2 (L1_L10_dusthana): L1↔L10 Ithesal within orb AND L10 in H12 or H6
+      Path 3 (L7_yama_binds_L1_L11): L7 (manager) Yama-binds the L1↔L11 arc
+                                      within a 3.5° midpoint orb (Gap 4 lock)
+
+    Output: verdict_substitution → OBSCURED_VALIDATION.
+    """
+    lagna_sign = chart.get('lagna_sign', 0)
+    lagna_lord = SIGN_LORDS[lagna_sign]
+    l7_lord    = SIGN_LORDS[(lagna_sign + 6)  % 12]
+    l10_lord   = SIGN_LORDS[(lagna_sign + 9)  % 12]
+    l11_lord   = SIGN_LORDS[(lagna_sign + 10) % 12]
+
+    fired_paths: List[Dict] = []
+
+    # Path 1: L1↔L11 Ithesal + L11 in H12/H6
+    if lagna_lord != l11_lord:
+        asp_111 = pairwise_aspect(lagna_lord, l11_lord, chart)
+        if asp_111.get('within_orb') and asp_111.get('yoga') == 'Ithesal':
+            l11_house = _planet_house(chart, l11_lord)
+            if l11_house in (12, 6):
+                fired_paths.append({
+                    'path': 'L1_L11_dusthana',
+                    'l11_lord':  l11_lord,
+                    'l11_house': l11_house,
+                    'aspect_orb': asp_111.get('absolute_separation'),
+                    'narrative': (f"L1↔L11 Ithesal active, but L11 ({l11_lord}) sits "
+                                  f"in H{l11_house}."),
+                })
+
+    # Path 2: L1↔L10 Ithesal + L10 in H12/H6
+    if lagna_lord != l10_lord:
+        asp_110 = pairwise_aspect(lagna_lord, l10_lord, chart)
+        if asp_110.get('within_orb') and asp_110.get('yoga') == 'Ithesal':
+            l10_house = _planet_house(chart, l10_lord)
+            if l10_house in (12, 6):
+                fired_paths.append({
+                    'path': 'L1_L10_dusthana',
+                    'l10_lord':  l10_lord,
+                    'l10_house': l10_house,
+                    'aspect_orb': asp_110.get('absolute_separation'),
+                    'narrative': (f"L1↔L10 Ithesal active, but L10 ({l10_lord}) sits "
+                                  f"in H{l10_house}."),
+                })
+
+    # Path 3: L7 Yama-binds L1↔L11
+    if len({lagna_lord, l7_lord, l11_lord}) == 3:
+        yama = is_yama_binder(lagna_lord, l7_lord, l11_lord, chart,
+                              midpoint_orb=_YAMA_BINDER_ORB)
+        if yama.get('is_binder'):
+            fired_paths.append({
+                'path': 'L7_yama_binds_L1_L11',
+                'l7_lord': l7_lord,
+                'midpoint_longitude': yama.get('midpoint_longitude'),
+                'distance_from_midpoint': yama.get('distance_from_midpoint'),
+                'narrative': yama.get('narrative'),
+            })
+
+    if not fired_paths:
+        return _empty_finding('credit_theft_check')
+
+    path_summary = ' · '.join(p['narrative'] for p in fired_paths)
+    narrative = (
+        f"The energy of validation exists, but it carries a signature of "
+        f"occlusion. {path_summary} An institutional intermediary — most likely "
+        f"a reporting manager or internal stakeholder — is positioned to "
+        f"intercept the light. Your output will be leveraged to validate "
+        f"their standing, leaving your recognition obscured behind the scenes. "
+        f"Secure your public receipts immediately."
+    )
+
+    return {
+        'overlay': 'credit_theft_check',
+        'fired': True,
+        'synthesis_tag': 'Obscured Validation',
+        'verdict_substitution': {
+            'when_primitives': ['success', 'conditional', 'confirmed'],
+            'new_state':       'OBSCURED_VALIDATION',
+            'reason':          'Credit Theft pattern — L11/L10 occluded or L7 Yama-binds the arc',
+        },
+        'data': {
+            'fired_paths':       [p['path'] for p in fired_paths],
+            'firing_path_count': len(fired_paths),
+            'path_details':      fired_paths,
+        },
+        'narrative': narrative,
+    }
+
+
+def overlay_peer_envy_scan(chart: Dict, state: Dict, inputs: Dict) -> Dict:
+    """
+    Sammana Overlay C — Peer Envy (friction trigger).
+
+    Conditions:
+      1. karya_success_chain indicates success (primitive 'success' or 'confirmed')
+      2. Mars OR Ketu casts a square (~90° ± 8° orb) or opposition (~180° ± 8° orb)
+         onto L11 — the inimical Shatru-drishti
+
+    Output: verdict_substitution → YES_WITH_FRICTION.
+    """
+    if state['karya'].get('verdict_primitive') not in ('success', 'confirmed'):
+        return _empty_finding('peer_envy_scan')
+
+    lagna_sign = chart.get('lagna_sign', 0)
+    l11_lord = SIGN_LORDS[(lagna_sign + 10) % 12]
+    planets = chart.get('planets', {})
+    l11_lon = (planets.get(l11_lord) or {}).get('longitude')
+    if l11_lon is None:
+        return _empty_finding('peer_envy_scan')
+
+    afflictors: List[Dict] = []
+    for malefic in ('Mars', 'Ketu'):
+        m_lon = (planets.get(malefic) or {}).get('longitude')
+        if m_lon is None:
+            continue
+        # Shortest separation around the zodiac
+        raw_sep = abs(m_lon - l11_lon)
+        sep = min(raw_sep, 360.0 - raw_sep)
+        for angle, label in ((90.0, 'square'), (180.0, 'opposition')):
+            if abs(sep - angle) <= 8.0:
+                afflictors.append({
+                    'malefic':           malefic,
+                    'aspect':            label,
+                    'target':            f'L11 ({l11_lord})',
+                    'angular_sep_deg':   round(sep, 2),
+                })
+                break
+
+    if not afflictors:
+        return _empty_finding('peer_envy_scan')
+
+    summary = '; '.join(f"{a['malefic']} {a['aspect']} {a['target']} ({a['angular_sep_deg']}°)"
+                        for a in afflictors)
+
+    narrative = (
+        f"The accolade will land, but it will not arrive clean. The chart warns "
+        f"of sharp undercurrents of professional envy (Shatru-Drishti) within "
+        f"your peer circle: {summary}. The applause will be public, but the "
+        f"immediate consequence will be a tightening of political friction from "
+        f"lateral colleagues. Step into the recognition with clinical poise — "
+        f"do not expect universal celebration."
+    )
+
+    return {
+        'overlay': 'peer_envy_scan',
+        'fired': True,
+        'synthesis_tag': 'Peer Envy',
+        'verdict_substitution': {
+            'when_primitives': ['success', 'confirmed'],
+            'new_state':       'YES_WITH_FRICTION',
+            'reason':          'Mars/Ketu inimical aspect on L11 — peer envy',
+        },
+        'data': {
+            'afflictors':       afflictors,
+            'afflictor_count':  len(afflictors),
+        },
+        'narrative': narrative,
+    }
+
+
+def overlay_kendra_solar_radiance(chart: Dict, state: Dict, inputs: Dict) -> Dict:
+    """
+    Sammana Overlay D — Solar Radiance (Gap 1 spec lock).
+
+    Conditions (all four required):
+      1. karya_success_chain(target=10) succeeds
+      2. Sun occupies a Kendra house (1, 4, 7, 10) from Lagna
+      3. Sun's own light is clear:
+         - degree-in-sign in (1°, 29°) — not sadyo-gata or sandhi
+         - no other classical planet within 12° of Sun (cluster check)
+      4. L10 in Kendra/Trikona (1/4/5/7/9/10)
+
+    Output: verdict_substitution → YES; synthesis_tag 'Solar Radiance'.
+    Fires only for the H10 target (internal_validation route).
+    """
+    target = state['target']
+    if target['house'] != 10:
+        return _empty_finding('kendra_solar_radiance')
+
+    karya = state['karya']
+    if karya.get('verdict_primitive') not in ('success', 'confirmed'):
+        return _empty_finding('kendra_solar_radiance')
+
+    sun_house = _planet_house(chart, 'Sun')
+    if sun_house not in (1, 4, 7, 10):
+        return _empty_finding('kendra_solar_radiance')
+
+    planets = chart.get('planets', {})
+    sun_lon = (planets.get('Sun') or {}).get('longitude')
+    if sun_lon is None:
+        return _empty_finding('kendra_solar_radiance')
+
+    sun_deg_in_sign = sun_lon % 30.0
+    if sun_deg_in_sign < _SUN_SANDHI_LOW or sun_deg_in_sign > _SUN_SANDHI_HIGH:
+        return _empty_finding('kendra_solar_radiance')
+
+    # Cluster check — no other classical planet within 12° of Sun
+    sun_cluster_companions: List[Dict] = []
+    for other in ('Moon', 'Mars', 'Mercury', 'Jupiter', 'Venus', 'Saturn'):
+        o_lon = (planets.get(other) or {}).get('longitude')
+        if o_lon is None:
+            continue
+        raw_sep = abs(o_lon - sun_lon)
+        sep = min(raw_sep, 360.0 - raw_sep)
+        if sep <= _SUN_CLUSTER_ORB:
+            sun_cluster_companions.append({
+                'planet': other,
+                'separation_deg': round(sep, 2),
+            })
+    if sun_cluster_companions:
+        return _empty_finding('kendra_solar_radiance')
+
+    l10_lord = target['lord']
+    l10_lord_house = _planet_house(chart, l10_lord)
+    if l10_lord_house not in _KENDRA_TRIKONA:
+        return _empty_finding('kendra_solar_radiance')
+
+    narrative = (
+        f"The vertical axis of corporate authority is fully illuminated. Sun "
+        f"sits in H{sun_house} (Kendra) at {sun_deg_in_sign:.1f}° — alone in "
+        f"its sign-arc, radiating without combustion or cluster-dilution. The "
+        f"10th lord {l10_lord} occupies H{l10_lord_house} (Kendra/Trikona — "
+        f"angular/trinal strength). The sovereign layer of leadership — your "
+        f"board, your CEO, your executive stakeholders — is paying direct "
+        f"attention to your trajectory. Solar radiance confirms that your "
+        f"validation is verified at the highest tier of corporate power."
+    )
+
+    return {
+        'overlay': 'kendra_solar_radiance',
+        'fired': True,
+        'synthesis_tag': 'Solar Radiance',
+        'verdict_substitution': {
+            'when_primitives': ['success', 'confirmed', 'conditional'],
+            'new_state':       'YES',
+            'reason':          'Solar Radiance — Sun in Kendra alone + L10 angular + karya success',
+        },
+        'data': {
+            'sun_house':        sun_house,
+            'sun_deg_in_sign':  round(sun_deg_in_sign, 2),
+            'l10_lord':         l10_lord,
+            'l10_lord_house':   l10_lord_house,
+        },
+        'narrative': narrative,
+    }
+
+
+def overlay_peer_recognition_axis(chart: Dict, state: Dict, inputs: Dict) -> Dict:
+    """
+    Sammana Overlay E — Peer Recognition Axis (Gap 2 lock — Option B).
+
+    Modifier-flag overlay. Does NOT mutate the verdict state; produces
+    a verdict_modifier_flag based on the L3↔L11 Tajik aspect:
+      Ithesal applying  → PUBLIC_COMMENDATION
+      Esrapha separating → MUTED_RECEPTION
+
+    L3 = commendation channel (media, written praise). L11 = public arena.
+    Their coupling determines whether the announcement carries fanfare or
+    arrives muted.
+    """
+    lagna_sign = chart.get('lagna_sign', 0)
+    l3_lord  = SIGN_LORDS[(lagna_sign + 2)  % 12]
+    l11_lord = SIGN_LORDS[(lagna_sign + 10) % 12]
+
+    if l3_lord == l11_lord:
+        return _empty_finding('peer_recognition_axis')
+
+    asp = pairwise_aspect(l3_lord, l11_lord, chart)
+    if not asp.get('within_orb'):
+        return _empty_finding('peer_recognition_axis')
+
+    yoga = asp.get('yoga')
+    if yoga == 'Ithesal':
+        flag = 'PUBLIC_COMMENDATION'
+        synthesis = 'Public Commendation'
+        narrative = (
+            f"L3↔L11 Ithesal: the commendation channel ({l3_lord} — media, "
+            f"written praise) is actively coupling with the public arena "
+            f"({l11_lord}). Recognition will arrive with maximum public "
+            f"visibility and industry-wide fanfare. Aspect orb: "
+            f"{asp.get('absolute_separation')}°."
+        )
+    elif yoga == 'Esrapha':
+        flag = 'MUTED_RECEPTION'
+        synthesis = 'Muted Reception'
+        narrative = (
+            f"L3↔L11 Esrapha (separating): the commendation channel ({l3_lord}) "
+            f"and the public arena ({l11_lord}) are decoupling. You may win "
+            f"the recognition, but the announcement will be handled poorly or "
+            f"lack systemic visibility. Aspect orb: "
+            f"{asp.get('absolute_separation')}°."
+        )
+    else:
+        return _empty_finding('peer_recognition_axis')
+
+    return {
+        'overlay': 'peer_recognition_axis',
+        'fired': True,
+        'synthesis_tag':         synthesis,
+        'verdict_modifier_flag': flag,
+        'data': {
+            'l3_lord':              l3_lord,
+            'l11_lord':             l11_lord,
+            'l3_l11_yoga':          yoga,
+            'absolute_separation':  asp.get('absolute_separation'),
+        },
+        'narrative': narrative,
+    }
+
+
+_NEECHA_SIGNS = {
+    'Sun': 6,      # Libra
+    'Moon': 7,     # Scorpio
+    'Mars': 3,     # Cancer
+    'Mercury': 11, # Pisces
+    'Jupiter': 9,  # Capricorn
+    'Venus': 5,    # Virgo
+    'Saturn': 0,   # Aries
+}
+
+
+def overlay_executive_privy_lock(chart: Dict, state: Dict, inputs: Dict) -> Dict:
+    """
+    Sammana Overlay F — Closed-Door Recognition (Gap 3 spec lock).
+
+    Conditions:
+      1. karya primitive is 'success', 'conditional', or 'confirmed'
+      2. L10 strong: in Kendra/Trikona (1/4/5/7/9/10) AND positive aspect
+         with L1 (applying Ithesal within orb, OR L10==L1 = self-rule)
+      3. L11 compromised: in Dusthana (6/8/12) OR Neecha (sign of debility)
+
+    Output: verdict_substitution → CONDITIONAL_PRIVY.
+    """
+    karya = state['karya']
+    if karya.get('verdict_primitive') not in ('success', 'conditional', 'confirmed'):
+        return _empty_finding('executive_privy_lock')
+
+    lagna_sign = chart.get('lagna_sign', 0)
+    lagna_lord = SIGN_LORDS[lagna_sign]
+    l10_lord   = SIGN_LORDS[(lagna_sign + 9)  % 12]
+    l11_lord   = SIGN_LORDS[(lagna_sign + 10) % 12]
+
+    # Condition 2a: L10 in Kendra/Trikona
+    l10_house = _planet_house(chart, l10_lord)
+    if l10_house not in _KENDRA_TRIKONA:
+        return _empty_finding('executive_privy_lock')
+
+    # Condition 2b: L10 positive Ithesal with L1 (self-rule counts as full coupling)
+    if lagna_lord == l10_lord:
+        l10_l1_coupled = True
+        coupling_kind = 'self_rule'
+        coupling_orb = None
+    else:
+        asp = pairwise_aspect(lagna_lord, l10_lord, chart)
+        l10_l1_coupled = (asp.get('within_orb') and asp.get('yoga') == 'Ithesal')
+        coupling_kind = 'ithesal' if l10_l1_coupled else None
+        coupling_orb = asp.get('absolute_separation') if l10_l1_coupled else None
+
+    if not l10_l1_coupled:
+        return _empty_finding('executive_privy_lock')
+
+    # Condition 3: L11 compromised — dusthana OR Neecha
+    l11_house = _planet_house(chart, l11_lord)
+    l11_sign  = (chart.get('planets', {}).get(l11_lord, {}) or {}).get('sign_index')
+
+    l11_in_dusthana = l11_house in _DUSTHANA_HOUSES
+    l11_neecha = l11_sign is not None and l11_sign == _NEECHA_SIGNS.get(l11_lord)
+
+    if not (l11_in_dusthana or l11_neecha):
+        return _empty_finding('executive_privy_lock')
+
+    compromise_parts: List[str] = []
+    if l11_in_dusthana:
+        compromise_parts.append(f"L11 ({l11_lord}) sits in H{l11_house} (Dusthana)")
+    if l11_neecha:
+        compromise_parts.append(f"L11 ({l11_lord}) is Neecha (debilitated in sign {l11_sign})")
+    compromise_reason = ' AND '.join(compromise_parts)
+
+    narrative = (
+        f"The validation is real, but its echo is strictly restricted. The "
+        f"executive layer ({l10_lord}) is fully engaged — sitting in H{l10_house} "
+        f"(Kendra/Trikona) and coupling with your Lagna lord. But {compromise_reason}. "
+        f"The decision-makers recognize and reward your contribution behind closed "
+        f"doors, but the organizational grid prevents this validation from "
+        f"becoming a matter of public record or lateral peer praise. You hold "
+        f"private equity of status, not public currency."
+    )
+
+    return {
+        'overlay': 'executive_privy_lock',
+        'fired': True,
+        'synthesis_tag': 'Closed-Door Recognition',
+        'verdict_substitution': {
+            'when_primitives': ['success', 'conditional', 'confirmed'],
+            'new_state':       'CONDITIONAL_PRIVY',
+            'reason':          'L10 strong + L11 compromised — private-only recognition',
+        },
+        'data': {
+            'l10_lord':                  l10_lord,
+            'l10_lord_house':            l10_house,
+            'l10_l1_coupling_kind':      coupling_kind,
+            'l10_l1_coupling_orb':       coupling_orb,
+            'l11_lord':                  l11_lord,
+            'l11_lord_house':            l11_house,
+            'l11_in_dusthana':           l11_in_dusthana,
+            'l11_neecha':                l11_neecha,
+            'compromise_reason':         compromise_reason,
+        },
+        'narrative': narrative,
+    }
+
+
 # =================================================================
 # OVERLAY REGISTRY
 # =================================================================
@@ -3144,6 +3936,14 @@ OVERLAY_REGISTRY: Dict[str, Callable] = {
     'subordinate_trajectory':    overlay_subordinate_trajectory,
     'abdication_signal':         overlay_abdication_signal,
     'startup_pivot_crosscheck':  overlay_startup_pivot_crosscheck,
+    'mushita_sovereignty':       overlay_mushita_sovereignty,
+    # Phase 4D · Karmika & Yaatra · Sammana (Ch 14) overlays
+    'accolade_materialization':  overlay_accolade_materialization,
+    'credit_theft_check':        overlay_credit_theft_check,
+    'peer_envy_scan':            overlay_peer_envy_scan,
+    'kendra_solar_radiance':     overlay_kendra_solar_radiance,
+    'peer_recognition_axis':     overlay_peer_recognition_axis,
+    'executive_privy_lock':      overlay_executive_privy_lock,
 }
 
 
@@ -3262,12 +4062,18 @@ _VERDICT_TEXTS = {
     'YES':                   'Yes — outcome indicated within the Prashna horizon',
     'YES_WITH_DELAYS':       'Yes — with initial delays or circumstantial support required',
     'YES_WITH_EFFORT':       'Yes — advancement secured only after heavy negotiation or structural changes',
+    'YES_WITH_FRICTION':     ('Yes — recognition arrives, but accompanied by peer envy, '
+                              'procedural friction, or political turbulence'),
     'CONDITIONAL':           'Conditional — depends on circumstantial support',
     'CONDITIONAL_MEDICAL':   ('Conditional — assisted intervention (IVF / IUI / surrogacy) '
                               'is the indicated path'),
     'CONDITIONAL_THIRD_PARTY': 'Conditional — only via intermediary or alternative path',
     'CONDITIONAL_SUBORDINATE': ('Conditional — no immediate elevation; the trajectory remains '
                                 'bound to a subordinate execution layer'),
+    'CONDITIONAL_PRIVY':     ('Conditional — recognition granted internally behind closed doors, '
+                              'but hidden from public or wider organizational record'),
+    'OBSCURED_VALIDATION':   ('Credit absorbed — your contribution is captured silently by a '
+                              'reporting superior or institutional intermediary, without public acclaim'),
     'HIGH_RISK':             'Yes — but with significant risk; medical monitoring essential',
     'ABDICATION_SIGNAL':     ('Forced exit — sudden loss of authority, resignation, '
                               'or displacement from the current position'),
@@ -3278,9 +4084,12 @@ _VERDICT_TEXTS = {
 _VERDICT_SEVERITY = {
     'YES': 1,
     'YES_WITH_DELAYS': 2, 'YES_WITH_EFFORT': 2,
+    'YES_WITH_FRICTION': 2,    # Sammana — recognition with friction
     'CONDITIONAL': 3,
+    'CONDITIONAL_PRIVY': 3,    # Sammana — private recognition
     'CONDITIONAL_MEDICAL': 4, 'CONDITIONAL_THIRD_PARTY': 4,
     'CONDITIONAL_SUBORDINATE': 4,
+    'OBSCURED_VALIDATION': 4,  # Sammana — credit theft (severe but not absolute denial)
     'NO': 5,
     'HIGH_RISK': 6,
     'ABDICATION_SIGNAL': 7,   # Karma-specific: forced exit > simple NO
