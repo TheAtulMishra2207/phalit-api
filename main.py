@@ -1,6 +1,7 @@
 from routes_kundalis import router as kundalis_router
 from routes_auth import router as auth_router
 from routes_me import router as me_router
+from prashna_routes import router as prashna_router
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -19,6 +20,7 @@ app = FastAPI(title="Phalit.ai Chart Engine", version="1.0.0")
 app.include_router(me_router)
 app.include_router(auth_router)
 app.include_router(kundalis_router)
+app.include_router(prashna_router)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
