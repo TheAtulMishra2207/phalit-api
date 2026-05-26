@@ -246,7 +246,7 @@ async def create_kundali(
             ),
         )
 
-    body = _serialize_for_postgrest(payload.dict())
+    body = _serialize_for_postgrest(payload.dict(exclude_none=True))
     body["user_id"] = user.user_id
 
     response = await _supabase_request(
