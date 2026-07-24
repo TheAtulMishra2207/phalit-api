@@ -7,11 +7,63 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import swisseph as swe
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import requests
 import os
 import json
+import logging
+import uuid
 from typing import Any, Dict
+
+logger = logging.getLogger("phalit")
+
+# ─────────────────────────────────────────────────────────────────────────────
+# EPHEMERIS
+# Configuration, backend lock and dataset integrity now live in ephemeris.py.
+# Importing it configures Swiss Ephemeris and raises if the backend is not the
+# expected one or a pinned checksum does not match. A raise here fails the
+# Render deploy and leaves the previous version serving, which is deliberate:
+# a silent Moshier fallback would produce fixtures that are not comparable with
+# Swiss Ephemeris results.
+# ─────────────────────────────────────────────────────────────────────────────
+
+import ephemeris
+EPHEMERIS_BACKEND = ephemeris.EPHEMERIS_BACKEND
+
+# Calculation provenance. Every stored brief and every parity fixture must
+# record what actually produced it, so that a fixture generated under one
+# ephemeris backend or ayanamsha model is not silently compared against another.
+CHART_ENGINE_VERSION = "1.1.0"
+AYANAMSHA_MODEL = "lahiri-linear-fit-2026-07"
+HOUSE_SYSTEM = "whole-sign"
+
+def calculation_meta() -> Dict[str, Any]:
+    meta = {
+        "chart_engine_version": CHART_ENGINE_VERSION,
+        "ayanamsha_model": AYANAMSHA_MODEL,
+        "house_system": HOUSE_SYSTEM,
+        "dasha_year_days": DASHA_YEAR_DAYS,
+        "node_type": "mean",
+    }
+    meta.update(ephemeris.provenance())
+    return meta
+
+
+def require_supported_year(year: int) -> None:
+    """KAR-074 adapter: certified-interval violation is a 400, not a 500.
+    The annual/monthly/daily endpoints catch bare Exception, so the raw
+    ValueError from ephemeris would otherwise surface as a server fault."""
+    try:
+        ephemeris.check_supported_year(int(year))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+def require_supported_date(date_value: str) -> None:
+    try:
+        ephemeris.check_supported_date(date_value)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 # ─────────────────────────────────────────────────────────────────────────────
 # APP SETUP
@@ -22,13 +74,22 @@ app.include_router(me_router)
 app.include_router(auth_router)
 app.include_router(kundalis_router)
 app.include_router(prashna_router)
+# CORS. A wildcard origin combined with credentials is rejected by browsers and
+# is wrong for a product using JWTs. Set ALLOWED_ORIGINS to a comma-separated
+# list in the Render dashboard. With no value set, credentials are disabled and
+# the wildcard is kept so local development still works.
+_origins_env = os.environ.get("ALLOWED_ORIGINS", "").strip()
+ALLOWED_ORIGINS = [o.strip() for o in _origins_env.split(",") if o.strip()]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=ALLOWED_ORIGINS or ["*"],
+    allow_credentials=bool(ALLOWED_ORIGINS),
     allow_methods=["*"],
     allow_headers=["*"],
 )
+if not ALLOWED_ORIGINS:
+    logger.warning("ALLOWED_ORIGINS is unset: CORS is wildcard and credentials "
+                   "are disabled. Set it before authenticated browser use.")
 
 # ─────────────────────────────────────────────────────────────────────────────
 # CONSTANTS
@@ -331,7 +392,11 @@ def calc_planet_data(jd: float, planet: str, lagna_sign_index: int) -> dict:
         rahu_result, _ = swe.calc_ut(jd, swe.MEAN_NODE, flags)
         lon_tropical = (rahu_result[0] + 180.0) % 360.0
         lon = (lon_tropical - ayanamsha) % 360.0
-        speed = -rahu_result[3]
+        # Ketu's longitude is Rahu plus 180 degrees, so its derivative keeps
+        # Rahu's sign. Negating it produced a positive speed on a body flagged
+        # retrograde, which is internally contradictory. Both nodes are always
+        # retrograde in this system; the reported speed now agrees with that.
+        speed = rahu_result[3]
         retrograde = True
     else:
         result, _ = swe.calc_ut(jd, SWE_ID[planet], flags)
@@ -413,10 +478,19 @@ def calc_vimshottari_dasha(moon_lon: float, birth_date_str: str,
        ayanamsha refit above, boundaries on the reference natal move by
        roughly three to four days across the cycle.
 
-    `today` is taken in the birth locality rather than UTC, so the current
-    mahadasha flips on the right calendar day for an Indian user instead of
-    five and a half hours late.
+    3. KAR-069. All arithmetic is done on timezone-aware UTC instants. The
+       previous version compared naive local datetimes and stored boundaries
+       with no offset, which was ambiguous on its face, assumed the birth
+       offset still describes the locality today, and misbehaved in DST
+       localities near a boundary. Intervals are half-open, so an instant
+       falling exactly on a boundary belongs to the later period rather than
+       being claimed by both.
+
+    Each period reports four datetimes: `start`/`end` as local calendar dates
+    for display, `start_dt`/`end_dt` as unambiguous UTC, and
+    `start_local`/`end_local` as ISO with the birth offset attached.
     """
+    tzinfo = timezone(timedelta(hours=utc_offset))
     nak_index = int(moon_lon / NAKSHATRA_SPAN) % 27
     pos_in_nak = moon_lon % NAKSHATRA_SPAN
     nak_lord = NAKSHATRA_LORDS[nak_index]
@@ -427,11 +501,21 @@ def calc_vimshottari_dasha(moon_lon: float, birth_date_str: str,
     years_remaining_at_birth = nak_dasha_years * fraction_remaining
 
     try:
-        birth_dt = datetime.strptime(f"{birth_date_str} {birth_time_str}", "%Y-%m-%d %H:%M")
+        birth_local = datetime.strptime(
+            f"{birth_date_str} {birth_time_str}", "%Y-%m-%d %H:%M").replace(tzinfo=tzinfo)
     except ValueError:
-        birth_dt = datetime.strptime(birth_date_str, "%Y-%m-%d")
-    birth_date = birth_dt
-    today = datetime.utcnow() + timedelta(hours=utc_offset)
+        birth_local = datetime.strptime(birth_date_str, "%Y-%m-%d").replace(tzinfo=tzinfo)
+    birth_date = birth_local.astimezone(timezone.utc)
+    now_utc = datetime.now(timezone.utc)
+
+    def stamps(dt_utc):
+        dt_utc = dt_utc.replace(microsecond=0)
+        local = dt_utc.astimezone(tzinfo)
+        return {
+            "start": local.strftime("%Y-%m-%d"),
+            "start_dt": dt_utc.strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "start_local": local.isoformat(),
+        }
 
     lord_start_index = DASHA_ORDER.index(nak_lord)
     sequence = []
@@ -440,12 +524,12 @@ def calc_vimshottari_dasha(moon_lon: float, birth_date_str: str,
     # First dasha (partial)
     delta_days = years_remaining_at_birth * DASHA_YEAR_DAYS
     end = current_start + timedelta(days=delta_days)
+    a, b = stamps(current_start), stamps(end)
     sequence.append({
         "planet": nak_lord,
-        "start": current_start.strftime("%Y-%m-%d"),
-        "end": end.strftime("%Y-%m-%d"),
-        "start_dt": current_start.strftime("%Y-%m-%d %H:%M"),
-        "end_dt": end.strftime("%Y-%m-%d %H:%M"),
+        "start": a["start"], "end": b["start"],
+        "start_dt": a["start_dt"], "end_dt": b["start_dt"],
+        "start_local": a["start_local"], "end_local": b["start_local"],
         "years": round(years_remaining_at_birth, 2)
     })
     current_start = end
@@ -455,12 +539,12 @@ def calc_vimshottari_dasha(moon_lon: float, birth_date_str: str,
         lord = DASHA_ORDER[(lord_start_index + i) % 9]
         yrs = DASHA_YEARS[lord]
         end = current_start + timedelta(days=yrs * DASHA_YEAR_DAYS)
+        a, b = stamps(current_start), stamps(end)
         sequence.append({
             "planet": lord,
-            "start": current_start.strftime("%Y-%m-%d"),
-            "end": end.strftime("%Y-%m-%d"),
-            "start_dt": current_start.strftime("%Y-%m-%d %H:%M"),
-            "end_dt": end.strftime("%Y-%m-%d %H:%M"),
+            "start": a["start"], "end": b["start"],
+            "start_dt": a["start_dt"], "end_dt": b["start_dt"],
+            "start_local": a["start_local"], "end_local": b["start_local"],
             "years": yrs
         })
         current_start = end
@@ -468,9 +552,9 @@ def calc_vimshottari_dasha(moon_lon: float, birth_date_str: str,
     # Find current Mahadasha
     current_maha = None
     for d in sequence:
-        d_start = datetime.strptime(d["start_dt"], "%Y-%m-%d %H:%M")
-        d_end = datetime.strptime(d["end_dt"], "%Y-%m-%d %H:%M")
-        if d_start <= today <= d_end:
+        d_start = datetime.strptime(d["start_dt"], "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+        d_end = datetime.strptime(d["end_dt"], "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+        if d_start <= now_utc < d_end:   # half-open
             current_maha = d
             break
     if not current_maha:
@@ -482,7 +566,8 @@ def calc_vimshottari_dasha(moon_lon: float, birth_date_str: str,
     maha_total_years = DASHA_YEARS[maha_lord]
     # Use the full boundary datetime, not the truncated date, or the antardasha
     # ladder restarts from midnight and re-introduces the error just removed.
-    maha_start = datetime.strptime(current_maha["start_dt"], "%Y-%m-%d %H:%M")
+    maha_start = datetime.strptime(
+        current_maha["start_dt"], "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
 
     antar_sequence = []
     antar_start = maha_start
@@ -491,12 +576,12 @@ def calc_vimshottari_dasha(moon_lon: float, birth_date_str: str,
         antar_lord = DASHA_ORDER[(maha_lord_idx + i) % 9]
         antar_years = (maha_total_years * DASHA_YEARS[antar_lord]) / 120.0
         antar_end = antar_start + timedelta(days=antar_years * DASHA_YEAR_DAYS)
+        a, b = stamps(antar_start), stamps(antar_end)
         antar_sequence.append({
             "planet": antar_lord,
-            "start": antar_start.strftime("%Y-%m-%d"),
-            "end": antar_end.strftime("%Y-%m-%d"),
-            "start_dt": antar_start.strftime("%Y-%m-%d %H:%M"),
-            "end_dt": antar_end.strftime("%Y-%m-%d %H:%M"),
+            "start": a["start"], "end": b["start"],
+            "start_dt": a["start_dt"], "end_dt": b["start_dt"],
+            "start_local": a["start_local"], "end_local": b["start_local"],
             "years": round(antar_years, 2)
         })
         antar_start = antar_end
@@ -504,16 +589,17 @@ def calc_vimshottari_dasha(moon_lon: float, birth_date_str: str,
     # Find current Antardasha
     current_antar = None
     for a in antar_sequence:
-        a_start = datetime.strptime(a["start_dt"], "%Y-%m-%d %H:%M")
-        a_end = datetime.strptime(a["end_dt"], "%Y-%m-%d %H:%M")
-        if a_start <= today <= a_end:
+        a_start = datetime.strptime(a["start_dt"], "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+        a_end = datetime.strptime(a["end_dt"], "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+        if a_start <= now_utc < a_end:   # half-open
             current_antar = a
             break
     if current_antar is None:
         # Falling back to antar_sequence[0] silently asserted the first
         # antardasha, which is wrong whenever `today` sits past the ladder.
-        current_antar = antar_sequence[-1] if today > datetime.strptime(
-            antar_sequence[-1]["end_dt"], "%Y-%m-%d %H:%M") else antar_sequence[0]
+        last_end = datetime.strptime(
+            antar_sequence[-1]["end_dt"], "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+        current_antar = antar_sequence[-1] if now_utc >= last_end else antar_sequence[0]
 
     return {
         "moon_nakshatra": NAKSHATRAS[nak_index],
@@ -549,7 +635,8 @@ class D2ReportRequest(BaseModel):
 
 @app.get("/health")
 def health_check():
-    return {"status": "ok", "service": "Phalit.ai Chart Engine", "version": "1.0.0"}
+    return {"status": "ok", "service": "Phalit.ai Chart Engine", "version": "1.0.0",
+            "calculation_meta": calculation_meta()}
 
 
 @app.get("/geocode")
@@ -579,7 +666,17 @@ def geocode_place(place: str):
 @app.post("/chart")
 def calculate_chart(req: ChartRequest):
     try:
+        # KAR-072 / KAR-077. Full calendar-date validation plus the certified
+        # interval, before anything reaches strptime or the ephemeris. The
+        # ValueError maps to a 400 below with a human-readable message.
+        ephemeris.check_supported_date(req.date)
         jd = to_julian_day(req.date, req.time, req.utc_offset)
+        # KAR-078. The certified interval is defined on UTC instants, and a
+        # valid local date can convert to an uncertified one: 1800-01-01 00:00
+        # at +05:30 is JD 2378496.27, below the minimum. Validate the instant
+        # the engine will actually calculate at, not only the local calendar
+        # date. ValueError maps to the 400 below.
+        ephemeris.check_supported_jd(jd)
         lagna = calc_lagna(jd, req.lat, req.lon)
         planets = calc_all_planets(jd, lagna["sign_index"])
         houses = calc_houses(lagna["sign_index"])
@@ -594,14 +691,23 @@ def calculate_chart(req: ChartRequest):
                 "lon": req.lon,
                 "utc_offset": req.utc_offset
             },
+            "calculation_meta": calculation_meta(),
             "lagna": lagna,
             "planets": planets,
             "houses": houses,
             "dasha": dasha
         }
 
+    except ValueError as e:
+        # Malformed date, time or offset is a client error, not a server fault.
+        raise HTTPException(status_code=400, detail=f"Invalid birth input: {e}")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Chart calculation error: {str(e)}")
+        correlation_id = uuid.uuid4().hex[:12]
+        logger.exception("chart calculation failed [%s]", correlation_id)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Chart calculation failed. Reference: {correlation_id}",
+        )
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -2074,11 +2180,13 @@ def get_current_transits():
     now = datetime.now(timezone.utc)
     jd  = swe.julday(now.year, now.month, now.day,
                      now.hour + now.minute/60.0 + now.second/3600.0)
-    swe.set_ephe_path('/tmp')
-
-    # Lahiri ayanamsha (same formula as natal chart)
-    T  = (jd - 2451545.0) / 36525.0
-    ayan = 23.85 + 0.013004 * T
+    # KAR-068. This block claimed to use the same formula as the natal chart and
+    # did not. It ran a separate linear form off J2000 that sat 22 arcmin 30 sec
+    # away from the natal ayanamsha on 2026-07-24, which is enough to move a
+    # graha across a rashi, nakshatra or pada boundary and to change every Tara
+    # and Gochara classification derived from it. There is now one function and
+    # the transit and natal engines are in the same zodiac.
+    ayan = get_lahiri_ayanamsha(jd)
 
     BODIES = {
         'Sun': swe.SUN, 'Moon': swe.MOON, 'Mars': swe.MARS,
@@ -2104,7 +2212,8 @@ def get_current_transits():
         'sign_index': int(k_lon / 30),
         'nakshatra':  int(k_lon / (360/27)),
         'deg_in_sign': round(k_lon % 30, 4),
-        'retrograde': False
+        # Was False here while the natal path said True for the same body.
+        'retrograde': True
     }
     # Moon-Sun difference for Tithi
     moon_lon = result['Moon']['longitude']
@@ -2296,25 +2405,24 @@ def get_nakshatra_birthday(nak_index: int, birth_month: int, birth_day: int):
 
     NAK_SPAN = 360 / 27  # 13.333...°
 
-    def moon_nak(jd, ayan):
+    def moon_nak(jd):
+        # KAR-068. The ayanamsha is recomputed for each scanned instant. The
+        # previous version calculated it once and reused it across a 400-day
+        # scan, so the far end of the window drifted by about a third of an
+        # arcminute and could report the wrong entry day at a boundary.
         pos, _ = swe.calc_ut(jd, swe.MOON)
-        lon = (pos[0] - ayan) % 360
+        lon = (pos[0] - get_lahiri_ayanamsha(jd)) % 360
         return int(lon / NAK_SPAN), lon
 
-    swe.set_ephe_path('/tmp')
     now = datetime.now(timezone.utc)
     jd_now = swe.julday(now.year, now.month, now.day, now.hour + now.minute/60.0)
-
-    # Lahiri ayanamsha
-    T = (jd_now - 2451545.0) / 36525.0
-    ayan = 23.85 + 0.013004 * T
 
     # Scan forward day by day for up to 400 days — collect all occurrences of birth nakshatra
     occurrences = []
     prev_nak = None
     jd = jd_now
     for day in range(400):
-        cur_nak, cur_lon = moon_nak(jd, ayan)
+        cur_nak, cur_lon = moon_nak(jd)
         # Detect entry into birth nakshatra
         if cur_nak == nak_index and prev_nak != nak_index:
             dt = datetime(now.year, 1, 1, tzinfo=timezone.utc) + timedelta(days=(jd - swe.julday(now.year, 1, 1, 0)))
@@ -2515,20 +2623,43 @@ def calc_shripati_cusps(jd: float, lat: float, lon: float) -> list:
 def find_solar_return(natal_sun_sid: float, target_year: int,
                       lat: float, lon: float) -> dict:
     """Binary-search for exact JD when Sun returns to natal sidereal longitude."""
-    jd_start = swe.julday(target_year, 1, 1, 0.0)
-    prev_diff = None
-    jd_bracket = None
+    # KAR-076. Three corrections to the search itself:
+    #   1. A return sitting exactly at the first sample never bracketed,
+    #      because the crossing test demanded prev_diff strictly negative. The
+    #      scan then wrapped the whole year and reported the FOLLOWING year's
+    #      return while the route had validated only the requested year.
+    #   2. Every sampled instant is clamped to the certified interval, so the
+    #      scan for a boundary year cannot call the ephemeris outside it.
+    #   3. The refined result is asserted to fall in target_year; a result in
+    #      any other year is a failure, not an answer.
+    jd_start    = max(swe.julday(target_year, 1, 1, 0.0), ephemeris.CERTIFIED_JD_MIN)
+    jd_year_end = min(swe.julday(target_year + 1, 1, 1, 0.0), ephemeris.CERTIFIED_JD_MAX - 1e-6)
 
-    for d in range(370):
-        jd = jd_start + d
-        sun_trop = swe.calc_ut(jd, swe.SUN)[0][0]
-        sun_sid  = (sun_trop - get_lahiri_ayanamsha(jd)) % 360.0
-        diff = (sun_sid - natal_sun_sid + 360) % 360
-        if diff > 180: diff -= 360
-        if prev_diff is not None and prev_diff < 0 and diff >= 0:
-            jd_bracket = (jd - 1, jd)
-            break
-        prev_diff = diff
+    def _sr_diff(jd):
+        sun_sid = (swe.calc_ut(jd, swe.SUN)[0][0] - get_lahiri_ayanamsha(jd)) % 360.0
+        d = (sun_sid - natal_sun_sid + 360) % 360
+        return d - 360 if d > 180 else d
+
+    d0 = _sr_diff(jd_start)
+    if -1.05 <= d0 <= 0.0:
+        # Crossing at or within ~1 day of the year boundary. Bracket around it,
+        # clamped so no sample precedes the certified minimum.
+        jd_bracket = (max(jd_start - 1.0, ephemeris.CERTIFIED_JD_MIN),
+                      min(jd_start + 1.5, jd_year_end))
+    else:
+        prev_diff = d0
+        jd_bracket = None
+        d = 1
+        while True:
+            jd = jd_start + d
+            if jd > jd_year_end:
+                break
+            diff = _sr_diff(jd)
+            if prev_diff < 0 <= diff:
+                jd_bracket = (jd - 1, jd)
+                break
+            prev_diff = diff
+            d += 1
 
     if not jd_bracket:
         return {}
@@ -2543,7 +2674,12 @@ def find_solar_return(natal_sun_sid: float, target_year: int,
         else:         jd_hi = jd_mid
 
     jd_sr = (jd_lo + jd_hi) / 2
+    ephemeris.check_supported_jd(jd_sr)
     y, m, d, h = swe.revjul(jd_sr)
+    if int(y) != target_year:
+        # A converged instant in any other year means the return for the
+        # requested year was not actually found. KAR-076 requirement 3.
+        return {}
     hour_int = int(h); minute_int = int((h - hour_int) * 60)
 
     # Day/Night: simple hour check (local solar noon = 12h)
@@ -3112,6 +3248,10 @@ def get_varsha_chart(req: VarshaChartRequest):
         lat = birth_lat if req.use_birth_place else req.current_lat
         lon = birth_lon if req.use_birth_place else req.current_lon
 
+        # KAR-074. The certified interval applies to every user-selected
+        # calculation year, not only the natal endpoint.
+        require_supported_year(req.target_year)
+
         sr = find_solar_return(natal_sun_sid, req.target_year, lat, lon)
         if not sr:
             raise HTTPException(status_code=400, detail="Solar return not found for target year")
@@ -3425,15 +3565,18 @@ def find_maas_entry_for_month(natal_sun_sid: float, calendar_month: int,
     nearest_n = round(delta / 30.0)                  # n such that natal+n*30 ≈ sun_sid
     target_lon = (natal_sun_sid + nearest_n * 30.0) % 360.0
 
-    # Step 3: Search within month ± 3-day buffer
-    result = _find_sun_lon_in_range(target_lon, start_jd - 3, end_jd + 3, lat, lon)
+    # Step 3: Search within month ± 3-day buffer, clamped to the certified
+    # interval. KAR-076: a January 1800 request previously sampled 1799-12-29.
+    lo = max(start_jd - 3, ephemeris.CERTIFIED_JD_MIN)
+    hi = min(end_jd + 3, ephemeris.CERTIFIED_JD_MAX - 1e-6)
+    result = _find_sun_lon_in_range(target_lon, lo, hi, lat, lon)
     if result:
         return result
 
     # Fallback: try adjacent n values (±1)
     for dn in [1, -1, 2, -2]:
         tl = (natal_sun_sid + (nearest_n + dn) * 30.0) % 360.0
-        r  = _find_sun_lon_in_range(tl, start_jd - 3, end_jd + 3, lat, lon)
+        r  = _find_sun_lon_in_range(tl, lo, hi, lat, lon)
         if r:
             return r
 
@@ -3461,6 +3604,7 @@ def _find_sun_lon_in_range(target_lon: float, jd_lo: float, jd_hi: float,
         else:          jd_hi = jd_mid
 
     jd_sr = (jd_lo + jd_hi) / 2
+    ephemeris.check_supported_jd(jd_sr)
     y, m, d, h = swe.revjul(jd_sr)
     return {"jd": jd_sr, "year": int(y), "month": int(m), "day": int(d),
             "hour": int(h), "minute": int((h - int(h)) * 60),
@@ -3590,6 +3734,12 @@ def get_maas_chart(req: MaasChartRequest):
         vd = req.varsha_data
         birth_lagna_si = int(nc.get("lagna",{}).get("sign_index", 0))
         natal_sun_sid  = float(nc.get("planets",{}).get("Sun",{}).get("longitude", 0.0))
+        require_supported_year(req.calendar_year)   # KAR-074
+        # KAR-077. calendar.monthrange raises on 0 or 13 and the bare handler
+        # turned that into a 500. A month is client input; reject it as such.
+        if not 1 <= req.calendar_month <= 12:
+            raise HTTPException(status_code=400,
+                                detail="calendar_month must be between 1 and 12.")
         target_year    = int(vd.get("target_year", 2026))
         muntha_si      = int(vd.get("muntha",{}).get("sign_index", 0))
         lat = float(nc.get("input",{}).get("lat",28.6)) if req.use_birth_place else req.current_lat
@@ -3935,6 +4085,8 @@ def get_dina_chart(req: DinaChartRequest):
         birth_lagna_si = int(nc.get("lagna", {}).get("sign_index", 0))
         muntha_si      = int(vd.get("muntha", {}).get("sign_index", 0))
         lat, lon       = req.current_lat, req.current_lon
+
+        require_supported_date(req.date_str)        # KAR-074
 
         # 1. Sunrise JD for the date
         jd_sr   = get_sunrise_jd(req.date_str, lat, lon)
