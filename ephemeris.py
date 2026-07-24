@@ -76,8 +76,8 @@ REQUIRED_FILES: List[str] = ["sepl_18.se1", "semo_18.se1"]
 
 # Populate after the first boot. Empty means log-only; populated means enforced.
 EPHEMERIS_MANIFEST: Dict[str, str] = {
-    # "sepl_18.se1": "…64 hex chars…",
-    # "semo_18.se1": "…64 hex chars…",
+    "sepl_18.se1": "ca1393ceab3a44fbc895887cf789c68819ae6a1cbc9b22225872dbe4ccd99a66",
+    "semo_18.se1": "1ca07bd67c24374d77226180c20a4f9996cba013697894810518e7eb582ca4f7",
 }
 
 
