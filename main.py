@@ -1,3 +1,4 @@
+from karak_contract import KarakReportRequest, generate as karak_generate
 from routes_kundalis import router as kundalis_router
 from routes_auth import router as auth_router
 from routes_me import router as me_router
