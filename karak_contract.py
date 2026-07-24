@@ -185,6 +185,7 @@ class KarakInterpretation(BaseModel):
     plain_meaning: str
     polarity: str
     action_seed: Optional[str] = None
+    timing: bool = False
 
 
 class KarakBrief(BaseModel):
@@ -272,6 +273,7 @@ def validate_brief(raw: Dict[str, Any]) -> KarakBrief:
         atoms.append(KarakInterpretation(
             id=aid, section=section, plain_meaning=plain.strip(),
             polarity=polarity, action_seed=a.get("action_seed"),
+            timing=bool(a.get("timing", False)),
         ))
 
     present = [s for s in TARGET_SECTIONS if any(x.section == s for x in atoms)]
@@ -338,8 +340,9 @@ def build_user_prompt(name: str, brief: KarakBrief) -> str:
             if a.action_seed:
                 lines.append(f"    practical thread: {a.action_seed}")
         lines.append("")
-    if not any(a.section == "path" and "period" in a.plain_meaning.lower()
-               for a in brief.interpretations):
+    # Explicit flag, never inferred from wording. An earlier draft keyed on the
+    # word "period" and silently mis-classified the aligned-dasha atom.
+    if not any(a.timing for a in brief.interpretations):
         lines.append("No timing finding was supplied. Write nothing about timing, "
                      "seasons, windows or what to do now versus later.")
     return "\n".join(lines)
