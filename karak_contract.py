@@ -146,7 +146,10 @@ _OVERREACH_PATTERNS = [
     (re.compile(r"\bthis is real\b", re.I), "literalness_assertion"),
     (re.compile(r"\b(?:past|previous|prior) lives?\b", re.I), "past_life_claim"),
     (re.compile(r"\blifetimes?\b", re.I), "past_life_claim"),
-    (re.compile(r"\breincarnat", re.I), "past_life_claim"),
+    (re.compile(r"\b(?:re)?incarnat", re.I), "past_life_claim"),
+    (re.compile(r"\b(?:previous|former|prior|earlier) (?:life|birth|existence)\b", re.I), "past_life_claim"),
+    (re.compile(r"\b(?:before|prior to|preceding) this (?:life|birth|existence)\b", re.I), "past_life_claim"),
+    (re.compile(r"\bkarmic (?:inheritance|residue|debt|account)\b", re.I), "past_life_claim"),
     (re.compile(r"\b(?:most|more) (?:powerful|potent|significant|important)\b", re.I), "superlative"),
     (re.compile(r"\bexceptional(?:ly)?\b", re.I), "superlative"),
     (re.compile(r"\bextraordinar(?:y|ily)\b", re.I), "superlative"),
@@ -342,7 +345,7 @@ def validate_brief(raw: Any) -> KarakBrief:
     if not raw:
         raise HTTPException(status_code=422, detail="chart_brief must be an object.")
 
-    schema = raw.get("schema_version") or raw.get("schema") or ""
+    schema = raw.get("schema_version") or ""
     # KAR-063. startswith() also accepted karakamsha.v20 and karakamsha.v2evil.
     if str(schema) != SCHEMA_VERSION:
         raise HTTPException(
@@ -394,8 +397,11 @@ def validate_brief(raw: Any) -> KarakBrief:
                 detail=f"interpretations[{i}].confidence must be one of {sorted(_ALLOWED_CONFIDENCE)}.",
             )
         # An atom carrying jargon would defeat the whole architecture, so the
-        # INPUT is validated with the same dictionaries as the output.
-        leaks = [v for v in find_violations(plain) if v["kind"] != "past_life_claim"]
+        # INPUT is validated with the same dictionaries as the output. No kind
+        # is exempt: an earlier version let past_life_claim through on input,
+        # which meant the claim reached the model and only a literal repeat of
+        # it was ever caught on the way out.
+        leaks = find_violations(plain)
         if leaks:
             raise HTTPException(
                 status_code=422,
@@ -565,6 +571,8 @@ def _call_model(api_key: str, system: str, user: str) -> Dict[str, Any]:
 def generate(name: str, raw_brief: Dict[str, Any], api_key: str) -> Dict[str, Any]:
     """Validate, render, validate again, retry once, or fail loudly."""
     brief = validate_brief(raw_brief)
+    rendered = [a for a in brief.interpretations if a.confidence != "requires_confirmation"]
+    withheld = [a for a in brief.interpretations if a.confidence == "requires_confirmation"]
     # `name` is accepted for signature stability with main.py and is
     # deliberately not forwarded to the model. See build_user_prompt.
     user = build_user_prompt(brief)
@@ -606,12 +614,16 @@ def generate(name: str, raw_brief: Dict[str, Any], api_key: str) -> Dict[str, An
             )
             return {
                 "report": report,
+                # KAR-066. Evidence is drawn from the same usable set the
+                # prompt was built from. An atom withheld from the model must
+                # never appear as a source for prose the model wrote.
                 "sections": [
                     {
                         "id": s,
                         "title": SECTION_TITLES[s],
                         "text": sections[s],
-                        "atom_ids": [a.id for a in brief.interpretations if a.section == s],
+                        "atom_ids": [a.id for a in rendered if a.section == s],
+                        "withheld_atom_ids": [a.id for a in withheld if a.section == s],
                     }
                     for s in TARGET_SECTIONS
                 ],
@@ -620,8 +632,7 @@ def generate(name: str, raw_brief: Dict[str, Any], api_key: str) -> Dict[str, An
                 "attempts": attempt,
                 "withheld": [
                     {"id": a.id, "section": a.section, "reason": a.confidence}
-                    for a in brief.interpretations
-                    if a.confidence == "requires_confirmation"
+                    for a in withheld
                 ],
                 "validation": {"violations": [], "missing_sections": []},
             }

@@ -376,6 +376,62 @@ def test_duplicate_atom_ids_rejected():
         assert e.status_code == 422 and "duplicate" in str(e.detail)
 
 
+# ── 1h. KAR-065 / KAR-066 / KAR-067 ─────────────────────────────────────────
+
+def test_past_life_claims_rejected_in_prompt_bound_fields():
+    """KAR-065. The exemption meant the claim reached the model and only a
+    literal repeat of it was caught on the way out."""
+    for claim in ["You carry knowledge from past lives.",
+                  "This is a previous incarnation showing through.",
+                  "You bring lifetimes of experience to this.",
+                  "You have reincarnated into this pattern."]:
+        try:
+            kc.validate_brief(brief_with(*atoms_all_sections(plain_meaning=claim)))
+            raise AssertionError(f"accepted in plain_meaning: {claim!r}")
+        except HTTPException as e:
+            assert e.status_code == 422
+        try:
+            kc.validate_brief(brief_with(*atoms_all_sections(action_seed=claim)))
+            raise AssertionError(f"accepted in action_seed: {claim!r}")
+        except HTTPException as e:
+            assert e.status_code == 422
+
+
+def test_no_prompt_bound_field_bypasses_any_violation_kind():
+    """No violation kind is exempt on input."""
+    brief = kc.validate_brief(VALID_BRIEF)
+    for a in brief.interpretations:
+        assert not kc.find_violations(a.plain_meaning)
+        assert not kc.find_violations(a.action_seed or "")
+
+
+def test_withheld_atom_never_appears_as_narrative_evidence():
+    """KAR-066. An atom the model never saw must not be cited as its source."""
+    _reset()
+    unconfirmed = dict(VALID_ATOMS[2], id="U",
+                       plain_meaning="You hold something back inside partnership.",
+                       confidence="requires_confirmation")
+    kc._call_model = _stub(GOOD_RESPONSE)
+    out = kc.generate("Atul", brief_with(*VALID_ATOMS, unconfirmed), "key")
+    withheld_ids = {w["id"] for w in out["withheld"]}
+    assert withheld_ids == {"U"}
+    for sec in out["sections"]:
+        assert not (set(sec["atom_ids"]) & withheld_ids), \
+            f"{sec['id']}.atom_ids leaked a withheld atom"
+    mastery = next(s for s in out["sections"] if s["id"] == "mastery")
+    assert "U" not in mastery["atom_ids"]
+    assert mastery["withheld_atom_ids"] == ["U"]
+
+
+def test_schema_alias_is_gone():
+    """KAR-067. One wire key, so direct calls and route execution agree."""
+    try:
+        kc.validate_brief({"schema": "karakamsha.v2", "interpretations": VALID_ATOMS})
+        raise AssertionError("legacy 'schema' key still accepted")
+    except HTTPException as e:
+        assert e.status_code == 422
+
+
 # ── 2. the central claim: nothing unsupported can reach the model ───────────
 
 def test_prompt_contains_no_technical_vocabulary():
