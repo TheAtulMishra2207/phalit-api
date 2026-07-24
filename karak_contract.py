@@ -17,6 +17,9 @@ overclaimed and QA was right to call it out:
     not prove that every clause the model writes is entailed by an atom. A
     plainly-worded sentence with no atom behind it will pass.
   - It does not enforce the sentence-count instruction.
+  - It does not check that a released claim is hedged. Instead, atoms the
+    engine could not confirm are withheld from the model altogether and shown
+    deterministically in the UI. The model is never asked to qualify itself.
   - It does not verify that the atoms came from the Phalit engine. Anything
     shaped like an atom and free of prohibited vocabulary is accepted as an
     established finding. That is a trust-boundary question, not a contract one,
@@ -236,6 +239,7 @@ class KarakReportRequest(BaseModel):
 _ALLOWED_POLARITY = {"support", "caution", "neutral"}
 _ALLOWED_CONFIDENCE = {"direct", "derived", "ambiguous", "requires_confirmation"}
 MAX_SEED_CHARS = 200
+SCHEMA_VERSION = "karakamsha.v2"
 _CONTROL_CHARS = re.compile(r"[\x00-\x08\x0b-\x1f\x7f]")
 MAX_ATOMS = 40
 MAX_ATOM_CHARS = 400
@@ -253,34 +257,70 @@ def _as_dict(obj: Any) -> Dict[str, Any]:
     return {}
 
 
-def _validate_action_seed(seed: Any, index: int, atom_id: str) -> Optional[str]:
-    """KAR-054. action_seed was accepted unchecked and interpolated verbatim
-    into the prompt, which made the module's own "no code path can send
-    technical material" claim false. It now passes the same gate as
-    plain_meaning, plus type, length and control-character checks.
+_MARKER_SYNTAX = re.compile(r"\[\[|\]\]")
+_INSTRUCTION_LIKE = re.compile(
+    r"\b(?:ignore (?:the |all |every |any |previous |above )?"
+    r"(?:rule|rules|instruction|instructions|prior|previous|above)"
+    r"|disregard (?:the |all |any )?(?:rule|rules|instruction|instructions|above|previous)"
+    r"|system prompt|rewrite the rules|forget (?:the |all )?(?:above|previous|rules)"
+    r"|you are now|new instruction|override the)\b", re.I)
+
+
+def _validate_prompt_string(value: Any, field: str, index: int, atom_id: str,
+                            limit: int) -> str:
+    """The single gate every prompt-bound string passes through.
+
+    KAR-054 was action_seed skipping validation. KAR-062 was plain_meaning
+    being validated semantically but not structurally. Both existed because
+    the checks were written twice instead of once. There is now one function,
+    and adding a new prompt-bound field means calling it rather than
+    reimplementing it.
     """
-    if seed is None:
+    if not isinstance(value, str):
+        raise HTTPException(
+            status_code=422,
+            detail=f"interpretations[{index}] ({atom_id}).{field} must be a string, "
+                   f"got {type(value).__name__}.",
+        )
+    if _CONTROL_CHARS.search(value):
+        raise HTTPException(
+            status_code=422,
+            detail=f"interpretations[{index}] ({atom_id}).{field} contains control characters.",
+        )
+    if "\n" in value or "\r" in value:
+        raise HTTPException(
+            status_code=422,
+            detail=f"interpretations[{index}] ({atom_id}).{field} must be a single line.",
+        )
+    if _MARKER_SYNTAX.search(value):
+        raise HTTPException(
+            status_code=422,
+            detail=f"interpretations[{index}] ({atom_id}).{field} must not contain section "
+                   f"marker syntax.",
+        )
+    if _INSTRUCTION_LIKE.search(value):
+        raise HTTPException(
+            status_code=422,
+            detail=f"interpretations[{index}] ({atom_id}).{field} contains instruction-like text.",
+        )
+    value = " ".join(value.split())
+    if not value:
+        raise HTTPException(
+            status_code=422,
+            detail=f"interpretations[{index}] ({atom_id}).{field} is empty.",
+        )
+    if len(value) > limit:
+        raise HTTPException(
+            status_code=422,
+            detail=f"interpretations[{index}] ({atom_id}).{field} exceeds {limit} characters.",
+        )
+    return value
+
+
+def _validate_action_seed(seed: Any, index: int, atom_id: str) -> Optional[str]:
+    if seed is None or (isinstance(seed, str) and not seed.strip()):
         return None
-    if not isinstance(seed, str):
-        raise HTTPException(
-            status_code=422,
-            detail=f"interpretations[{index}] ({atom_id}).action_seed must be a string or null, "
-                   f"got {type(seed).__name__}.",
-        )
-    seed = seed.strip()
-    if not seed:
-        return None
-    if len(seed) > MAX_SEED_CHARS:
-        raise HTTPException(
-            status_code=422,
-            detail=f"interpretations[{index}] ({atom_id}).action_seed exceeds {MAX_SEED_CHARS} characters.",
-        )
-    if "\n" in seed or "\r" in seed or _CONTROL_CHARS.search(seed):
-        raise HTTPException(
-            status_code=422,
-            detail=f"interpretations[{index}] ({atom_id}).action_seed must be a single line "
-                   f"with no control characters.",
-        )
+    seed = _validate_prompt_string(seed, "action_seed", index, atom_id, MAX_SEED_CHARS)
     leaks = find_violations(seed)
     if leaks:
         raise HTTPException(
@@ -303,11 +343,12 @@ def validate_brief(raw: Any) -> KarakBrief:
         raise HTTPException(status_code=422, detail="chart_brief must be an object.")
 
     schema = raw.get("schema_version") or raw.get("schema") or ""
-    if not str(schema).startswith("karakamsha.v2"):
+    # KAR-063. startswith() also accepted karakamsha.v20 and karakamsha.v2evil.
+    if str(schema) != SCHEMA_VERSION:
         raise HTTPException(
             status_code=422,
-            detail="chart_brief schema_version must be karakamsha.v2. Received: "
-                   f"{schema or 'none'}. The frontend engine must be v2.3.0 or later.",
+            detail=f"chart_brief schema_version must be exactly {SCHEMA_VERSION!r}. Received: "
+                   f"{schema or 'none'}. The frontend engine must be v2.4.0 or later.",
         )
 
     atoms_raw = raw.get("interpretations")
@@ -339,13 +380,9 @@ def validate_brief(raw: Any) -> KarakBrief:
                 status_code=422,
                 detail=f"interpretations[{i}].section must be one of {TARGET_SECTIONS}, got {section!r}.",
             )
-        if not plain or not isinstance(plain, str) or not plain.strip():
+        if plain is None:
             raise HTTPException(status_code=422, detail=f"interpretations[{i}].plain_meaning is empty.")
-        if len(plain) > MAX_ATOM_CHARS:
-            raise HTTPException(
-                status_code=422,
-                detail=f"interpretations[{i}].plain_meaning exceeds {MAX_ATOM_CHARS} characters.",
-            )
+        plain = _validate_prompt_string(plain, "plain_meaning", i, aid, MAX_ATOM_CHARS)
         if polarity not in _ALLOWED_POLARITY:
             raise HTTPException(
                 status_code=422,
@@ -367,10 +404,19 @@ def validate_brief(raw: Any) -> KarakBrief:
             )
         seed = _validate_action_seed(a.get("action_seed"), i, aid)
         atoms.append(KarakInterpretation(
-            id=aid, section=section, plain_meaning=plain.strip(),
+            id=aid, section=section, plain_meaning=plain,
             polarity=polarity, action_seed=seed,
             timing=bool(a.get("timing", False)), confidence=confidence,
         ))
+
+    # KAR-064. Duplicate ids make atom_ids and the basis manifest ambiguous.
+    seen_ids = [a.id for a in atoms]
+    dupes = sorted({i for i in seen_ids if seen_ids.count(i) > 1})
+    if dupes:
+        raise HTTPException(
+            status_code=422,
+            detail="chart_brief.interpretations contains duplicate ids: " + ", ".join(dupes),
+        )
 
     # KAR-056. The system prompt demands exactly three sections, so the input
     # must supply all three. The client-supplied `sections` array is ignored
@@ -384,7 +430,18 @@ def validate_brief(raw: Any) -> KarakBrief:
                    f"Missing: {', '.join(missing)}.",
         )
 
-    return KarakBrief(schema_version="karakamsha.v2", interpretations=atoms,
+    # KAR-059. requires_confirmation atoms are withheld from the narrative, so
+    # the remaining set must still cover all three sections on its own.
+    usable = [a for a in atoms if a.confidence != "requires_confirmation"]
+    thin = [s for s in TARGET_SECTIONS if not any(a.section == s for a in usable)]
+    if thin:
+        raise HTTPException(
+            status_code=422,
+            detail="After withholding unconfirmed indications, these sections have no "
+                   "material left: " + ", ".join(thin) + ".",
+        )
+
+    return KarakBrief(schema_version=SCHEMA_VERSION, interpretations=atoms,
                       sections=list(TARGET_SECTIONS))
 
 
@@ -435,6 +492,13 @@ def build_user_prompt(brief: KarakBrief) -> str:
     a removal rather than a sanitisation, because there is nothing to sanitise
     for. The name still appears in the UI, which does not go through a model.
     """
+    # KAR-059. Atoms the engine could not confirm are withheld from the model
+    # entirely. A hedging instruction was not enough: the backend cannot verify
+    # that the model hedged, and a model should not be the thing deciding
+    # whether it qualified a claim sufficiently. These are rendered
+    # deterministically in the UI callout instead.
+    usable = [a for a in brief.interpretations if a.confidence != "requires_confirmation"]
+
     lines = [
         "Write the three sections for this person.",
         "",
@@ -443,7 +507,7 @@ def build_user_prompt(brief: KarakBrief) -> str:
         "",
     ]
     for sec in TARGET_SECTIONS:
-        atoms = [a for a in brief.interpretations if a.section == sec]
+        atoms = [a for a in usable if a.section == sec]
         if not atoms:
             continue
         lines.append(f"[[{sec}]] — {SECTION_TITLES[sec]}")
@@ -451,16 +515,10 @@ def build_user_prompt(brief: KarakBrief) -> str:
             tag = {"support": "(supporting)", "caution": "(requires attention)",
                    "neutral": "(descriptive)"}[a.polarity]
             lines.append(f"  - {a.plain_meaning} {tag}")
-            # KAR-059. Evidentiary uncertainty is not the same as caution
-            # polarity. An atom the engine could not confirm must be hedged in
-            # the prose, not stated as established.
-            if a.confidence == "requires_confirmation":
-                lines.append("    this one is a single indication only: hedge it, "
-                             "write it as something suggested rather than established")
             if a.action_seed:
                 lines.append(f"    practical thread: {a.action_seed}")
         lines.append("")
-    if not any(a.timing for a in brief.interpretations):
+    if not any(a.timing for a in usable):
         lines.append("No timing finding was supplied. Write nothing about timing, "
                      "seasons, windows or what to do now versus later.")
     return "\n".join(lines)
@@ -560,6 +618,11 @@ def generate(name: str, raw_brief: Dict[str, Any], api_key: str) -> Dict[str, An
                 "complete": True,
                 "stop_reason": stop,
                 "attempts": attempt,
+                "withheld": [
+                    {"id": a.id, "section": a.section, "reason": a.confidence}
+                    for a in brief.interpretations
+                    if a.confidence == "requires_confirmation"
+                ],
                 "validation": {"violations": [], "missing_sections": []},
             }
 
