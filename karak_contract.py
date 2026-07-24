@@ -6,8 +6,21 @@ main.py. Flat layout, no package.
 
 What this module owns:
   1. Strict request schema. `chart_brief` is no longer Dict[str, Any].
-  2. Atoms-only prompt construction. No graha, sign, house, dignity or
-     divisional term reaches the model. There is no code path that can send one.
+  2. Atoms-only prompt construction. Every string that can reach the prompt is
+     validated: plain_meaning, action_seed, and nothing else. The user's name is
+     not sent at all.
+
+WHAT THIS DOES NOT DO, stated plainly because an earlier version of this file
+overclaimed and QA was right to call it out:
+
+  - It blocks KNOWN prohibited vocabulary and KNOWN overreach patterns. It does
+    not prove that every clause the model writes is entailed by an atom. A
+    plainly-worded sentence with no atom behind it will pass.
+  - It does not enforce the sentence-count instruction.
+  - It does not verify that the atoms came from the Phalit engine. Anything
+    shaped like an atom and free of prohibited vocabulary is accepted as an
+    established finding. That is a trust-boundary question, not a contract one,
+    and it needs an architecture decision rather than another validator.
   3. stop_reason validation. A truncated report is never returned as finished.
   4. Terminology validator (KAR-053) with one bounded retry.
   5. Overreach validator. Superlatives, lifetime claims, literalness assertions
@@ -179,6 +192,26 @@ def find_violations(text: str) -> List[Dict[str, str]]:
 # 3. Strict request schema
 # ═════════════════════════════════════════════════════════════════════════════
 
+class KarakAtomIn(BaseModel):
+    """Wire shape of one interpretive atom. Typed so OpenAPI advertises the
+    real contract and FastAPI rejects malformed payloads at binding time.
+    No aliases and no validators, so this behaves identically on pydantic
+    v1 and v2. Semantic checks still happen in validate_brief."""
+    id: str
+    section: str
+    plain_meaning: str
+    polarity: str
+    action_seed: Optional[str] = None
+    timing: bool = False
+    confidence: Optional[str] = None
+
+
+class KarakBriefIn(BaseModel):
+    schema_version: Optional[str] = None
+    interpretations: List[KarakAtomIn] = []
+    sections: Optional[List[str]] = None
+
+
 class KarakInterpretation(BaseModel):
     id: str
     section: str
@@ -186,6 +219,7 @@ class KarakInterpretation(BaseModel):
     polarity: str
     action_seed: Optional[str] = None
     timing: bool = False
+    confidence: str = "direct"
 
 
 class KarakBrief(BaseModel):
@@ -196,30 +230,84 @@ class KarakBrief(BaseModel):
 
 class KarakReportRequest(BaseModel):
     name: str
-    chart_brief: Dict[str, Any]
+    chart_brief: KarakBriefIn
 
 
 _ALLOWED_POLARITY = {"support", "caution", "neutral"}
+_ALLOWED_CONFIDENCE = {"direct", "derived", "ambiguous", "requires_confirmation"}
+MAX_SEED_CHARS = 200
+_CONTROL_CHARS = re.compile(r"[\x00-\x08\x0b-\x1f\x7f]")
 MAX_ATOMS = 40
 MAX_ATOM_CHARS = 400
 
 
-def validate_brief(raw: Dict[str, Any]) -> KarakBrief:
+def _as_dict(obj: Any) -> Dict[str, Any]:
+    """Accept either the typed envelope or a plain dict, so validate_brief is
+    callable directly from tests without constructing pydantic models."""
+    if isinstance(obj, dict):
+        return obj
+    if hasattr(obj, "model_dump"):
+        return obj.model_dump()
+    if hasattr(obj, "dict"):
+        return obj.dict()
+    return {}
+
+
+def _validate_action_seed(seed: Any, index: int, atom_id: str) -> Optional[str]:
+    """KAR-054. action_seed was accepted unchecked and interpolated verbatim
+    into the prompt, which made the module's own "no code path can send
+    technical material" claim false. It now passes the same gate as
+    plain_meaning, plus type, length and control-character checks.
+    """
+    if seed is None:
+        return None
+    if not isinstance(seed, str):
+        raise HTTPException(
+            status_code=422,
+            detail=f"interpretations[{index}] ({atom_id}).action_seed must be a string or null, "
+                   f"got {type(seed).__name__}.",
+        )
+    seed = seed.strip()
+    if not seed:
+        return None
+    if len(seed) > MAX_SEED_CHARS:
+        raise HTTPException(
+            status_code=422,
+            detail=f"interpretations[{index}] ({atom_id}).action_seed exceeds {MAX_SEED_CHARS} characters.",
+        )
+    if "\n" in seed or "\r" in seed or _CONTROL_CHARS.search(seed):
+        raise HTTPException(
+            status_code=422,
+            detail=f"interpretations[{index}] ({atom_id}).action_seed must be a single line "
+                   f"with no control characters.",
+        )
+    leaks = find_violations(seed)
+    if leaks:
+        raise HTTPException(
+            status_code=422,
+            detail=f"interpretations[{index}] ({atom_id}).action_seed contains disallowed "
+                   f"vocabulary: {', '.join(v['term'] for v in leaks[:6])}",
+        )
+    return seed
+
+
+def validate_brief(raw: Any) -> KarakBrief:
     """Reject anything that is not a well-formed atom payload.
 
-    This is where the legacy raw-astrology keys stop being accepted. They are
-    not read, not forwarded, and their presence alone is not an error while the
-    frontend is mid-migration; they are simply dropped on the floor.
+    Every string that can reach the prompt is validated here. There is exactly
+    one string interpolated into the prompt that does not originate in an atom,
+    and that is the fixed English of build_user_prompt itself.
     """
-    if not isinstance(raw, dict):
+    raw = _as_dict(raw)
+    if not raw:
         raise HTTPException(status_code=422, detail="chart_brief must be an object.")
 
-    schema = raw.get("schema") or raw.get("schema_version") or ""
+    schema = raw.get("schema_version") or raw.get("schema") or ""
     if not str(schema).startswith("karakamsha.v2"):
         raise HTTPException(
             status_code=422,
-            detail="chart_brief schema must be karakamsha.v2. Received: "
-                   f"{schema or 'none'}. The frontend engine must be v2.1.0 or later.",
+            detail="chart_brief schema_version must be karakamsha.v2. Received: "
+                   f"{schema or 'none'}. The frontend engine must be v2.3.0 or later.",
         )
 
     atoms_raw = raw.get("interpretations")
@@ -236,12 +324,14 @@ def validate_brief(raw: Dict[str, Any]) -> KarakBrief:
 
     atoms: List[KarakInterpretation] = []
     for i, a in enumerate(atoms_raw):
-        if not isinstance(a, dict):
+        a = _as_dict(a)
+        if not a:
             raise HTTPException(status_code=422, detail=f"interpretations[{i}] must be an object.")
         aid = a.get("id")
         section = a.get("section")
         plain = a.get("plain_meaning")
         polarity = a.get("polarity")
+        confidence = a.get("confidence") or "direct"
         if not aid or not isinstance(aid, str):
             raise HTTPException(status_code=422, detail=f"interpretations[{i}].id missing.")
         if section not in TARGET_SECTIONS:
@@ -261,6 +351,11 @@ def validate_brief(raw: Dict[str, Any]) -> KarakBrief:
                 status_code=422,
                 detail=f"interpretations[{i}].polarity must be one of {sorted(_ALLOWED_POLARITY)}.",
             )
+        if confidence not in _ALLOWED_CONFIDENCE:
+            raise HTTPException(
+                status_code=422,
+                detail=f"interpretations[{i}].confidence must be one of {sorted(_ALLOWED_CONFIDENCE)}.",
+            )
         # An atom carrying jargon would defeat the whole architecture, so the
         # INPUT is validated with the same dictionaries as the output.
         leaks = [v for v in find_violations(plain) if v["kind"] != "past_life_claim"]
@@ -270,17 +365,27 @@ def validate_brief(raw: Dict[str, Any]) -> KarakBrief:
                 detail=f"interpretations[{i}] ({aid}) contains technical vocabulary that must not "
                        f"reach the model: {', '.join(v['term'] for v in leaks[:6])}",
             )
+        seed = _validate_action_seed(a.get("action_seed"), i, aid)
         atoms.append(KarakInterpretation(
             id=aid, section=section, plain_meaning=plain.strip(),
-            polarity=polarity, action_seed=a.get("action_seed"),
-            timing=bool(a.get("timing", False)),
+            polarity=polarity, action_seed=seed,
+            timing=bool(a.get("timing", False)), confidence=confidence,
         ))
 
-    present = [s for s in TARGET_SECTIONS if any(x.section == s for x in atoms)]
-    if not present:
-        raise HTTPException(status_code=422, detail="No atom carries a recognised section.")
+    # KAR-056. The system prompt demands exactly three sections, so the input
+    # must supply all three. The client-supplied `sections` array is ignored
+    # entirely; presence is derived from the atoms themselves.
+    present = sorted({x.section for x in atoms})
+    missing = [s for s in TARGET_SECTIONS if s not in present]
+    if missing:
+        raise HTTPException(
+            status_code=422,
+            detail="chart_brief.interpretations must cover all three sections. "
+                   f"Missing: {', '.join(missing)}.",
+        )
 
-    return KarakBrief(schema_version="karakamsha.v2", interpretations=atoms, sections=present)
+    return KarakBrief(schema_version="karakamsha.v2", interpretations=atoms,
+                      sections=list(TARGET_SECTIONS))
 
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -320,9 +425,18 @@ Exactly three sections, each preceded by its marker alone on a line:
 Four to five sentences per section. If a section has few supplied statements, write fewer sentences rather than padding. Emit nothing before the first marker and nothing after the third section."""
 
 
-def build_user_prompt(name: str, brief: KarakBrief) -> str:
+def build_user_prompt(brief: KarakBrief) -> str:
+    """Build the model input from atoms alone.
+
+    KAR-055. The user's name used to be interpolated here. It was an
+    uncontrolled channel: a name of "Mars" injected technical vocabulary, and a
+    multi-line name injected a new instruction. The report is written in the
+    second person and never needed the name, so it is not sent at all. This is
+    a removal rather than a sanitisation, because there is nothing to sanitise
+    for. The name still appears in the UI, which does not go through a model.
+    """
     lines = [
-        f"Write the three sections for {name}.",
+        "Write the three sections for this person.",
         "",
         "These are the findings. Every one of them is already established. "
         "Render them; do not extend them.",
@@ -337,11 +451,15 @@ def build_user_prompt(name: str, brief: KarakBrief) -> str:
             tag = {"support": "(supporting)", "caution": "(requires attention)",
                    "neutral": "(descriptive)"}[a.polarity]
             lines.append(f"  - {a.plain_meaning} {tag}")
+            # KAR-059. Evidentiary uncertainty is not the same as caution
+            # polarity. An atom the engine could not confirm must be hedged in
+            # the prose, not stated as established.
+            if a.confidence == "requires_confirmation":
+                lines.append("    this one is a single indication only: hedge it, "
+                             "write it as something suggested rather than established")
             if a.action_seed:
                 lines.append(f"    practical thread: {a.action_seed}")
         lines.append("")
-    # Explicit flag, never inferred from wording. An earlier draft keyed on the
-    # word "period" and silently mis-classified the aligned-dasha atom.
     if not any(a.timing for a in brief.interpretations):
         lines.append("No timing finding was supplied. Write nothing about timing, "
                      "seasons, windows or what to do now versus later.")
@@ -389,7 +507,9 @@ def _call_model(api_key: str, system: str, user: str) -> Dict[str, Any]:
 def generate(name: str, raw_brief: Dict[str, Any], api_key: str) -> Dict[str, Any]:
     """Validate, render, validate again, retry once, or fail loudly."""
     brief = validate_brief(raw_brief)
-    user = build_user_prompt(name, brief)
+    # `name` is accepted for signature stability with main.py and is
+    # deliberately not forwarded to the model. See build_user_prompt.
+    user = build_user_prompt(brief)
 
     attempts: List[Dict[str, Any]] = []
     system = SYSTEM_PROMPT
@@ -414,7 +534,9 @@ def generate(name: str, raw_brief: Dict[str, Any], api_key: str) -> Dict[str, An
             )
 
         sections = parse_sections(result["text"])
-        missing = [s for s in brief.sections if s not in sections]
+        # KAR-056. All three markers are required regardless of what the client
+        # sent. Output completeness is not derived from the request.
+        missing = [s for s in TARGET_SECTIONS if s not in sections]
         violations = find_violations(result["text"])
 
         if not missing and not violations:
@@ -422,7 +544,7 @@ def generate(name: str, raw_brief: Dict[str, Any], api_key: str) -> Dict[str, An
             # frontend _renderReportSections() parses, with the [[markers]]
             # stripped. No frontend change is required to display this.
             report = "\n\n".join(
-                f"### {SECTION_TITLES[s]}\n{sections[s]}" for s in brief.sections
+                f"### {SECTION_TITLES[s]}\n{sections[s]}" for s in TARGET_SECTIONS
             )
             return {
                 "report": report,
@@ -433,7 +555,7 @@ def generate(name: str, raw_brief: Dict[str, Any], api_key: str) -> Dict[str, An
                         "text": sections[s],
                         "atom_ids": [a.id for a in brief.interpretations if a.section == s],
                     }
-                    for s in brief.sections
+                    for s in TARGET_SECTIONS
                 ],
                 "complete": True,
                 "stop_reason": stop,
