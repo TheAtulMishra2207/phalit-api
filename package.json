@@ -1,0 +1,13 @@
+{
+  "name": "phalit-kar091-corpus-audit",
+  "version": "1.0.0",
+  "private": true,
+  "description": "KAR-091 Yoga corpus safety audit gate for newphalit.html",
+  "scripts": {
+    "audit": "node kar091_audit.js newphalit.html kar091_reviewed_manifest.json",
+    "test": "node test_kar091_corpus.js newphalit.html kar091_reviewed_manifest.json"
+  },
+  "dependencies": {
+    "acorn": "8.15.0"
+  }
+}
