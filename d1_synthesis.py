@@ -340,7 +340,7 @@ class GrahaDrawer(BaseModel):
 class D1DrawerPayload(BaseModel):
     synthesis_version: str = SYNTHESIS_VERSION
     chart_token: str
-    drawers: List[GrahaDrawer] = Field(min_length=9, max_length=9)
+    drawers: List[GrahaDrawer] = Field(min_items=9, max_items=9)
 
 # ── synthesis ────────────────────────────────────────────────────────────────
 

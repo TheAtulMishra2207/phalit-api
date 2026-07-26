@@ -37,7 +37,7 @@ from datetime import datetime
 from enum import Enum
 from typing import List, Literal, Optional
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, Field, root_validator, validator
 
 ENGINE_VERSION = "d1-engine-0.1.0"
 ASPECT_POLICY_VERSION = "parashari-d1-1.0"
@@ -105,12 +105,13 @@ class GrahaState(BaseModel):
     nakshatra_pada: Optional[int] = Field(default=None, ge=1, le=4)
     dispositor: Optional[Graha] = None
 
-    @model_validator(mode="after")
-    def _nodes_have_dispositor_context(self):
+    @root_validator(skip_on_failure=True)
+    def _nodes_have_dispositor_context(cls, values):
         # Ruling: nodal dispositor condition remains available — require it.
-        if self.graha in NODES and self.dispositor is None:
-            raise ValueError(f"{self.graha.value} must carry its dispositor")
-        return self
+        graha = values.get("graha")
+        if graha in NODES and values.get("dispositor") is None:
+            raise ValueError(f"{graha.value} must carry its dispositor")
+        return values
 
 class AspectEdge(BaseModel):
     """One full Parāśarī dṛṣṭi. Source is ALWAYS one of the seven grahas."""
@@ -119,8 +120,7 @@ class AspectEdge(BaseModel):
     target_house: int = Field(ge=1, le=12)
     target_grahas: List[Graha] = Field(default_factory=list)  # occupants receiving it
 
-    @field_validator("source")
-    @classmethod
+    @validator("source")
     def _no_node_drishti(cls, v: Graha) -> Graha:
         if v in NODES:
             raise ValueError(
@@ -128,12 +128,13 @@ class AspectEdge(BaseModel):
                 f"{v.value} cannot be the source of a graha-dṛṣṭi")
         return v
 
-    @model_validator(mode="after")
-    def _kind_matches_source(self):
-        owner = _KIND_OWNER.get(self.kind)
-        if owner is not None and self.source != owner:
-            raise ValueError(f"{self.kind.value} dṛṣṭi belongs to {owner.value} only, not {self.source.value}")
-        return self
+    @root_validator(skip_on_failure=True)
+    def _kind_matches_source(cls, values):
+        kind, source = values.get("kind"), values.get("source")
+        owner = _KIND_OWNER.get(kind)
+        if owner is not None and source != owner:
+            raise ValueError(f"{kind.value} dṛṣṭi belongs to {owner.value} only, not {source.value}")
+        return values
 
 class FunctionalRole(BaseModel):
     graha: Graha
@@ -141,15 +142,16 @@ class FunctionalRole(BaseModel):
     role: FunctionalRoleKind
     basis: str = Field(min_length=8)   # the deriving rule, cited (e.g. "BPHS 34: kendra+trikona lord")
 
-    @model_validator(mode="after")
-    def _node_roles_are_axis(self):
-        if self.graha in NODES and self.role != FunctionalRoleKind.NODE_AXIS:
+    @root_validator(skip_on_failure=True)
+    def _node_roles_are_axis(cls, values):
+        graha, role = values.get("graha"), values.get("role")
+        if graha in NODES and role != FunctionalRoleKind.NODE_AXIS:
             raise ValueError("nodes carry role=node_axis; their nature flows from axis/dispositor/association")
-        if self.graha not in NODES and self.role == FunctionalRoleKind.NODE_AXIS:
+        if graha not in NODES and role == FunctionalRoleKind.NODE_AXIS:
             raise ValueError("node_axis role is reserved for Rahu/Ketu")
-        if self.graha in NODES and self.lordships:
+        if graha in NODES and values.get("lordships"):
             raise ValueError("nodes own no houses in the Parāśarī scheme")
-        return self
+        return values
 
 class HouseState(BaseModel):
     house: int = Field(ge=1, le=12)
@@ -159,15 +161,13 @@ class HouseState(BaseModel):
     occupants: List[Graha] = Field(default_factory=list)
     aspected_by: List[Graha] = Field(default_factory=list)
 
-    @field_validator("lord")
-    @classmethod
+    @validator("lord")
     def _lord_is_classical(cls, v: Graha) -> Graha:
         if v in NODES:
             raise ValueError("Rahu/Ketu own no rāśi in the Parāśarī scheme")
         return v
 
-    @field_validator("aspected_by")
-    @classmethod
+    @validator("aspected_by")
     def _aspecting_grahas_are_casters(cls, v: List[Graha]) -> List[Graha]:
         for g in v:
             if g in NODES:
@@ -182,11 +182,12 @@ class NodalAxis(BaseModel):
     rahu_dispositor: Graha
     ketu_dispositor: Graha
 
-    @model_validator(mode="after")
-    def _axis_is_opposite(self):
-        if (self.rahu_house - 1 + 6) % 12 + 1 != self.ketu_house:
+    @root_validator(skip_on_failure=True)
+    def _axis_is_opposite(cls, values):
+        rahu, ketu = values.get("rahu_house"), values.get("ketu_house")
+        if (rahu - 1 + 6) % 12 + 1 != ketu:
             raise ValueError("Rahu and Ketu must occupy opposite houses (nodal axis)")
-        return self
+        return values
 
 class D1PrepareResponse(BaseModel):
     chart_token: str = Field(min_length=8)
@@ -194,35 +195,40 @@ class D1PrepareResponse(BaseModel):
     lagna_sign_index: int = Field(ge=0, le=11)
     lagna_sign: str
     lagna_degree: float = Field(ge=0, lt=30)
-    grahas: List[GrahaState] = Field(min_length=9, max_length=9)
-    houses: List[HouseState] = Field(min_length=12, max_length=12)
+    grahas: List[GrahaState] = Field(min_items=9, max_items=9)
+    houses: List[HouseState] = Field(min_items=12, max_items=12)
     aspects: List[AspectEdge]
-    functional_roles: List[FunctionalRole] = Field(min_length=9, max_length=9)
+    functional_roles: List[FunctionalRole] = Field(min_items=9, max_items=9)
     nodal_axis: NodalAxis
     generated_at: datetime
 
-    @model_validator(mode="after")
-    def _complete_and_consistent(self):
-        names = {g.graha for g in self.grahas}
+    @root_validator(skip_on_failure=True)
+    def _complete_and_consistent(cls, values):
+        grahas = values.get("grahas") or []
+        houses = values.get("houses") or []
+        roles = values.get("functional_roles") or []
+        aspects = values.get("aspects") or []
+
+        names = {g.graha for g in grahas}
         if names != set(Graha):
             raise ValueError("grahas must contain exactly the nine grahas")
-        role_names = {r.graha for r in self.functional_roles}
+        role_names = {r.graha for r in roles}
         if role_names != set(Graha):
             raise ValueError("functional_roles must cover exactly the nine grahas")
-        if {h.house for h in self.houses} != set(range(1, 13)):
+        if {h.house for h in houses} != set(range(1, 13)):
             raise ValueError("houses must be exactly 1..12")
-        # Aspect GEOMETRY (QA step-3 blocker): the manifest must be the exact
-        # Parāśarī dṛṣṭi set — for every permitted (source, kind) pair EXACTLY
-        # ONE edge, landing on the mathematically correct house counted from
-        # the source graha's own house. Wrong targets and duplicate edges are
-        # contract violations, not engine bugs to be caught later.
-        source_house = {g.graha: g.house for g in self.grahas}
+
+        # Aspect GEOMETRY: the manifest must be the exact Parāśarī dṛṣṭi set —
+        # for every permitted (source, kind) pair EXACTLY ONE edge, landing on
+        # the mathematically correct house counted from the source graha's own
+        # house. Wrong targets and duplicate edges are contract violations.
+        source_house = {g.graha: g.house for g in grahas}
         kind_offset = {AspectKind.SEVENTH: 7, AspectKind.FOURTH: 4, AspectKind.EIGHTH: 8,
                        AspectKind.FIFTH: 5, AspectKind.NINTH: 9, AspectKind.THIRD: 3,
                        AspectKind.TENTH: 10}
         offset_kind = {v: k for k, v in kind_offset.items()}
-        seen_pairs: set = set()
-        for a in self.aspects:
+        seen_pairs = set()
+        for a in aspects:
             pair = (a.source, a.kind)
             if pair in seen_pairs:
                 raise ValueError(f"duplicate dṛṣṭi edge: {a.source.value} {a.kind.value}")
@@ -244,4 +250,4 @@ class D1PrepareResponse(BaseModel):
             if missing: detail.append("missing: " + ", ".join(f"{s.value} {k.value}" for s, k in sorted(missing, key=lambda p: (p[0].value, p[1].value))))
             if extra: detail.append("extra: " + ", ".join(f"{s.value} {k.value}" for s, k in sorted(extra, key=lambda p: (p[0].value, p[1].value))))
             raise ValueError("aspect manifest must contain exactly one edge per permitted (source, kind); " + "; ".join(detail))
-        return self
+        return values

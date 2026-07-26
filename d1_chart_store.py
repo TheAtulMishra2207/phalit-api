@@ -45,7 +45,11 @@ CREATE_TABLE_SQL = """
 CREATE TABLE IF NOT EXISTS chart_snapshots (
     id                 bigserial PRIMARY KEY,
     chart_token_hash   text        NOT NULL UNIQUE,
-    owner_user_id      uuid        NULL,
+    -- Matches the live schema's convention: kundalis.user_id references
+    -- profiles(id), which in turn references auth.users(id). Cascading means a
+    -- deleted account takes its snapshots with it instead of orphaning rows
+    -- that still contain that person's birth chart.
+    owner_user_id      uuid        NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
     session_id         text        NULL,
     chart_payload      jsonb       NOT NULL,
     calculation_meta   jsonb       NOT NULL,
@@ -90,9 +94,21 @@ CREATE TRIGGER chart_snapshots_guard_trg
     BEFORE UPDATE ON chart_snapshots
     FOR EACH ROW EXECUTE FUNCTION chart_snapshots_guard();
 
--- Belt and braces: deletion is not part of the lifecycle either. Expiry is by
+-- ROW LEVEL SECURITY. Every other table in this project runs with RLS on, and
+-- only the service_role backend touches chart_snapshots. RLS is therefore
+-- enabled with NO policies at all: service_role bypasses RLS, while anon and
+-- authenticated get nothing. A leaked publishable key cannot read a stranger's
+-- birth chart even if it learns a token hash.
+ALTER TABLE chart_snapshots ENABLE ROW LEVEL SECURITY;
+ALTER TABLE chart_snapshots FORCE ROW LEVEL SECURITY;
+
+-- Belt and braces: revoke from the client-facing roles explicitly. Revoking
+-- from PUBLIC alone is not sufficient in Supabase, where anon and authenticated
+-- carry their own grants. Deletion is not part of the lifecycle: expiry is by
 -- timestamp; purge with a privileged maintenance role if retention requires it.
-REVOKE DELETE ON chart_snapshots FROM PUBLIC;
+REVOKE ALL ON chart_snapshots FROM PUBLIC;
+REVOKE ALL ON chart_snapshots FROM anon;
+REVOKE ALL ON chart_snapshots FROM authenticated;
 """
 
 
