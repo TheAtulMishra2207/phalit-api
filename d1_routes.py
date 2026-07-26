@@ -52,7 +52,7 @@ import uuid
 from typing import Any, Dict, Optional, Protocol
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, StrictStr
 
 from d1_chart_adapter import ChartAdapterError, to_certified_chart
 from d1_engine import D1EngineError, D1Doctrine, compute_d1
@@ -90,7 +90,12 @@ def get_chart_resolver() -> ChartResolver:
 
 
 class D1PrepareRequest(BaseModel):
-    chart_token: str = Field(min_length=8, max_length=256)
+    # StrictStr, not str: pydantic v1 coerces a JSON NUMBER to a string, so
+    # {"chart_token": 12345678} was accepted and turned into "12345678",
+    # deferring a malformed request to a token lookup and a 404 instead of an
+    # immediate 422. v2 rejected it outright; StrictStr restores that parity in
+    # both versions.
+    chart_token: StrictStr = Field(min_length=8, max_length=256)
 
 
 class D1PrepareBody(BaseModel):

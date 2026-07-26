@@ -1,0 +1,1042 @@
+{
+  "_source": "BPHS Chapter 34, verses 34.19-44 — COMPLETE. All twelve Lagnas source-resolved: ARIES 34.19-22, TAURUS 34.23-24, GEMINI 34.25-26, CANCER 34.27-28, LEO 34.29-30, VIRGO 34.31-32, LIBRA 34.33-34, SCORPIO 34.35-36, SAGITTARIUS 34.37-38, CAPRICORN 34.39-40, AQUARIUS 34.41-42, PISCES 34.43-44. This file is a PURE verse oracle: it stores only what the verse or a declared commentary/translation judgment states, tagged with provenance. Where a verse names a killer or a yoga agent explicitly while leaving the functional nature unclassified, maraka_provenance and yoga_provenance record those splits. Ownership-yogakaraka (a general-rule derivation) lives in its own section and is never mixed into per-Lagna verse cells. Per BPHS 34.45-46 these lordship roles are the BASE doctrine; Nabhasa and other yogas are downstream and must never rewrite them.",
+  "_schema": "lagna -> graha -> {nature, verse_yoga, maraka, provenance, maraka_provenance, yoga_provenance, verse, conditional_rules}; provenance values: explicit_verse / derived_general_rule / translation_judgment / review_required. maraka_provenance and yoga_provenance are null when not separately specified.",
+  "_ownership_yogakaraka_derived": {
+    "_note": "Derived from the general kendra+trikoṇa rule (BPHS 34.2/34.13), NOT from any Lagna-specific verse. The classical six.",
+    "Taurus": "Saturn",
+    "Cancer": "Mars",
+    "Leo": "Mars",
+    "Libra": "Saturn",
+    "Capricorn": "Venus",
+    "Aquarius": "Venus"
+  },
+  "Aries": {
+    "Sun": {
+      "nature": "benefic",
+      "verse_yoga": "none",
+      "maraka": "none",
+      "provenance": "explicit_verse",
+      "verse": "34.20",
+      "conditional_rules": [],
+      "maraka_provenance": null,
+      "yoga_provenance": null
+    },
+    "Moon": {
+      "nature": "mixed",
+      "verse_yoga": "none",
+      "maraka": "none",
+      "provenance": "translation_judgment",
+      "verse": "34.19-22",
+      "conditional_rules": [
+        "Moon remains association-dependent; its classification comes from commentary, not the śloka"
+      ],
+      "maraka_provenance": null,
+      "yoga_provenance": null
+    },
+    "Mars": {
+      "nature": "mixed",
+      "verse_yoga": "none",
+      "maraka": "none",
+      "provenance": "translation_judgment",
+      "verse": "34.19",
+      "conditional_rules": [
+        "Mars supports benefics when associated and suitably placed"
+      ],
+      "maraka_provenance": null,
+      "yoga_provenance": null
+    },
+    "Mercury": {
+      "nature": "malefic",
+      "verse_yoga": "none",
+      "maraka": "qualified",
+      "provenance": "explicit_verse",
+      "verse": "34.20",
+      "conditional_rules": [
+        "Mercury becomes killer-capable through adverse association, particularly with Venus"
+      ],
+      "maraka_provenance": null,
+      "yoga_provenance": null
+    },
+    "Jupiter": {
+      "nature": "benefic",
+      "verse_yoga": "none",
+      "maraka": "none",
+      "provenance": "explicit_verse",
+      "verse": "34.20",
+      "conditional_rules": [
+        "Jupiter becomes adverse when subordinated to a malefic (34.21 pāratantrya)",
+        "Saturn-Jupiter conjunction alone does not form an auspicious yoga (34.20)",
+        "Jupiter-Sun and Jupiter-Mars associations are favourable"
+      ],
+      "maraka_provenance": null,
+      "yoga_provenance": null
+    },
+    "Venus": {
+      "nature": "malefic",
+      "verse_yoga": "none",
+      "maraka": "primary_killer",
+      "provenance": "explicit_verse",
+      "verse": "34.20-21",
+      "conditional_rules": [],
+      "maraka_provenance": null,
+      "yoga_provenance": null
+    },
+    "Saturn": {
+      "nature": "malefic",
+      "verse_yoga": "none",
+      "maraka": "qualified",
+      "provenance": "explicit_verse",
+      "verse": "34.20",
+      "conditional_rules": [
+        "Saturn becomes killer-capable through adverse association, particularly with Venus",
+        "Saturn-Jupiter association is not favourable — Saturn's 11th lordship predominates"
+      ],
+      "maraka_provenance": null,
+      "yoga_provenance": null
+    }
+  },
+  "Taurus": {
+    "Sun": {
+      "nature": "benefic",
+      "verse_yoga": "none",
+      "maraka": "none",
+      "provenance": "explicit_verse",
+      "verse": "34.23",
+      "conditional_rules": [],
+      "maraka_provenance": null,
+      "yoga_provenance": null
+    },
+    "Moon": {
+      "nature": "malefic",
+      "verse_yoga": "none",
+      "maraka": "qualified",
+      "provenance": "explicit_verse",
+      "verse": "34.23-24",
+      "conditional_rules": [
+        "Moon's māraka capacity is not independent; association with Jupiter or Mars can activate it"
+      ],
+      "maraka_provenance": null,
+      "yoga_provenance": null
+    },
+    "Mars": {
+      "nature": "neutral",
+      "verse_yoga": "none",
+      "maraka": "maraka",
+      "provenance": "translation_judgment",
+      "verse": "34.24",
+      "conditional_rules": [
+        "Mars is māraka by 7th + 12th lordship; its functional nature remains unasserted by the verse and is encoded neutral by translation judgment"
+      ],
+      "maraka_provenance": null,
+      "yoga_provenance": null
+    },
+    "Mercury": {
+      "nature": "mixed",
+      "verse_yoga": "none",
+      "maraka": "none",
+      "provenance": "translation_judgment",
+      "verse": "34.23",
+      "conditional_rules": [
+        "Mercury becomes more effective when associated with Saturn or Sun"
+      ],
+      "maraka_provenance": null,
+      "yoga_provenance": null
+    },
+    "Jupiter": {
+      "nature": "malefic",
+      "verse_yoga": "none",
+      "maraka": "maraka",
+      "provenance": "explicit_verse",
+      "verse": "34.23-24",
+      "conditional_rules": [],
+      "maraka_provenance": null,
+      "yoga_provenance": null
+    },
+    "Venus": {
+      "nature": "malefic",
+      "verse_yoga": "none",
+      "maraka": "maraka",
+      "provenance": "explicit_verse",
+      "verse": "34.23-24",
+      "conditional_rules": [
+        "Venus is treated as malefic under the accepted Parāśara policy despite the competing Suśloka Śataka interpretation for Taurus Lagna"
+      ],
+      "maraka_provenance": null,
+      "yoga_provenance": null
+    },
+    "Saturn": {
+      "nature": "benefic",
+      "verse_yoga": "yoga_agent",
+      "maraka": "none",
+      "provenance": "explicit_verse",
+      "verse": "34.23",
+      "conditional_rules": [
+        "Saturn carries both facts independently: verse_yoga_status=yoga_agent (34.23) and ownership_yogakaraka=true (9th + 10th lordship)"
+      ],
+      "maraka_provenance": null,
+      "yoga_provenance": null
+    }
+  },
+  "Gemini": {
+    "Sun": {
+      "nature": "malefic",
+      "verse_yoga": "none",
+      "maraka": "none",
+      "provenance": "explicit_verse",
+      "maraka_provenance": null,
+      "verse": "34.25",
+      "conditional_rules": [],
+      "yoga_provenance": null
+    },
+    "Moon": {
+      "nature": "neutral",
+      "verse_yoga": "none",
+      "maraka": "primary_killer",
+      "provenance": "translation_judgment",
+      "maraka_provenance": "explicit_verse",
+      "verse": "34.26",
+      "conditional_rules": [
+        "Moon's principal-killer capacity operates through association (sāhacaryāt)"
+      ],
+      "yoga_provenance": null
+    },
+    "Mars": {
+      "nature": "malefic",
+      "verse_yoga": "none",
+      "maraka": "none",
+      "provenance": "explicit_verse",
+      "maraka_provenance": null,
+      "verse": "34.25",
+      "conditional_rules": [],
+      "yoga_provenance": null
+    },
+    "Mercury": {
+      "nature": "neutral",
+      "verse_yoga": "none",
+      "maraka": "none",
+      "provenance": "translation_judgment",
+      "maraka_provenance": null,
+      "verse": "34.25-26",
+      "conditional_rules": [
+        "Mercury's functional nature is unclassified by the verses and is encoded neutral by translation judgment",
+        "'Venus alone is benefic' must not be expanded into an unsupported malefic classification for Mercury"
+      ],
+      "yoga_provenance": null
+    },
+    "Jupiter": {
+      "nature": "malefic",
+      "verse_yoga": "none",
+      "maraka": "none",
+      "provenance": "explicit_verse",
+      "maraka_provenance": null,
+      "verse": "34.25",
+      "conditional_rules": [
+        "Jupiter-Saturn association does not independently produce an auspicious yoga, exactly as under Aries (34.25)"
+      ],
+      "yoga_provenance": null
+    },
+    "Venus": {
+      "nature": "benefic",
+      "verse_yoga": "none",
+      "maraka": "none",
+      "provenance": "explicit_verse",
+      "maraka_provenance": null,
+      "verse": "34.25",
+      "conditional_rules": [],
+      "yoga_provenance": null
+    },
+    "Saturn": {
+      "nature": "neutral",
+      "verse_yoga": "none",
+      "maraka": "none",
+      "provenance": "translation_judgment",
+      "maraka_provenance": null,
+      "verse": "34.25",
+      "conditional_rules": [
+        "Saturn's functional nature is unclassified; the verse mentions Saturn only in the Jupiter-Saturn association rule",
+        "'Venus alone is benefic' must not be expanded into an unsupported malefic classification for Saturn"
+      ],
+      "yoga_provenance": null
+    }
+  },
+  "Cancer": {
+    "Sun": {
+      "nature": "neutral",
+      "verse_yoga": "none",
+      "maraka": "qualified",
+      "provenance": "translation_judgment",
+      "maraka_provenance": "translation_judgment",
+      "verse": "34.28",
+      "conditional_rules": [
+        "Sun's results depend on association (sāhacaryāt)",
+        "Sun's qualified māraka reading comes from the supplied translation, while the Sanskrit directly names Saturn as the killer"
+      ],
+      "yoga_provenance": null
+    },
+    "Moon": {
+      "nature": "benefic",
+      "verse_yoga": "none",
+      "maraka": "none",
+      "provenance": "explicit_verse",
+      "maraka_provenance": null,
+      "verse": "34.27",
+      "conditional_rules": [],
+      "yoga_provenance": null
+    },
+    "Mars": {
+      "nature": "benefic",
+      "verse_yoga": "yoga_agent",
+      "maraka": "none",
+      "provenance": "explicit_verse",
+      "maraka_provenance": null,
+      "verse": "34.27",
+      "conditional_rules": [
+        "Mars carries both facts independently: verse_yoga_status=yoga_agent (34.27) and ownership_yogakaraka=true (5th + 10th lordship)",
+        "Mars's yoga status must not be derived from dignity or any client-side heuristic"
+      ],
+      "yoga_provenance": null
+    },
+    "Mercury": {
+      "nature": "malefic",
+      "verse_yoga": "none",
+      "maraka": "none",
+      "provenance": "explicit_verse",
+      "maraka_provenance": null,
+      "verse": "34.27",
+      "conditional_rules": [],
+      "yoga_provenance": null
+    },
+    "Jupiter": {
+      "nature": "benefic",
+      "verse_yoga": "none",
+      "maraka": "none",
+      "provenance": "explicit_verse",
+      "maraka_provenance": null,
+      "verse": "34.27",
+      "conditional_rules": [],
+      "yoga_provenance": null
+    },
+    "Venus": {
+      "nature": "malefic",
+      "verse_yoga": "none",
+      "maraka": "none",
+      "provenance": "explicit_verse",
+      "maraka_provenance": null,
+      "verse": "34.27",
+      "conditional_rules": [],
+      "yoga_provenance": null
+    },
+    "Saturn": {
+      "nature": "neutral",
+      "verse_yoga": "none",
+      "maraka": "primary_killer",
+      "provenance": "translation_judgment",
+      "maraka_provenance": "explicit_verse",
+      "verse": "34.28",
+      "conditional_rules": [
+        "Saturn is the explicit killer, but its functional nature is not separately classified in the verses"
+      ],
+      "yoga_provenance": null
+    }
+  },
+  "Leo": {
+    "Sun": {
+      "nature": "benefic",
+      "verse_yoga": "none",
+      "maraka": "none",
+      "provenance": "explicit_verse",
+      "maraka_provenance": null,
+      "verse": "34.29",
+      "conditional_rules": [],
+      "yoga_provenance": null
+    },
+    "Moon": {
+      "nature": "neutral",
+      "verse_yoga": "none",
+      "maraka": "qualified",
+      "provenance": "translation_judgment",
+      "maraka_provenance": "explicit_verse",
+      "verse": "34.30",
+      "conditional_rules": [
+        "Saturn and Moon exercise their māraka capacity according to association (sāhacaryāt)",
+        "Moon's functional nature is unclassified and is therefore neutral by translation judgment",
+        "Commentary reports the Moon may become auspicious or yoga-producing under suitable conditions — commentary data only, never verse_yoga_status=yoga_agent"
+      ],
+      "yoga_provenance": null
+    },
+    "Mars": {
+      "nature": "benefic",
+      "verse_yoga": "none",
+      "maraka": "none",
+      "provenance": "explicit_verse",
+      "maraka_provenance": null,
+      "verse": "34.29",
+      "conditional_rules": [
+        "Mars carries ownership_yogakaraka=true through 4th + 9th lordship, while verse_yoga_status remains none — the verses do not call Mars a yoga agent for Leo",
+        "Commentary ranks Mars, Jupiter and Sun in descending benefic strength; recorded as commentary only, with no score, enum or hierarchy introduced"
+      ],
+      "yoga_provenance": null
+    },
+    "Mercury": {
+      "nature": "malefic",
+      "verse_yoga": "none",
+      "maraka": "none",
+      "provenance": "explicit_verse",
+      "maraka_provenance": null,
+      "verse": "34.29",
+      "conditional_rules": [],
+      "yoga_provenance": null
+    },
+    "Jupiter": {
+      "nature": "benefic",
+      "verse_yoga": "none",
+      "maraka": "none",
+      "provenance": "explicit_verse",
+      "maraka_provenance": null,
+      "verse": "34.29",
+      "conditional_rules": [
+        "Jupiter-Venus association alone does not produce an auspicious yoga (34.29)"
+      ],
+      "yoga_provenance": null
+    },
+    "Venus": {
+      "nature": "malefic",
+      "verse_yoga": "none",
+      "maraka": "none",
+      "provenance": "explicit_verse",
+      "maraka_provenance": null,
+      "verse": "34.29",
+      "conditional_rules": [
+        "Jupiter-Venus association alone does not produce an auspicious yoga (34.29)"
+      ],
+      "yoga_provenance": null
+    },
+    "Saturn": {
+      "nature": "malefic",
+      "verse_yoga": "none",
+      "maraka": "qualified",
+      "provenance": "explicit_verse",
+      "maraka_provenance": null,
+      "verse": "34.29-30",
+      "conditional_rules": [
+        "Saturn and Moon exercise their māraka capacity according to association (sāhacaryāt)"
+      ],
+      "yoga_provenance": null
+    }
+  },
+  "Virgo": {
+    "Sun": {
+      "nature": "neutral",
+      "verse_yoga": "none",
+      "maraka": "none",
+      "provenance": "translation_judgment",
+      "maraka_provenance": null,
+      "verse": "34.32",
+      "conditional_rules": [
+        "Sun's results depend on association; do not infer an unconditional benefic or malefic nature"
+      ],
+      "yoga_provenance": null
+    },
+    "Moon": {
+      "nature": "malefic",
+      "verse_yoga": "none",
+      "maraka": "none",
+      "provenance": "explicit_verse",
+      "maraka_provenance": null,
+      "verse": "34.31",
+      "conditional_rules": [],
+      "yoga_provenance": null
+    },
+    "Mars": {
+      "nature": "malefic",
+      "verse_yoga": "none",
+      "maraka": "qualified",
+      "provenance": "explicit_verse",
+      "maraka_provenance": "translation_judgment",
+      "verse": "34.31",
+      "conditional_rules": [
+        "Mars's qualified māraka capacity comes from the supplied commentary and 8th lordship, not explicit māraka language in the śloka"
+      ],
+      "yoga_provenance": null
+    },
+    "Mercury": {
+      "nature": "benefic",
+      "verse_yoga": "yoga_agent",
+      "maraka": "none",
+      "provenance": "explicit_verse",
+      "maraka_provenance": null,
+      "verse": "34.31",
+      "conditional_rules": [
+        "Mercury carries verse_yoga_status=yoga_agent while ownership_yogakaraka remains false — owning the 1st and 10th does not satisfy the locked ownership rule, which excludes the Lagna as the trikoṇa half"
+      ],
+      "yoga_provenance": null
+    },
+    "Jupiter": {
+      "nature": "malefic",
+      "verse_yoga": "none",
+      "maraka": "none",
+      "provenance": "explicit_verse",
+      "maraka_provenance": null,
+      "verse": "34.31",
+      "conditional_rules": [],
+      "yoga_provenance": null
+    },
+    "Venus": {
+      "nature": "benefic",
+      "verse_yoga": "yoga_agent",
+      "maraka": "maraka",
+      "provenance": "explicit_verse",
+      "maraka_provenance": null,
+      "verse": "34.31-32",
+      "conditional_rules": [
+        "Venus simultaneously remains benefic, yoga agent and māraka — none of these dimensions may overwrite another",
+        "Venus owns the 2nd and 9th but no kendra, so ownership_yogakaraka remains false; her yoga status comes from 34.31"
+      ],
+      "yoga_provenance": null
+    },
+    "Saturn": {
+      "nature": "mixed",
+      "verse_yoga": "none",
+      "maraka": "none",
+      "provenance": "translation_judgment",
+      "maraka_provenance": null,
+      "verse": "34.31-32",
+      "conditional_rules": [
+        "Saturn is mixed by commentary judgment: 5th lordship supports, while 6th lordship prevents an invariant benefic classification",
+        "Do not manufacture a verse classification for Saturn"
+      ],
+      "yoga_provenance": null
+    }
+  },
+  "Libra": {
+    "Sun": {
+      "nature": "malefic",
+      "verse_yoga": "none",
+      "maraka": "maraka",
+      "provenance": "explicit_verse",
+      "maraka_provenance": "explicit_verse",
+      "yoga_provenance": null,
+      "verse": "34.33-34",
+      "conditional_rules": [
+        "Mars is the direct killer; Jupiter and Sun possess only māraka characteristics",
+        "Commentary: Jupiter, Mars and Sun become more harmful when mutually associated and disconnected from Saturn, Mercury or Moon — commentary data only",
+        "One school states Mars or Sun may act beneficially when associated with Saturn, Mercury or Venus — alternate commentary view; base malefic nature is unchanged"
+      ]
+    },
+    "Moon": {
+      "nature": "neutral",
+      "verse_yoga": "yoga_agent",
+      "maraka": "none",
+      "provenance": "translation_judgment",
+      "maraka_provenance": null,
+      "yoga_provenance": "explicit_verse",
+      "verse": "34.33",
+      "conditional_rules": [
+        "Moon and Mercury are explicit rājayoga agents (34.33)"
+      ]
+    },
+    "Mars": {
+      "nature": "malefic",
+      "verse_yoga": "none",
+      "maraka": "primary_killer",
+      "provenance": "explicit_verse",
+      "maraka_provenance": "explicit_verse",
+      "yoga_provenance": null,
+      "verse": "34.33-34",
+      "conditional_rules": [
+        "Mars is the direct killer; Jupiter and Sun possess only māraka characteristics",
+        "Commentary: Jupiter, Mars and Sun become more harmful when mutually associated and disconnected from Saturn, Mercury or Moon — commentary data only",
+        "One school states Mars or Sun may act beneficially when associated with Saturn, Mercury or Venus — alternate commentary view; base malefic nature is unchanged"
+      ]
+    },
+    "Mercury": {
+      "nature": "benefic",
+      "verse_yoga": "yoga_agent",
+      "maraka": "none",
+      "provenance": "explicit_verse",
+      "maraka_provenance": null,
+      "yoga_provenance": "explicit_verse",
+      "verse": "34.33",
+      "conditional_rules": [
+        "Moon and Mercury are explicit rājayoga agents (34.33)"
+      ]
+    },
+    "Jupiter": {
+      "nature": "malefic",
+      "verse_yoga": "none",
+      "maraka": "maraka",
+      "provenance": "explicit_verse",
+      "maraka_provenance": "explicit_verse",
+      "yoga_provenance": null,
+      "verse": "34.33-34",
+      "conditional_rules": [
+        "Mars is the direct killer; Jupiter and Sun possess only māraka characteristics",
+        "Commentary: Jupiter, Mars and Sun become more harmful when mutually associated and disconnected from Saturn, Mercury or Moon — commentary data only"
+      ]
+    },
+    "Venus": {
+      "nature": "neutral",
+      "verse_yoga": "none",
+      "maraka": "none",
+      "provenance": "explicit_verse",
+      "maraka_provenance": null,
+      "yoga_provenance": null,
+      "verse": "34.34",
+      "conditional_rules": [
+        "Venus is explicitly neutral, not benefic or malefic"
+      ]
+    },
+    "Saturn": {
+      "nature": "benefic",
+      "verse_yoga": "none",
+      "maraka": "none",
+      "provenance": "explicit_verse",
+      "maraka_provenance": null,
+      "yoga_provenance": null,
+      "verse": "34.33",
+      "conditional_rules": [
+        "Saturn is an ownership yogakāraka (4th + 5th lordship) but not a verse yoga agent"
+      ]
+    }
+  },
+  "Scorpio": {
+    "Sun": {
+      "nature": "neutral",
+      "verse_yoga": "yoga_agent",
+      "maraka": "none",
+      "provenance": "translation_judgment",
+      "maraka_provenance": null,
+      "yoga_provenance": "explicit_verse",
+      "verse": "34.35",
+      "conditional_rules": [
+        "Sun and Moon are explicit verse yoga agents (34.35)",
+        "Sun's base nature remains unclassified and is encoded neutral by translation judgment",
+        "Do not invent ownership-yogakāraka status for Sun or Moon merely because the verse calls them yoga agents"
+      ]
+    },
+    "Moon": {
+      "nature": "benefic",
+      "verse_yoga": "yoga_agent",
+      "maraka": "none",
+      "provenance": "explicit_verse",
+      "maraka_provenance": null,
+      "yoga_provenance": "explicit_verse",
+      "verse": "34.35",
+      "conditional_rules": [
+        "Sun and Moon are explicit verse yoga agents (34.35)",
+        "Do not invent ownership-yogakāraka status for Sun or Moon merely because the verse calls them yoga agents"
+      ]
+    },
+    "Mars": {
+      "nature": "neutral",
+      "verse_yoga": "none",
+      "maraka": "none",
+      "provenance": "explicit_verse",
+      "maraka_provenance": null,
+      "yoga_provenance": null,
+      "verse": "34.36",
+      "conditional_rules": [
+        "Mars is explicitly neutral because the verse says kujaḥ samaḥ"
+      ]
+    },
+    "Mercury": {
+      "nature": "malefic",
+      "verse_yoga": "none",
+      "maraka": "maraka",
+      "provenance": "explicit_verse",
+      "maraka_provenance": "explicit_verse",
+      "yoga_provenance": null,
+      "verse": "34.35-36",
+      "conditional_rules": [
+        "Venus, Mercury and Saturn are mārakas through māraka-lakṣaṇa; none is a primary_killer"
+      ]
+    },
+    "Jupiter": {
+      "nature": "benefic",
+      "verse_yoga": "none",
+      "maraka": "none",
+      "provenance": "explicit_verse",
+      "maraka_provenance": null,
+      "yoga_provenance": null,
+      "verse": "34.35",
+      "conditional_rules": []
+    },
+    "Venus": {
+      "nature": "malefic",
+      "verse_yoga": "none",
+      "maraka": "maraka",
+      "provenance": "explicit_verse",
+      "maraka_provenance": "explicit_verse",
+      "yoga_provenance": null,
+      "verse": "34.35-36",
+      "conditional_rules": [
+        "Venus, Mercury and Saturn are mārakas through māraka-lakṣaṇa; none is a primary_killer"
+      ]
+    },
+    "Saturn": {
+      "nature": "malefic",
+      "verse_yoga": "none",
+      "maraka": "maraka",
+      "provenance": "explicit_verse",
+      "maraka_provenance": "explicit_verse",
+      "yoga_provenance": null,
+      "verse": "34.35-36",
+      "conditional_rules": [
+        "Venus, Mercury and Saturn are mārakas through māraka-lakṣaṇa; none is a primary_killer",
+        "Commentary: Saturn may produce practical auspicious results when placed in the 5th or 9th — conditional commentary only; base malefic classification is unchanged"
+      ]
+    }
+  },
+  "Sagittarius": {
+    "Sun": {
+      "nature": "benefic",
+      "verse_yoga": "yoga_agent",
+      "maraka": "none",
+      "provenance": "explicit_verse",
+      "maraka_provenance": null,
+      "yoga_provenance": "explicit_verse",
+      "verse": "34.37",
+      "conditional_rules": [
+        "Sun and Mercury are explicit yoga agents (34.37)"
+      ]
+    },
+    "Moon": {
+      "nature": "neutral",
+      "verse_yoga": "none",
+      "maraka": "none",
+      "provenance": "translation_judgment",
+      "maraka_provenance": null,
+      "yoga_provenance": null,
+      "verse": "34.37-38",
+      "conditional_rules": [
+        "Moon remains neutral by translation judgment",
+        "Commentary-based yoga possibilities through association with Jupiter, Mercury, Sun or Mars remain conditional data only"
+      ]
+    },
+    "Mars": {
+      "nature": "benefic",
+      "verse_yoga": "none",
+      "maraka": "none",
+      "provenance": "explicit_verse",
+      "maraka_provenance": null,
+      "yoga_provenance": null,
+      "verse": "34.37",
+      "conditional_rules": [
+        "Commentary may describe Mars as predominantly favourable; this must not overwrite its verse-grounded dimensions"
+      ]
+    },
+    "Mercury": {
+      "nature": "neutral",
+      "verse_yoga": "yoga_agent",
+      "maraka": "none",
+      "provenance": "translation_judgment",
+      "maraka_provenance": null,
+      "yoga_provenance": "explicit_verse",
+      "verse": "34.37",
+      "conditional_rules": [
+        "Sun and Mercury are explicit yoga agents (34.37)",
+        "Mercury's functional nature remains unclassified — do not infer benefic nature merely from yoga status",
+        "Commentary may describe Mercury as auspicious; this must not overwrite its verse-grounded dimensions"
+      ]
+    },
+    "Jupiter": {
+      "nature": "mixed",
+      "verse_yoga": "none",
+      "maraka": "none",
+      "provenance": "explicit_verse",
+      "maraka_provenance": null,
+      "yoga_provenance": null,
+      "verse": "34.38",
+      "conditional_rules": [
+        "Jupiter is explicitly sama-phala and must remain MIXED, not NEUTRAL"
+      ]
+    },
+    "Venus": {
+      "nature": "malefic",
+      "verse_yoga": "none",
+      "maraka": "maraka",
+      "provenance": "explicit_verse",
+      "maraka_provenance": "explicit_verse",
+      "yoga_provenance": null,
+      "verse": "34.37-38",
+      "conditional_rules": [
+        "Venus carries only māraka-lakṣaṇa, so it is maraka, never primary_killer"
+      ]
+    },
+    "Saturn": {
+      "nature": "neutral",
+      "verse_yoga": "none",
+      "maraka": "primary_killer",
+      "provenance": "translation_judgment",
+      "maraka_provenance": "explicit_verse",
+      "yoga_provenance": null,
+      "verse": "34.37",
+      "conditional_rules": [
+        "Saturn is the explicit direct killer through nihantā; its base nature remains unclassified"
+      ]
+    }
+  },
+  "Capricorn": {
+    "Sun": {
+      "nature": "mixed",
+      "verse_yoga": "none",
+      "maraka": "none",
+      "provenance": "explicit_verse",
+      "maraka_provenance": null,
+      "yoga_provenance": null,
+      "verse": "34.40",
+      "conditional_rules": [
+        "Sun is explicitly sama-phala and must remain MIXED"
+      ]
+    },
+    "Moon": {
+      "nature": "malefic",
+      "verse_yoga": "none",
+      "maraka": "primary_killer",
+      "provenance": "explicit_verse",
+      "maraka_provenance": "explicit_verse",
+      "yoga_provenance": null,
+      "verse": "34.39",
+      "conditional_rules": [
+        "hanti pāpāḥ kujādayaḥ applies to the verse-listed malefics Mars, Jupiter and Moon; all three carry direct killing status"
+      ]
+    },
+    "Mars": {
+      "nature": "malefic",
+      "verse_yoga": "none",
+      "maraka": "primary_killer",
+      "provenance": "explicit_verse",
+      "maraka_provenance": "explicit_verse",
+      "yoga_provenance": null,
+      "verse": "34.39",
+      "conditional_rules": [
+        "hanti pāpāḥ kujādayaḥ applies to the verse-listed malefics Mars, Jupiter and Moon; all three carry direct killing status"
+      ]
+    },
+    "Mercury": {
+      "nature": "benefic",
+      "verse_yoga": "none",
+      "maraka": "none",
+      "provenance": "explicit_verse",
+      "maraka_provenance": null,
+      "yoga_provenance": null,
+      "verse": "34.39",
+      "conditional_rules": [
+        "Mercury remains benefic but is not a verse yoga agent"
+      ]
+    },
+    "Jupiter": {
+      "nature": "malefic",
+      "verse_yoga": "none",
+      "maraka": "primary_killer",
+      "provenance": "explicit_verse",
+      "maraka_provenance": "explicit_verse",
+      "yoga_provenance": null,
+      "verse": "34.39",
+      "conditional_rules": [
+        "hanti pāpāḥ kujādayaḥ applies to the verse-listed malefics Mars, Jupiter and Moon; all three carry direct killing status"
+      ]
+    },
+    "Venus": {
+      "nature": "benefic",
+      "verse_yoga": "yoga_agent",
+      "maraka": "none",
+      "provenance": "explicit_verse",
+      "maraka_provenance": null,
+      "yoga_provenance": "explicit_verse",
+      "verse": "34.39-40",
+      "conditional_rules": [
+        "Venus carries both facts independently: verse_yoga_status=yoga_agent (34.40) and ownership_yogakaraka=true (5th + 10th lordship)"
+      ]
+    },
+    "Saturn": {
+      "nature": "neutral",
+      "verse_yoga": "none",
+      "maraka": "qualified",
+      "provenance": "translation_judgment",
+      "maraka_provenance": "translation_judgment",
+      "yoga_provenance": null,
+      "verse": "34.39",
+      "conditional_rules": [
+        "Saturn is not an independent killer; its qualified status comes from the supplied commentary that association with Mars, Jupiter or Moon can activate killing capacity",
+        "Do not promote Saturn to primary_killer"
+      ]
+    }
+  },
+  "Aquarius": {
+    "Sun": {
+      "nature": "neutral",
+      "verse_yoga": "none",
+      "maraka": "primary_killer",
+      "provenance": "translation_judgment",
+      "maraka_provenance": "explicit_verse",
+      "yoga_provenance": null,
+      "verse": "34.42",
+      "conditional_rules": [
+        "Jupiter, Sun and Mars are primary killers because the verse uses direct hantāraḥ language (34.41-42)",
+        "Sun's nature remains unclassified and is encoded neutral by translation judgment",
+        "The commentary's relative ordering of the three killers remains prose only; no killer-strength score or rank is introduced"
+      ]
+    },
+    "Moon": {
+      "nature": "malefic",
+      "verse_yoga": "none",
+      "maraka": "none",
+      "provenance": "explicit_verse",
+      "maraka_provenance": null,
+      "yoga_provenance": null,
+      "verse": "34.41",
+      "conditional_rules": []
+    },
+    "Mars": {
+      "nature": "malefic",
+      "verse_yoga": "none",
+      "maraka": "primary_killer",
+      "provenance": "explicit_verse",
+      "maraka_provenance": "explicit_verse",
+      "yoga_provenance": null,
+      "verse": "34.41-42",
+      "conditional_rules": [
+        "Jupiter, Sun and Mars are primary killers because the verse uses direct hantāraḥ language (34.41-42)",
+        "The commentary's relative ordering of the three killers remains prose only; no killer-strength score or rank is introduced"
+      ]
+    },
+    "Mercury": {
+      "nature": "mixed",
+      "verse_yoga": "none",
+      "maraka": "none",
+      "provenance": "explicit_verse",
+      "maraka_provenance": null,
+      "yoga_provenance": null,
+      "verse": "34.42",
+      "conditional_rules": [
+        "Mercury is explicitly madhya-phala and must remain MIXED",
+        "Mercury's improvement with Venus or Saturn and deterioration with adverse associations remain conditional commentary data"
+      ]
+    },
+    "Jupiter": {
+      "nature": "malefic",
+      "verse_yoga": "none",
+      "maraka": "primary_killer",
+      "provenance": "explicit_verse",
+      "maraka_provenance": "explicit_verse",
+      "yoga_provenance": null,
+      "verse": "34.41-42",
+      "conditional_rules": [
+        "Jupiter, Sun and Mars are primary killers because the verse uses direct hantāraḥ language (34.41-42)",
+        "The commentary's relative ordering of the three killers remains prose only; no killer-strength score or rank is introduced"
+      ]
+    },
+    "Venus": {
+      "nature": "benefic",
+      "verse_yoga": "yoga_agent",
+      "maraka": "none",
+      "provenance": "explicit_verse",
+      "maraka_provenance": null,
+      "yoga_provenance": "explicit_verse",
+      "verse": "34.41",
+      "conditional_rules": [
+        "Venus alone carries verse_yoga_status=yoga_agent (34.41)",
+        "Venus independently carries ownership_yogakaraka=true through 4th + 9th lordship"
+      ]
+    },
+    "Saturn": {
+      "nature": "benefic",
+      "verse_yoga": "none",
+      "maraka": "none",
+      "provenance": "explicit_verse",
+      "maraka_provenance": null,
+      "yoga_provenance": null,
+      "verse": "34.41",
+      "conditional_rules": [
+        "Saturn remains benefic but has neither verse yoga nor ownership-yogakāraka status; 1st + 12th lordship does not satisfy the locked rule, which excludes the Lagna"
+      ]
+    }
+  },
+  "Pisces": {
+    "Sun": {
+      "nature": "malefic",
+      "verse_yoga": "none",
+      "maraka": "none",
+      "provenance": "explicit_verse",
+      "maraka_provenance": null,
+      "yoga_provenance": null,
+      "verse": "34.43",
+      "conditional_rules": []
+    },
+    "Moon": {
+      "nature": "benefic",
+      "verse_yoga": "none",
+      "maraka": "none",
+      "provenance": "explicit_verse",
+      "maraka_provenance": null,
+      "yoga_provenance": null,
+      "verse": "34.43",
+      "conditional_rules": []
+    },
+    "Mars": {
+      "nature": "benefic",
+      "verse_yoga": "yoga_agent",
+      "maraka": "qualified",
+      "provenance": "explicit_verse",
+      "maraka_provenance": "explicit_verse",
+      "yoga_provenance": "explicit_verse",
+      "verse": "34.43-44",
+      "conditional_rules": [
+        "Mars simultaneously remains benefic, verse yoga agent and qualified māraka",
+        "mārako'pi na hantā'sau explicitly prevents Mars from becoming a primary_killer",
+        "Mars requires activation by another killer, specifically Saturn or Mercury according to the commentary",
+        "Do not infer ownership-yogakāraka status for Mars from its verse yoga status"
+      ]
+    },
+    "Mercury": {
+      "nature": "malefic",
+      "verse_yoga": "none",
+      "maraka": "maraka",
+      "provenance": "explicit_verse",
+      "maraka_provenance": "explicit_verse",
+      "yoga_provenance": null,
+      "verse": "34.43-44",
+      "conditional_rules": [
+        "Saturn and Mercury are ordinary maraka, not primary_killer, because the verse says mārakau"
+      ]
+    },
+    "Jupiter": {
+      "nature": "neutral",
+      "verse_yoga": "yoga_agent",
+      "maraka": "none",
+      "provenance": "translation_judgment",
+      "maraka_provenance": null,
+      "yoga_provenance": "explicit_verse",
+      "verse": "34.43",
+      "conditional_rules": [
+        "Jupiter is an explicit yoga agent, but its base nature remains unclassified and is encoded neutral by translation judgment",
+        "Do not infer ownership-yogakāraka status for Jupiter from its verse yoga status"
+      ]
+    },
+    "Venus": {
+      "nature": "malefic",
+      "verse_yoga": "none",
+      "maraka": "qualified",
+      "provenance": "explicit_verse",
+      "maraka_provenance": "translation_judgment",
+      "yoga_provenance": null,
+      "verse": "34.43-44",
+      "conditional_rules": [
+        "Venus's qualified killer capacity is commentary-derived from 8th lordship and must not be presented as explicit verse"
+      ]
+    },
+    "Saturn": {
+      "nature": "malefic",
+      "verse_yoga": "none",
+      "maraka": "maraka",
+      "provenance": "explicit_verse",
+      "maraka_provenance": "explicit_verse",
+      "yoga_provenance": null,
+      "verse": "34.43-44",
+      "conditional_rules": [
+        "Saturn and Mercury are ordinary maraka, not primary_killer, because the verse says mārakau"
+      ]
+    }
+  }
+}
