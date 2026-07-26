@@ -3,8 +3,12 @@ from routes_auth import router as auth_router
 from routes_me import router as me_router
 from prashna_routes import router as prashna_router
 from karak_contract import KarakReportRequest, generate as karak_generate
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException
+from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
+# KAR-093 · D1 server-authored interpretation
+from d1_chart_store import issue_chart_response
+from d1_wiring import ChartCaller, chart_caller, install_d1, snapshot_store
 from pydantic import BaseModel
 import swisseph as swe
 from datetime import datetime, timedelta, timezone
@@ -90,6 +94,9 @@ app.add_middleware(
 if not ALLOWED_ORIGINS:
     logger.warning("ALLOWED_ORIGINS is unset: CORS is wildcard and credentials "
                    "are disabled. Set it before authenticated browser use.")
+
+# KAR-093 · POST /d1/prepare, with a caller-scoped snapshot resolver.
+install_d1(app)
 
 # ─────────────────────────────────────────────────────────────────────────────
 # CONSTANTS
@@ -663,8 +670,11 @@ def geocode_place(place: str):
         raise HTTPException(status_code=500, detail=f"Geocoding error: {str(e)}")
 
 
-@app.post("/chart")
-def calculate_chart(req: ChartRequest):
+# KAR-093: the certified calculation itself is unchanged. It is no longer the
+# route handler, because /chart must now persist an immutable snapshot and
+# mint a chart_token — an async step. This stays SYNC and is run in a
+# threadpool so the Swiss ephemeris work never blocks the event loop.
+def _calculate_chart_body(req: ChartRequest):
     try:
         # KAR-072 / KAR-077. Full calendar-date validation plus the certified
         # interval, before anything reaches strptime or the ephemeris. The
@@ -708,6 +718,22 @@ def calculate_chart(req: ChartRequest):
             status_code=500,
             detail=f"Chart calculation failed. Reference: {correlation_id}",
         )
+
+
+@app.post("/chart")
+async def calculate_chart(req: ChartRequest,
+                          cc: ChartCaller = Depends(chart_caller)):
+    """Certified chart, plus an immutable snapshot and the chart_token that
+    POST /d1/prepare resolves.
+
+    An anonymous caller is issued a signed session token, returned as
+    anon_session; the client echoes it on /d1/prepare so the snapshot resolves
+    under the same owner. Authenticated callers own by user_id and get no
+    session token. The response is otherwise unchanged.
+    """
+    body = await run_in_threadpool(_calculate_chart_body, req)
+    return await issue_chart_response(body, snapshot_store, cc.caller,
+                                      echo_session=cc.echo_session)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
