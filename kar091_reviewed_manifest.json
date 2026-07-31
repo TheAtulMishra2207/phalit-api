@@ -3,7 +3,7 @@
  "reviewed_at": "2026-07-25",
  "regenerated_at": "2026-07-31",
  "review_note": "Identity = verdict/desc text + normalized source fingerprints of every dynamic hole; any change inside a dyn expression invalidates its disposition. Corpus covers verdict operands AND desc operands (both safety-classified at runtime), with both branches of every conditional expanded and wrapper call sites fully reconstructed (res + citation). Benign dispositions assigned during individual reading across the v5-v7 review passes, including the full desc corpus.",
- "source_file_sha256": "c475284dd5da80daae757e8702b3bf837715ae646ed6e93100c3d3e6335ca252",
+ "source_file_sha256": "7e026b371a64e43602b93c4804c28181cf6e837d285d40e3f2b174368cc649d3",
  "dispositions": {
   "d4bf29119058aa2b653d5a01d24be00344fd283979438702c47f364dc8b05041": {
    "disposition": "benign_reviewed",
