@@ -30,7 +30,7 @@ from typing import Any, Dict, Optional
 
 from pydantic import ValidationError
 
-from d1_contract import Dignity, Graha
+from d1_contract import Dignity, Graha, Varga
 from d1_engine import CertifiedChart, ChartGraha
 
 ADAPTER_VERSION = "d1-chart-adapter-0.1.0"
@@ -83,6 +83,28 @@ CERTIFIED_DIGNITY: Dict[str, Optional[Dignity]] = {
 # Not producible by the live engine (no panchadha maitri). Kept explicit so the
 # gap is visible rather than implied by absence.
 UNREACHABLE_FROM_LIVE_ENGINE = frozenset({Dignity.GREAT_FRIEND, Dignity.GREAT_ENEMY})
+
+# ── varga view (D9 port) ─────────────────────────────────────────────────────
+# The engine requires varga_sign_index, varga_dignity and varga_lagna_sign_index
+# and RAISES without them, because it never computes a varga mapping. The live
+# /chart already carries them under its own D9-prefixed names, so this is a
+# rename at the seam and nothing more: no arithmetic, no navamsa derivation.
+#
+# The source names are held in a TABLE rather than inlined, for the same reason
+# the policy key is varga_aspect_policy and not d9_aspect_policy: the next varga
+# is a row here, not a rewrite of to_certified_chart. Only D9 is declared,
+# because only D9's dignity is emitted by the certified engine today. /chart
+# carries d20_sign_index but no d20_dignity, so declaring D20 here would promise
+# a view the engine cannot fill.
+VARGA_SOURCE_FIELDS: Dict[Varga, Dict[str, str]] = {
+    Varga.D9: {"graha_sign_index": "d9_sign_index",
+               "graha_dignity": "d9_dignity",
+               "lagna_sign_index": "d9_sign_index"},
+}
+
+# Absent varga fields are left as None rather than defaulted. The engine then
+# fails closed and names the grahas it could not find a view for, which is the
+# correct place for that refusal: the adapter translates, the engine judges.
 
 def map_dignity(value: Any) -> Optional[Dignity]:
     if value is None:
@@ -137,6 +159,22 @@ def _opt_int(d: Dict[str, Any], key: str, where: str) -> Optional[int]:
             f"{where}.{key} must be an integer when present, got {type(v).__name__} {v!r}")
     return v
 
+def _opt_bool_or_none(d: Dict[str, Any], key: str, where: str) -> Optional[bool]:
+    """Absent stays None, never False.
+
+    _opt_bool defaults a missing key to False, which for vargottama would print
+    "no" for every graha on a payload that simply did not carry the field. The
+    unknown state has to stay reachable, so absence is None and the renderer
+    shows an explicit unknown rather than a confident negative.
+    """
+    v = d.get(key)
+    if v is None:
+        return None
+    if not isinstance(v, bool):
+        raise ChartAdapterError(
+            f"{where}.{key} must be a boolean when present, got {type(v).__name__} {v!r}")
+    return v
+
 def _opt_str(d: Dict[str, Any], key: str, where: str) -> Optional[str]:
     v = d.get(key)
     if v is None or isinstance(v, str):
@@ -144,8 +182,15 @@ def _opt_str(d: Dict[str, Any], key: str, where: str) -> Optional[str]:
     raise ChartAdapterError(
         f"{where}.{key} must be a string when present, got {type(v).__name__} {v!r}")
 
-def to_certified_chart(chart: Dict[str, Any], chart_token: str) -> CertifiedChart:
-    """Translate a /chart response body into the D1 engine's input model."""
+def to_certified_chart(chart: Dict[str, Any], chart_token: str,
+                       varga: Varga = Varga.D9) -> CertifiedChart:
+    """Translate a /chart response body into the D1 engine's input model.
+
+    `varga` selects which secondary view is carried alongside the birth chart.
+    One certified snapshot holds both, so a D1 request and a D9 request read the
+    same object and no second /chart call happens.
+    """
+    src = VARGA_SOURCE_FIELDS.get(varga, {})
     if not isinstance(chart, dict):
         raise ChartAdapterError("certified chart payload must be an object")
     check_provenance(chart.get("calculation_meta"))
@@ -173,6 +218,18 @@ def to_certified_chart(chart: Dict[str, Any], chart_token: str) -> CertifiedChar
                 combust=_opt_bool(raw, "combust", g.value),
                 nakshatra=_opt_str(raw, "nakshatra", g.value),
                 nakshatra_pada=_opt_int(raw, "nakshatra_pada", g.value),
+                # Rename only. map_dignity already returns None for the 'Node'
+                # sentinel, which is what yields the UNKNOWN dignity shift for
+                # Rahu and Ketu with no special-casing anywhere.
+                varga_sign_index=(_opt_int(raw, src["graha_sign_index"], g.value)
+                                  if src else None),
+                varga_dignity=(map_dignity(raw.get(src["graha_dignity"]))
+                               if src else None),
+                # Pure carry-through of a certified boolean, read exactly as
+                # dignity is read. The alternative, comparing sign_index across
+                # two payloads in the browser, is the derivation already ruled
+                # out for house.
+                vargottama=_opt_bool_or_none(raw, "vargottama", g.value),
             )
         except ValidationError as e:
             # Out-of-range or wrongly typed certified values are a translation
@@ -184,6 +241,8 @@ def to_certified_chart(chart: Dict[str, Any], chart_token: str) -> CertifiedChar
             lagna_sign_index=_req_int(lagna, "sign_index", "lagna"),
             lagna_degree=_req_num(lagna, "degree", "lagna"),
             grahas=grahas,
+            varga_lagna_sign_index=(_opt_int(lagna, src["lagna_sign_index"], "lagna")
+                                    if src else None),
         )
     except ValidationError as e:
         raise ChartAdapterError(f"invalid certified lagna values: {e}") from e

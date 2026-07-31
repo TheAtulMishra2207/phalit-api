@@ -43,6 +43,33 @@ ENGINE_VERSION = "d1-engine-0.1.0"
 ASPECT_POLICY_VERSION = "parashari-d1-1.0"
 NODE_ASPECT_POLICY = "no_independent_drishti"
 
+# ── varga parameterisation (D9 port) ────────────────────────────────────────
+# The same stack computes any varga. Two things are policy, not code:
+#
+#   varga_aspect_policy         whether graha-dṛṣṭi is cast inside this varga
+#   functional_role_lagna_anchor  which lagna BPHS 34 functional nature reads
+#
+# FOUNDER RULING: no drishti in D9. BPHS casts dṛṣṭi in the rāśi chart; carrying
+# it into a varga is a doctrinal position this build does not take. The key is
+# deliberately NOT d9-prefixed, because D9 is the template for D10 and beyond
+# and a varga-named field would force a rename at the next one. A third position
+# later arrives as a NEW EXPLICIT VALUE, never as a silent change to an
+# existing one.
+#
+# The policy is ENFORCED below, not merely declared. A declared policy the
+# contract does not check is the same defect class as the legacy flat
+# functional_roles field: a claim with nothing behind it.
+
+class Varga(str, Enum):
+    D1 = "D1"
+    D9 = "D9"
+
+VARGA_ASPECT_POLICY = {
+    Varga.D1: "parashari_full",
+    Varga.D9: "none",
+}
+FUNCTIONAL_ROLE_LAGNA_ANCHOR = "birth_lagna"
+
 # ── vocabulary ───────────────────────────────────────────────────────────────
 
 class Graha(str, Enum):
@@ -91,6 +118,23 @@ class EnginePolicy(BaseModel):
     house_system: Literal["whole_sign"] = "whole_sign"
     aspect_policy_version: Literal["parashari-d1-1.0"] = ASPECT_POLICY_VERSION
     node_aspect_policy: Literal["no_independent_drishti"] = NODE_ASPECT_POLICY
+    varga: Varga = Varga.D1
+    varga_aspect_policy: Literal["parashari_full", "none"] = "parashari_full"
+    # BPHS 34 functional nature is a rāśi-lordship property and does not change
+    # across vargas, so it stays anchored to the birth lagna in every varga.
+    # The value the payload must carry to be verifiable is
+    # birth_lagna_sign_index on D1PrepareResponse.
+    functional_role_lagna_anchor: Literal["birth_lagna"] = FUNCTIONAL_ROLE_LAGNA_ANCHOR
+
+    @root_validator(skip_on_failure=True)
+    def _policy_matches_varga(cls, values):
+        varga, declared = values.get("varga"), values.get("varga_aspect_policy")
+        expected = VARGA_ASPECT_POLICY.get(varga)
+        if expected is not None and declared != expected:
+            raise ValueError(
+                f"varga {varga.value} carries varga_aspect_policy={expected!r}, "
+                f"not {declared!r}; a new position is a new explicit value")
+        return values
 
 class GrahaState(BaseModel):
     graha: Graha
@@ -99,6 +143,16 @@ class GrahaState(BaseModel):
     degree_in_sign: float = Field(ge=0, lt=30)
     house: int = Field(ge=1, le=12)           # Whole Sign from Lagna
     dignity: Optional[Dignity] = None          # None for nodes if not assigned
+    # VARGA PORT, constraint 4 (publish the inputs to a derived claim). In D1
+    # this equals `dignity`; in a varga `dignity` is the varga dignity and this
+    # stays the birth-chart one. varga_dignity_shift is derived from the pair,
+    # and a derived verdict whose inputs are not in the payload is a claim
+    # nothing can verify. Same principle as birth_lagna_sign_index.
+    birth_dignity: Optional[Dignity] = None
+    # Certified by the chart engine. Optional because ABSENT and FALSE are
+    # different facts: absent means the chart did not say, and the renderer
+    # shows an explicit unknown rather than a confident "no".
+    vargottama: Optional[bool] = None
     retrograde: bool = False
     combust: bool = False
     nakshatra: Optional[str] = None
@@ -195,6 +249,11 @@ class D1PrepareResponse(BaseModel):
     lagna_sign_index: int = Field(ge=0, le=11)
     lagna_sign: str
     lagna_degree: float = Field(ge=0, lt=30)
+    # The lagna functional roles were ACTUALLY anchored to. In D1 it equals
+    # lagna_sign_index; in a varga it is the birth lagna while lagna_sign_index
+    # is the varga lagna. Without it, functional_role_lagna_anchor is a claim
+    # nothing in the payload can check.
+    birth_lagna_sign_index: int = Field(ge=0, le=11)
     grahas: List[GrahaState] = Field(min_items=9, max_items=9)
     houses: List[HouseState] = Field(min_items=12, max_items=12)
     aspects: List[AspectEdge]
@@ -217,6 +276,25 @@ class D1PrepareResponse(BaseModel):
             raise ValueError("functional_roles must cover exactly the nine grahas")
         if {h.house for h in houses} != set(range(1, 13)):
             raise ValueError("houses must be exactly 1..12")
+
+        # POLICY GATE (varga port). Under varga_aspect_policy="none" doctrine
+        # says there is nothing to cast, so the manifest must be EMPTY and no
+        # house may record an aspecting graha. Permitting zero edges would let a
+        # D9 payload carry aspects and still validate, which is the declared-
+        # but-unenforced hole this port exists to avoid.
+        policy = values.get("policy")
+        varga_policy = getattr(policy, "varga_aspect_policy", "parashari_full")
+        if varga_policy == "none":
+            if aspects:
+                raise ValueError(
+                    "varga_aspect_policy=none forbids graha-dṛṣṭi; the manifest "
+                    f"carries {len(aspects)} edge(s)")
+            offenders = [h.house for h in houses if h.aspected_by]
+            if offenders:
+                raise ValueError(
+                    "varga_aspect_policy=none forbids graha-dṛṣṭi; houses "
+                    f"{offenders} record aspected_by")
+            return values
 
         # Aspect GEOMETRY: the manifest must be the exact Parāśarī dṛṣṭi set —
         # for every permitted (source, kind) pair EXACTLY ONE edge, landing on

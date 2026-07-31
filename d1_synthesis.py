@@ -39,11 +39,11 @@ pass-through inputs and only banded, so this port invents no strength formula.
 from __future__ import annotations
 
 from enum import Enum
-from typing import Dict, List, Optional
+from typing import Dict, List, Literal, Optional
 
 from pydantic import BaseModel, Field
 
-from d1_contract import D1PrepareResponse, Dignity, Graha
+from d1_contract import D1PrepareResponse, Dignity, Graha, Varga
 from d1_engine import (
     D1Doctrine, DIGNITY_LABELS, InfluencePolarity, NaturalNature,
 )
@@ -110,6 +110,11 @@ class CorpusName(str, Enum):
     HOUSE = "HOUSE_CORPUS"
     BHAVAT = "BHAVAT_DESC"
     BHAVA_KARAKA = "BHAVA_KARAKA"
+    # A NEW KIND OF LOOKUP, not a new varga of an existing one: keyed
+    # graha x DIRECTION rather than graha x dignity. This is the one authorized
+    # exception to "a new varga adds a Varga member and a table, never a new
+    # CorpusName".
+    VARGA_SHIFT = "VARGA_SHIFT"
 
 class CorpusRef(BaseModel):
     """A directly resolvable corpus lookup. No composite strings."""
@@ -119,6 +124,11 @@ class CorpusRef(BaseModel):
     dignity: Optional[Dignity] = None  # echoed for RASHI so the renderer can
                                        # migrate to enum keys without a reparse
     resolvable: bool = True            # false when no dignity is available
+    # VARGA PORT. The varga selects which corpus TABLE the renderer reads;
+    # CorpusName stays the kind of lookup. Keeping the two orthogonal means D10
+    # adds a Varga member and no CorpusName members, the same reasoning that
+    # made the policy key varga_aspect_policy rather than d9_aspect_policy.
+    varga: Varga = Varga.D1
 
 class SynthesisError(ValueError):
     """Raised when the payload cannot be built from the given inputs. This
@@ -144,6 +154,51 @@ class BalaBand(str, Enum):
     STRONG = "strong"
     MODERATE = "moderate"
     WEAK = "weak"
+
+class VargaDignityShift(str, Enum):
+    """Direction of a graha's dignity between the birth chart and a varga.
+
+    FOUR VALUES, NOT THREE. UNKNOWN is not "held". Nodes carry no varga dignity
+    (the certified adapter emits "Node", which maps to None), and absence of
+    dignity is absence of data, not absence of change. On the chart of record
+    Rahu and Ketu are BOTH Exalted in D1 with no D9 dignity: a three-value
+    implementation would report "held" and thereby assert they carry
+    exaltation-level strength into D9, which is a wrong reading rather than a
+    taxonomy quibble.
+    """
+    STRONGER = "stronger"
+    WEAKER = "weaker"
+    HELD = "held"
+    UNKNOWN = "unknown"
+
+# ORDERING ONLY. Never a corpus key, never a score, never rendered.
+#
+# Constraint 1 said to reuse the existing map rather than invent a second one.
+# THE EXISTING SERVER-SIDE MAP DOES NOT EXIST: LEGACY_RASHI_KEY was DELETED
+# under KAR-093 (see the corpus-reference note above) precisely so the server
+# never reconstructs a numeric tier, and the RASHI corpus is now keyed by the
+# Dignity enum value directly. So what is reused is the ORDER the corpus tier
+# column defines, expressed as an ordinal over the enum, with no tier numbers
+# reintroduced and nothing keyed off it.
+#
+# The two ties are the two collapses the corpus makes, and only those two:
+# Great Friend with Friend, and Great Enemy with Enemy. Nothing else is tied.
+# Exalted and Moolatrikona are DIFFERENT ranks, so Exalted -> Moolatrikona is
+# correctly "weaker" — that is Saturn on the chart of record.
+#
+# Both tied values are currently UNREACHABLE from the live engine (there is no
+# panchadha-maitri layer), so the ties cannot fire on production data today.
+# They exist so that the day such a layer arrives, a Great Friend -> Friend
+# transition reports "held" rather than a direction the corpus cannot express.
+_DIGNITY_RANK: Dict[Dignity, int] = {
+    Dignity.DEBILITATED: 0,
+    Dignity.GREAT_ENEMY: 1, Dignity.ENEMY: 1,
+    Dignity.NEUTRAL: 2,
+    Dignity.GREAT_FRIEND: 3, Dignity.FRIEND: 3,
+    Dignity.OWN: 4,
+    Dignity.MOOLATRIKONA: 5,
+    Dignity.EXALTED: 6,
+}
 
 # Dignity → support/strength, read from the CERTIFIED dignity enum rather than
 # the client's degree-blind numeric score table (KAR-080).
@@ -207,6 +262,10 @@ class GrahaRef(BaseModel):
     dignity: Optional[Dignity] = None
     dignity_label: Optional[str] = None
     retrograde: bool = False
+    # Carried from the certified chart, never derived. ABSENT and FALSE are
+    # different facts, so this is Optional and the renderer shows an explicit
+    # unknown for None rather than a confident "no".
+    vargottama: Optional[bool] = None
 
 class DrishtiSource(BaseModel):
     """One aspect landing on the subject, taken from the canonical manifest."""
@@ -219,11 +278,37 @@ class DrishtiBlock(BaseModel):
     subject: str                   # "H7" or "Venus (Bhavesh)"
     sources: List[DrishtiSource] = Field(default_factory=list)
     net: InfluencePolarity
+    # VARGA PORT. Under varga_aspect_policy="none" this block is NOT empty-and-
+    # neutral; it is explicitly not-applicable. An empty sources list with
+    # net=unassessed would read as "we looked and found nothing", which is the
+    # samah / sama-phala collapse. applicability is the field the drawer binds
+    # to, and not_applicable_basis is the text it renders instead of a blank.
+    applicability: Literal["applicable", "not_applicable"] = "applicable"
+    not_applicable_basis: Optional[str] = None
     # Grouped for rendering; a source appears in exactly one list.
     supportive: List[Graha] = Field(default_factory=list)
     challenging: List[Graha] = Field(default_factory=list)
     mixed: List[Graha] = Field(default_factory=list)
     unassessed: List[Graha] = Field(default_factory=list)
+
+class VargaDignityShiftBlock(BaseModel):
+    """Where the graha's dignity moved between the birth chart and this varga.
+
+    Constraint 3: D1 MUST NOT carry a meaningful direction, because comparing a
+    chart to itself is not a reading. Reuses the applicability pattern already
+    accepted for drishti rather than inventing a second shape, which also keeps
+    the D1 added-fields-only regression property intact and gives P3 a declared
+    path to bind.
+    """
+    applicability: Literal["applicable", "not_applicable"] = "not_applicable"
+    shift: VargaDignityShift = VargaDignityShift.UNKNOWN
+    # Constraint 4: the inputs travel with the verdict.
+    birth_dignity: Optional[Dignity] = None
+    varga_dignity: Optional[Dignity] = None
+    birth_rank: Optional[int] = None
+    varga_rank: Optional[int] = None
+    corpus_ref: Optional[CorpusRef] = None   # absent when nothing is renderable
+    basis: str = ""
 
 class RashiSection(BaseModel):
     sign: str
@@ -327,6 +412,7 @@ class GrahaSaarSection(BaseModel):
 
 class GrahaDrawer(BaseModel):
     synthesis_version: str = SYNTHESIS_VERSION
+    varga: Varga = Varga.D1
     graha: Graha
     position: GrahaRef
     rashi: RashiSection
@@ -336,9 +422,14 @@ class GrahaDrawer(BaseModel):
     bhava_karaka: BhavaKarakaSection
     shadbala: ShadbalaSection
     graha_saar: GrahaSaarSection
+    varga_dignity_shift: VargaDignityShiftBlock
 
 class D1DrawerPayload(BaseModel):
     synthesis_version: str = SYNTHESIS_VERSION
+    # SYNTHESIS_VERSION is deliberately NOT bumped. Bumping it would change a
+    # VALUE in the D1 payload, and the D1 regression property that matters is
+    # added fields only, zero changed values. The varga is a new field instead.
+    varga: Varga = Varga.D1
     chart_token: str
     drawers: List[GrahaDrawer] = Field(min_items=9, max_items=9)
 
@@ -365,7 +456,7 @@ def _graha_ref(resp: D1PrepareResponse, g: Graha) -> GrahaRef:
         graha=g, house=st.house, sign=st.sign, degree_in_sign=st.degree_in_sign,
         dignity=st.dignity,
         dignity_label=DIGNITY_LABELS.get(st.dignity) if st.dignity else None,
-        retrograde=st.retrograde)
+        retrograde=st.retrograde, vargottama=st.vargottama)
 
 def _polarity_index(doc: D1Doctrine) -> Dict[int, Dict[Graha, tuple]]:
     """house -> {source graha: (polarity, basis)} taken from the doctrine's
@@ -385,6 +476,15 @@ def _drishti_block(subject: str, house: int, resp: D1PrepareResponse,
     """Build a drishti block by READING the canonical manifest (KAR-081/085).
     only_targets restricts to edges that land on a particular graha, which is
     how the Bhavesh block is built without a second aspect computation."""
+    if resp.policy.varga_aspect_policy == "none":
+        # Doctrine says there is nothing to cast. Distinct from "nothing found".
+        return DrishtiBlock(
+            subject=subject, sources=[], net=InfluencePolarity.NOT_APPLICABLE,
+            applicability="not_applicable",
+            not_applicable_basis=(
+                f"graha-dṛṣṭi is not cast in {resp.policy.varga.value} "
+                f"(varga_aspect_policy=none); this is doctrine, not an absence of evidence"))
+
     sources: List[DrishtiSource] = []
     for e in resp.aspects:
         if e.target_house != house:
@@ -415,6 +515,40 @@ def _drishti_block(subject: str, house: int, resp: D1PrepareResponse,
         challenging=groups[InfluencePolarity.CHALLENGING],
         mixed=groups[InfluencePolarity.MIXED],
         unassessed=groups[InfluencePolarity.UNASSESSED])
+
+def _varga_dignity_shift(graha: Graha, varga: Varga,
+                         birth_dignity: Optional[Dignity],
+                         varga_dignity: Optional[Dignity]) -> VargaDignityShiftBlock:
+    if varga is Varga.D1:
+        return VargaDignityShiftBlock(
+            applicability="not_applicable", shift=VargaDignityShift.UNKNOWN,
+            birth_dignity=birth_dignity, varga_dignity=birth_dignity,
+            birth_rank=_DIGNITY_RANK.get(birth_dignity) if birth_dignity else None,
+            varga_rank=_DIGNITY_RANK.get(birth_dignity) if birth_dignity else None,
+            corpus_ref=None,
+            basis="the birth chart is not compared with itself")
+
+    b = _DIGNITY_RANK.get(birth_dignity) if birth_dignity else None
+    v = _DIGNITY_RANK.get(varga_dignity) if varga_dignity else None
+    if b is None or v is None:
+        missing = "birth" if b is None else varga.value
+        return VargaDignityShiftBlock(
+            applicability="applicable", shift=VargaDignityShift.UNKNOWN,
+            birth_dignity=birth_dignity, varga_dignity=varga_dignity,
+            birth_rank=b, varga_rank=v, corpus_ref=None,
+            basis=(f"no certified {missing} dignity for {graha.value}; the "
+                   f"direction is unknown, which is not the same as unchanged"))
+
+    shift = (VargaDignityShift.STRONGER if v > b else
+             VargaDignityShift.WEAKER if v < b else VargaDignityShift.HELD)
+    return VargaDignityShiftBlock(
+        applicability="applicable", shift=shift,
+        birth_dignity=birth_dignity, varga_dignity=varga_dignity,
+        birth_rank=b, varga_rank=v,
+        corpus_ref=CorpusRef(corpus=CorpusName.VARGA_SHIFT, graha=graha,
+                             key=shift.value, resolvable=True, varga=varga),
+        basis=(f"{birth_dignity.value} in D1 to {varga_dignity.value} in "
+               f"{varga.value}"))
 
 def _overall_verdict(strength: StrengthVerdict, bhavesh_support: SupportLevel,
                      house_net: InfluencePolarity, karaka_support: SupportLevel,
@@ -459,6 +593,12 @@ def _overall_verdict(strength: StrengthVerdict, bhavesh_support: SupportLevel,
         factors.append(VerdictFactor(factor="house_drishti", direction="negative", detail="challenging drishti"))
     elif house_net == InfluencePolarity.MIXED:
         factors.append(VerdictFactor(factor="house_drishti", direction="negative", detail="mixed drishti"))
+    elif house_net == InfluencePolarity.NOT_APPLICABLE:
+        # Stated, not omitted. Silence here would read as "evaluated, neutral".
+        # It carries no direction, so it neither creates nor blocks a verdict:
+        # the is_strong clause tests only for CHALLENGING and MIXED.
+        factors.append(VerdictFactor(factor="house_drishti", direction="not_applicable",
+                                     detail="graha-dṛṣṭi is not cast in this varga"))
     if karaka_support == SupportLevel.STRONG:
         factors.append(VerdictFactor(factor="bhava_karaka", direction="positive", detail="natural significator strong"))
     elif karaka_support == SupportLevel.WEAK:
@@ -575,14 +715,51 @@ def build_drawer(graha: Graha, resp: D1PrepareResponse, doc: D1Doctrine,
         at_digbala_peak=saar.at_digbala_peak_house,
         is_own_karaka=saar.is_natural_karaka_of_own_house)
 
+    # birth_dignity is published on GrahaState, so the drawer reads the two
+    # inputs from the payload rather than being handed a second copy.
+    gstate = next(x for x in resp.grahas if x.graha == graha)
+    shift = _varga_dignity_shift(graha, resp.policy.varga,
+                                 gstate.birth_dignity, gstate.dignity)
     return GrahaDrawer(graha=graha, position=pos, rashi=rashi, house=house_sec,
                        bhavesh=bhavesh, bhavat_bhavam=bb, bhava_karaka=bk,
-                       shadbala=sb, graha_saar=saar)
+                       shadbala=sb, graha_saar=saar,
+                       varga_dignity_shift=shift)
+
+def _stamp_varga(model, varga: Varga) -> None:
+    """Set varga on the drawer and on every CorpusRef beneath it, recursively.
+
+    Done in ONE place on purpose. Passing the varga into each corpus-ref
+    construction site would work today and would be silently incomplete the
+    first time a fifth section gains a corpus ref. This walks whatever is
+    actually there.
+    """
+    if isinstance(model, CorpusRef):
+        model.varga = varga
+        return
+    if isinstance(model, BaseModel):
+        if "varga" in model.__fields__:
+            setattr(model, "varga", varga)
+        for name in model.__fields__:
+            v = getattr(model, name, None)
+            if isinstance(v, BaseModel):
+                _stamp_varga(v, varga)
+            elif isinstance(v, list):
+                for item in v:
+                    if isinstance(item, BaseModel):
+                        _stamp_varga(item, varga)
 
 def build_d1_drawers(resp: D1PrepareResponse, doc: D1Doctrine,
                      shadbala_inputs: Optional[Dict[Graha, ShadbalaInput]] = None
                      ) -> D1DrawerPayload:
+    """Builds the drawer payload for WHATEVER varga the response declares.
+
+    The name is kept because the generator, the gate fixture and the route all
+    call it. Reuse beats rebuild; renaming it would ripple through four accepted
+    artifacts to say the same thing.
+    """
     si = shadbala_inputs or {}
-    return D1DrawerPayload(
+    payload = D1DrawerPayload(
         chart_token=resp.chart_token,
         drawers=[build_drawer(g, resp, doc, si.get(g)) for g in Graha])
+    _stamp_varga(payload, resp.policy.varga)
+    return payload

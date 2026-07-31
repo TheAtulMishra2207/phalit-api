@@ -42,6 +42,7 @@ from d1_contract import (
     ASPECT_CASTERS, SPECIAL_DRISHTI, AspectEdge, AspectKind, D1PrepareResponse,
     Dignity, EnginePolicy, FunctionalRole, FunctionalRoleKind, Graha,
     GrahaState, HouseState, NodalAxis, NODES,
+    Varga, VARGA_ASPECT_POLICY,
 )
 from d1_functional_roles import (
     functional_roles as _bphs34_roles, FUNCTIONAL_ROLE_POLICY_VERSION,
@@ -79,6 +80,14 @@ class D1EngineError(ValueError):
 # ── input model: the certified /chart subset this engine consumes ────────────
 
 class ChartGraha(BaseModel):
+    # VARGA PORT. One certified snapshot carries every view. longitude stays the
+    # true sidereal longitude in all of them, which is what keeps Moon pakṣa
+    # anchored to the birth moment by construction instead of by convention.
+    # The engine SELECTS a view; it never computes the varga mapping, because
+    # astronomy and dignity come from chart engine 1.1.0 only (KAR-080).
+    varga_sign_index: Optional[int] = Field(default=None, ge=0, le=11)
+    varga_dignity: Optional[Dignity] = None
+    vargottama: Optional[bool] = None   # certified, never derived here
     sign_index: int = Field(ge=0, le=11)
     degree_in_sign: float = Field(ge=0, lt=30)
     longitude: float = Field(ge=0, lt=360)     # sidereal, from chart engine
@@ -88,11 +97,22 @@ class ChartGraha(BaseModel):
     nakshatra: Optional[str] = None
     nakshatra_pada: Optional[int] = Field(default=None, ge=1, le=4)
 
+class _VargaView:
+    """The (sign_index, dignity, lagna) triple a computation actually reads."""
+    __slots__ = ("sign_of", "dignity_of", "lagna_idx", "varga")
+    def __init__(self, sign_of, dignity_of, lagna_idx, varga):
+        self.sign_of, self.dignity_of = sign_of, dignity_of
+        self.lagna_idx, self.varga = lagna_idx, varga
+
 class CertifiedChart(BaseModel):
     chart_token: str = Field(min_length=8)
-    lagna_sign_index: int = Field(ge=0, le=11)
+    lagna_sign_index: int = Field(ge=0, le=11)   # BIRTH lagna, always
     lagna_degree: float = Field(ge=0, lt=30)
     grahas: Dict[Graha, ChartGraha]
+    # VARGA PORT. Supplied by chart engine 1.1.0 alongside the D1 view; the
+    # snapshot, chart_token, session, resolver and adapter are unchanged, this
+    # is one more certified field on the object they already carry.
+    varga_lagna_sign_index: Optional[int] = Field(default=None, ge=0, le=11)
 
 # ── doctrine models (step-5 payload extension candidates) ────────────────────
 
@@ -123,6 +143,14 @@ class InfluencePolarity(str, Enum):
     MIXED = "mixed"          # genuinely conflicting evidence ONLY
     UNASSESSED = "unassessed"  # no occupation and no dṛṣṭi: absence of data,
                                # never presented as a balanced judgement
+    NOT_APPLICABLE = "not_applicable"
+    # DOCTRINE SAYS THERE IS NOTHING TO RESOLVE. Distinct from UNASSESSED, which
+    # means the doctrine could not be resolved. Collapsing the two repeats the
+    # samah / sama-phala error already on record. Under varga_aspect_policy=
+    # "none" the dṛṣṭi dimension is not-applicable, and that is a positive fact
+    # about the chart, not missing data. It is EXCLUDED from net aggregation
+    # rather than counted as zero, and the drawer renders it as an explicit
+    # marked state rather than an empty block that reads as neutral.
 
 class InfluenceEvidence(BaseModel):
     source: Graha
@@ -135,6 +163,9 @@ class HouseInfluence(BaseModel):
     house: int = Field(ge=1, le=12)
     evidence: List[InfluenceEvidence]
     net: InfluencePolarity
+    # Declared so the frontend has a path to bind and P3 sees a marked leaf
+    # instead of an unmarked one. "not_applicable" is doctrine, not absence.
+    drishti_applicability: Literal["applicable", "not_applicable"] = "applicable"
 
 class OrthogonalRole(BaseModel):
     """The versioned functional-role extension, serialized into the payload
@@ -327,7 +358,8 @@ def _polarity_of(source: Graha, natures: Dict[Graha, NaturalNature],
 def build_house_influences(occupants: Dict[int, List[Graha]],
                            edges: List[AspectEdge],
                            natures: Dict[Graha, NaturalNature],
-                           func: Dict[Graha, object]) -> List[HouseInfluence]:
+                           func: Dict[Graha, object],
+                           drishti_applicable: bool = True) -> List[HouseInfluence]:
     out: List[HouseInfluence] = []
     for h in range(1, 13):
         ev: List[InfluenceEvidence] = []
@@ -345,7 +377,9 @@ def build_house_influences(occupants: Dict[int, List[Graha]],
         # no polarity, so it neither creates nor blocks a net (QA). A house with
         # only unassessed evidence stays UNASSESSED; otherwise the net is the
         # combination of the assessed polarities.
-        assessed = {x.polarity for x in ev if x.polarity != InfluencePolarity.UNASSESSED}
+        assessed = {x.polarity for x in ev
+                    if x.polarity not in (InfluencePolarity.UNASSESSED,
+                                          InfluencePolarity.NOT_APPLICABLE)}
         if not assessed:
             net = InfluencePolarity.UNASSESSED
         elif assessed == {InfluencePolarity.SUPPORTIVE}:
@@ -354,12 +388,31 @@ def build_house_influences(occupants: Dict[int, List[Graha]],
             net = InfluencePolarity.CHALLENGING
         else:
             net = InfluencePolarity.MIXED
-        out.append(HouseInfluence(house=h, evidence=ev, net=net))
+        out.append(HouseInfluence(
+            house=h, evidence=ev, net=net,
+            drishti_applicability=("applicable" if drishti_applicable else "not_applicable")))
     return out
 
-def compute_d1(chart: CertifiedChart) -> tuple:
-    """Returns (D1PrepareResponse, D1Doctrine). Raises D1EngineError on
-    incomplete certified input — this engine never fills gaps by computing."""
+def compute_d1(chart: CertifiedChart, varga: Varga = Varga.D1) -> tuple:
+    """Returns (response, doctrine) for the requested varga.
+
+    VARGA PORT. The whole stack is one computation over a selected view. Houses,
+    dignity and occupancy read the varga view; three things stay anchored to D1
+    and must NEVER flow through:
+
+      functional roles  BPHS 34 nature is a rāśi-lordship property that does not
+                        change across vargas (founder ruling). Always read from
+                        the BIRTH lagna, and the anchor is published as
+                        birth_lagna_sign_index so the claim is checkable.
+      Moon pakṣa        a property of the birth moment. Computed from true
+                        sidereal longitudes, which every view shares, so it is
+                        anchored by construction and cannot silently drift.
+      natural nature    a property of the graha, not of the chart.
+
+    Graha-dṛṣṭi is governed by varga_aspect_policy. Under "none" the manifest is
+    empty, no house records an aspecting graha, and the dṛṣṭi dimension is marked
+    NOT_APPLICABLE rather than left blank.
+    """
     missing = [g.value for g in Graha if g not in chart.grahas]
     if missing:
         raise D1EngineError(f"certified chart missing grahas: {missing}")
@@ -370,17 +423,46 @@ def compute_d1(chart: CertifiedChart) -> tuple:
                 f"does not compute dignity (KAR-080/KAR-093: astronomy and dignity "
                 f"come from chart engine 1.1.0 only)")
 
-    lagna_idx = chart.lagna_sign_index
+    birth_lagna_idx = chart.lagna_sign_index
+    if varga is Varga.D1:
+        lagna_idx = birth_lagna_idx
+        sign_of = {g: cg.sign_index for g, cg in chart.grahas.items()}
+        dignity_of = {g: cg.dignity for g, cg in chart.grahas.items()}
+    else:
+        if chart.varga_lagna_sign_index is None:
+            raise D1EngineError(
+                f"{varga.value} requested but the certified chart carries no "
+                f"varga_lagna_sign_index; this engine does not compute the varga "
+                f"mapping (KAR-080: astronomy comes from chart engine 1.1.0)")
+        missing_view = [g.value for g, cg in chart.grahas.items()
+                        if cg.varga_sign_index is None]
+        if missing_view:
+            raise D1EngineError(
+                f"{varga.value} requested but no varga_sign_index for: {missing_view}")
+        lagna_idx = chart.varga_lagna_sign_index
+        sign_of = {g: cg.varga_sign_index for g, cg in chart.grahas.items()}
+        dignity_of = {g: cg.varga_dignity for g, cg in chart.grahas.items()}
+        for g in ASPECT_CASTERS:
+            if dignity_of[g] is None:
+                raise D1EngineError(
+                    f"certified chart supplies no varga_dignity for {g.value} in "
+                    f"{varga.value}; this engine does not compute dignity")
+
+    aspect_policy = VARGA_ASPECT_POLICY[varga]
+    drishti_applicable = aspect_policy == "parashari_full"
+
     def house_from_sign(si: int) -> int: return (si - lagna_idx) % 12 + 1
-    house_of = {g: house_from_sign(cg.sign_index) for g, cg in chart.grahas.items()}
+    house_of = {g: house_from_sign(sign_of[g]) for g in chart.grahas}
     occupants: Dict[int, List[Graha]] = {}
     for g, h in house_of.items(): occupants.setdefault(h, []).append(g)
 
     paksha = resolve_moon_paksha(chart)
     natures_list = resolve_natures(chart, paksha, house_of)
     natures = {n.graha: n.natural_nature for n in natures_list}
-    roles_list = resolve_functional_roles(lagna_idx)          # flat, for the 0.1.0 contract
-    func = {r.graha: r for r in _bphs34_roles(lagna_idx)}     # orthogonal, for polarity + doctrine
+    # BIRTH lagna, in every varga. This is the one place the varga parameter is
+    # deliberately withheld (founder ruling: functional_role_lagna_anchor).
+    roles_list = resolve_functional_roles(birth_lagna_idx)
+    func = {r.graha: r for r in _bphs34_roles(birth_lagna_idx)}
     # Nodes cast no dṛṣṭi but DO occupy houses, so they need a polarity role.
     # They carry natural maleficence with no functional-lordship doctrine.
     from d1_functional_roles import FunctionalRoleV1 as _FR
@@ -389,7 +471,7 @@ def compute_d1(chart: CertifiedChart) -> tuple:
                        verse_yoga_status=VerseYogaStatus.NONE, ownership_yogakaraka=False,
                        maraka_status=MarakaStatus.NONE, nature_provenance=CellProvenance.DERIVED_GENERAL_RULE,
                        verse="BPHS 34 (nodes)", note="node: natural malefic, no rāśi lordship")
-    edges = build_aspect_manifest(house_of, occupants)
+    edges = build_aspect_manifest(house_of, occupants) if drishti_applicable else []
 
     aspected_by: Dict[int, set] = {}
     for e in edges: aspected_by.setdefault(e.target_house, set()).add(e.source)
@@ -398,12 +480,14 @@ def compute_d1(chart: CertifiedChart) -> tuple:
     for g in Graha:
         cg = chart.grahas[g]
         grahas.append(GrahaState(
-            graha=g, sign_index=cg.sign_index, sign=SIGNS[cg.sign_index],
+            graha=g, sign_index=sign_of[g], sign=SIGNS[sign_of[g]],
             degree_in_sign=cg.degree_in_sign, house=house_of[g],
-            dignity=cg.dignity,        # consumed, never computed (KAR-080)
+            dignity=dignity_of[g],     # consumed, never computed (KAR-080)
+            birth_dignity=cg.dignity,  # the D1 view, in every varga
+            vargottama=cg.vargottama,  # consumed, never computed (KAR-080)
             retrograde=cg.retrograde, combust=cg.combust,
             nakshatra=cg.nakshatra, nakshatra_pada=cg.nakshatra_pada,
-            dispositor=SIGN_LORDS[cg.sign_index],
+            dispositor=SIGN_LORDS[sign_of[g]],
         ))
     houses = [HouseState(
         house=h, sign_index=(lagna_idx + h - 1) % 12,
@@ -415,17 +499,19 @@ def compute_d1(chart: CertifiedChart) -> tuple:
 
     rahu_h, ketu_h = house_of[Graha.RAHU], house_of[Graha.KETU]
     response = D1PrepareResponse(
-        chart_token=chart.chart_token, policy=EnginePolicy(),
+        chart_token=chart.chart_token,
+        policy=EnginePolicy(varga=varga, varga_aspect_policy=aspect_policy),
         lagna_sign_index=lagna_idx, lagna_sign=SIGNS[lagna_idx],
+        birth_lagna_sign_index=birth_lagna_idx,
         lagna_degree=chart.lagna_degree,
         grahas=grahas, houses=houses, aspects=edges,
         functional_roles=roles_list,
         nodal_axis=NodalAxis(
             rahu_house=rahu_h, ketu_house=ketu_h,
-            rahu_sign=SIGNS[chart.grahas[Graha.RAHU].sign_index],
-            ketu_sign=SIGNS[chart.grahas[Graha.KETU].sign_index],
-            rahu_dispositor=SIGN_LORDS[chart.grahas[Graha.RAHU].sign_index],
-            ketu_dispositor=SIGN_LORDS[chart.grahas[Graha.KETU].sign_index]),
+            rahu_sign=SIGNS[sign_of[Graha.RAHU]],
+            ketu_sign=SIGNS[sign_of[Graha.KETU]],
+            rahu_dispositor=SIGN_LORDS[sign_of[Graha.RAHU]],
+            ketu_dispositor=SIGN_LORDS[sign_of[Graha.KETU]]),
         generated_at=datetime.now(timezone.utc),
     )
     orthogonal = [OrthogonalRole(
@@ -434,7 +520,7 @@ def compute_d1(chart: CertifiedChart) -> tuple:
         maraka_status=r.maraka_status, nature_provenance=r.nature_provenance,
         maraka_provenance=r.maraka_provenance, yoga_provenance=r.yoga_provenance,
         verse=r.verse, note=r.note, conditional_rules=r.conditional_rules)
-        for r in _bphs34_roles(lagna_idx)]
+        for r in _bphs34_roles(birth_lagna_idx)]
     any_review = any(o.nature_provenance == CellProvenance.REVIEW_REQUIRED for o in orthogonal)
     doctrine = D1Doctrine(
         functional_roles_status=("review_required" if any_review else "published"),
@@ -442,7 +528,8 @@ def compute_d1(chart: CertifiedChart) -> tuple:
         legacy_flat_roles_publishable=False,   # invariant: never publishable
         moon_paksha=paksha, natures=natures_list,
         functional_roles_orthogonal=orthogonal,
-        house_influences=build_house_influences(occupants, edges, natures, func),
+        house_influences=build_house_influences(occupants, edges, natures, func,
+                                                drishti_applicable=drishti_applicable),
         chart_level={},   # step 5: stature/complexion synthesis ports here, ONCE (KAR-090)
     )
     return response, doctrine
