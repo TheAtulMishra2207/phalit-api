@@ -70,7 +70,7 @@ const ACCEPTED_P6 = {
     // treatment as the adapter.
     'd1_routes.py':           'bd2f8109cc85c2c32a3d60016564659836824839c7599019d495d40200480ca3'
   },
-  productSha256: 'c475284dd5da80daae757e8702b3bf837715ae646ed6e93100c3d3e6335ca252',
+  productSha256: '7e026b371a64e43602b93c4804c28181cf6e837d285d40e3f2b174368cc649d3',
   // Whole-file hash of the regenerated artifact. Deterministic on any host:
   // the generator records the product BASENAME, never an absolute path.
   // RECORDED PROVENANCE ONLY (KAR-093-B03). Not compared, not re-pinned: the

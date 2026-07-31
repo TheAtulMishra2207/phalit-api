@@ -33,7 +33,7 @@
     "observed_production_python": null,
     "subject_html": {
       "file": "newphalit_fixed.html",
-      "sha256": "c475284dd5da80daae757e8702b3bf837715ae646ed6e93100c3d3e6335ca252"
+      "sha256": "7e026b371a64e43602b93c4804c28181cf6e837d285d40e3f2b174368cc649d3"
     },
     "swiss_certificate": {
       "ayanamsha_model": "lahiri-linear-fit-2026-07",

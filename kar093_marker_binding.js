@@ -116,9 +116,25 @@ function resolveD1(drawer, fieldPath, role) {
   const block = dig(drawer, blockPath);
   if (!block) return { text: null, missing: true };
   if (m[2] === 'net') return { text: String(block.net) };
+  if (m[2] === 'not_applicable_basis') {
+    // KAR-093-B05: the varga state. Declared so P3 binds the basis string the
+    // server sends rather than treating it as an unrendered field.
+    if (block.applicability !== 'not_applicable')
+      return { precondition: `not-applicable basis rendered while applicability=${block.applicability}` };
+    return { text: String(block.not_applicable_basis || '') };
+  }
   if (m[2] === 'subject') {
     // Rendered only when the block genuinely has no sources. Matching on the
     // subject alone would accept the sentence beside a populated block.
+    //
+    // KAR-093-B05 ADDS THE SECOND PRECONDITION. Emptiness alone was true in a
+    // varga where drishti is NOT CAST, so this declaration accepted the D1
+    // sentence "receives no external drishti" on a D9 surface — a correct
+    // binding of the wrong branch. P3 could not see the branch choice; it can
+    // now, because the declaration refuses the sentence unless drishti actually
+    // applies.
+    if (block.applicability && block.applicability !== 'applicable')
+      return { precondition: `no-drishti sentence rendered while applicability=${block.applicability}` };
     if ((block.sources || []).length !== 0)
       return { precondition: `subject sentence rendered while ${block.sources.length} drishti source(s) exist` };
     return { text: String(block.subject) + ' receives no external drishti.' };
@@ -264,7 +280,15 @@ if (require.main === module) {
       mutate: p => { p.drawers.drawers.forEach(d => { d.shadbala.at_digbala_peak_house = true; }); return p; } },
     { name: 'no external drishti',
       mutate: p => { p.drawers.drawers.forEach(d => {
-        [d.house.drishti, d.bhavesh.drishti, d.graha_saar.house_drishti].forEach(b => { b.sources = []; }); }); return p; } }
+        [d.house.drishti, d.bhavesh.drishti, d.graha_saar.house_drishti].forEach(b => { b.sources = []; }); }); return p; } },
+    // B05 as a branch variant: sources empty AND applicability not_applicable,
+    // which is the exact D9 shape. The D1 sentence must now be refused here.
+    { name: 'drishti not applicable (varga)',
+      mutate: p => { p.drawers.drawers.forEach(d => {
+        [d.house.drishti, d.bhavesh.drishti, d.graha_saar.house_drishti].forEach(b => {
+          b.sources = []; b.net = 'not_applicable'; b.applicability = 'not_applicable';
+          b.not_applicable_basis = 'graha-dṛṣṭi is not cast in D9 (varga_aspect_policy=none); this is doctrine, not an absence of evidence';
+        }); }); return p; } }
   ];
 
   (async () => {

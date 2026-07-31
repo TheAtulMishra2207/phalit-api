@@ -1,17 +1,17 @@
 KAR-093 D9 CUTOVER — FINAL BUNDLE MANIFEST
-Generated 2026-07-31 12:29:49 UTC
+Generated 2026-07-31 13:10:22 UTC
 Repo: phalit-api, repo root, flat. No folders.
 
 FILE                               SHA-256                                                           NEWLINES        BYTES
-newphalit_fixed.html               c475284dd5da80daae757e8702b3bf837715ae646ed6e93100c3d3e6335ca252     34657      2504020
+newphalit_fixed.html               7e026b371a64e43602b93c4804c28181cf6e837d285d40e3f2b174368cc649d3     34667      2504800
 kar093_gate3.js                    0a076efccb19c2c353c49774041da9b57b6be4c6815838e1ac4a1df2c298a913       458        25094
-kar093_p6_bind.js                  c708b41d311e6b018248a278165de8ebeaa123766e7920e3f026a30e2a371082       262        13646
+kar093_p6_bind.js                  e18e3eaced205723bbe1c685e295a900022f62b2bf945f8864228aa9f8cb5076       262        13646
 kar093_p6_verify.py                c9c61e2b9719ba2d1039ab5279fb0be31d7a62f5e1f3abb9497811f2eb2eb6f8       285        13017
 kar093_p6_generate_fixture.py      497b6c19d45d7fb260c52308c870cccf25930c8ff99adf673d69a043924e6ca2       327        15221
 kar093_p6_fixture.json             7b2bc75e665ce88ce1d2fd3a5983b3e962a95a90497648368a4b97439385e4a8      5104       168976
 kar093_step9_driver2.js            0cb3e1d8dc5128a5467928ca7d5ecd988de207ca2033fd76d6d4bd4a75bcc9f2       414        21133
 kar093_step9_contract.js           846374f414a288ca34e9fd6e43dd5a039ec76281c5e386cf2f4e5da775505632       317        15237
-kar093_marker_binding.js           2dfb09960ccb0594b40b4d4256958f1cf27b4440bb925e64f160705317fcda6b       296        16392
+kar093_marker_binding.js           8060dd59bfc21a34b574b3125cb94ce859aca2ae63875ab58f378513406ca64b       320        18006
 kar093_adversarial.js              8c3979103bdec6dab8e5946ed6b8e0fc82e544e5eed2b2d1eb2105285888d772       300        14644
 d1_contract.py                     36b3d131713959b23362407b2ee928eba4cf8b547c630fa02812a777f890b51f       331        15975
 d1_engine.py                       59da497a697e31f6fdc3fd8d7ad2facc09ec8bde1d2ef5cd61793c0415c451d8       535        28343
@@ -21,8 +21,8 @@ d1_chart_adapter.py                be088670c891791cf57d949f1b7fc8e181175e911edcf
 d1_routes.py                       bd2f8109cc85c2c32a3d60016564659836824839c7599019d495d40200480ca3       195         8119
 test_kar093_p6_verify.js           4c46e2eb477605af097af54f94ffa6daa79e689a662772a82368cbe2da1928c2       320        14959
 test_kar093_d1_cutover.js          72ffa6bbe551582c0176c97a91254c8f15b8bba912312f39f935e5b2ef188d40       322        18164
-KAR-093-step10-golden-D1.json      c9414472a072bb721fad4eb92435a5eb681a98296ac94ce578cafde99a3d6fab      3016        89809
-KAR-093-step10-golden-D9.json      c8f24fa169832510bde0bf25667ad2242ef316fb402c5702bdb52b5851fc059c      2508        77404
+KAR-093-step10-golden-D1.json      ffa177e2b16be7202c6ca58942fa8069d5f8b93bb35665c15c07fa3524e7aa9c      3016        89809
+KAR-093-step10-golden-D9.json      45cc23dfb32a3b25024a84c887c20bc4a1fa99571218de1d243299f670976710      2508        77404
 KAR-093-step10-golden-astronomy.json c3b1d07ab5e388324a8b881862310671446cd314f669328abe2908ed3822fab0       618        18430
 freeze_step10.py                   37ca1a0a5966d3e25a8cff16cf20094fc05accab4216f264b7118f5db173a564       143         7019
 freeze_step10_astronomy.py         9c49634be41607db23117b6a693e7cab925ffd65d30d344f1c63e5d1471b30ed       122         6443
@@ -32,15 +32,35 @@ d9_corpus_block.js                 638d7ea41147ae6ac42551cc1154613482a8ed3e5f66c
 build_d9_corpus.py                 8e41774fbcf00fdaf214327f5d0e0b41e13cb7a0915ca57ea19c4af8ae993f91        91         4522
 
 
-KAR-093-B04 — THE ROUTE NOW CARRIES THE VARGA
-  d1_routes.py joined the bundle and ACCEPTED_P6.modules (SIX modules now).
-  D1PrepareRequest gains `varga: Varga = Varga.D1` and `extra = Extra.forbid`.
-  The route threads req.varga into to_certified_chart and compute_d1.
+KAR-093-B05 — THE RENDER BRANCHES ON APPLICABILITY
+  d1DrishtiBlock tested sources.length before applicability, so a varga with
+  varga_aspect_policy=none selected the D1 sentence "receives no external
+  drishti" — asserting the bhava was assessed and found clear when doctrine
+  says nothing is cast. One shared function, so the fix covers all call sites.
+  not_applicable_basis is now rendered and bound.
+  kar093_marker_binding.js gains the applicability precondition on the
+  no-drishti sentence, plus a declaration for not_applicable_basis and a new
+  branch variant. Its pin therefore moves.
 
-  NEW RUNTIME DEPENDENCY, MEASURED NOT ASSUMED: the P6 verifier now IMPORTS
-  d1_routes.py, which imports fastapi. A pydantic-only interpreter is refused
-  with ModuleNotFoundError. The certifying interpreter must therefore carry
-  fastapi==0.100.1 alongside pydantic==1.10.13.
+  SUBJECT MOVED AGAIN. The two INTERPRETATION goldens still stamp c475284d and
+  must be re-frozen on 3.11. The ASTRONOMY golden is unaffected: it stamps the
+  /chart capture, not the page.
+
+KAR-093-B05a - THE FIXTURE ROW IS REVERTED, AND WHY
+  The B05 manifest listed kar093_p6_fixture.json at 49a7f88b, a regeneration
+  against the moved subject, but did not ship it. QA correctly refused to
+  manufacture a manifest-controlled artifact.
+  The row was the error, not the missing file. The fixture embeds
+  _evidence.runtime.python, so its whole-file hash is HOST-SPECIFIC: three
+  machines produced 7b2bc75e, 49a7f88b and 8b76282d for the SAME payload. Its
+  browser-facing subtrees (policy, drawers, _chart, _variants) are byte-identical
+  across all three, verified.
+  That is KAR-093-B03 one layer up. fixtureSha256 was demoted to recorded
+  provenance and removed from judgeP6 for exactly this reason; the manifest then
+  reintroduced the comparison. kar093_p6_bind.js still carries 7b2bc75e, so the
+  manifest row and the gate's own provenance value had come apart.
+  Reverted to 7b2bc75e, the file QA already holds. No new artifact ships, and the
+  manifest and bind.js agree again.
 
 NOTES (not part of the run, shipped for review):
 D9-port-delivery-1.md              a1edb4eea1dc2bdb7db6df2076e79c9846470c79376fca3566fa98db84bf1f5d       190         7757
