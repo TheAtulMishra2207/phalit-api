@@ -1,0 +1,2509 @@
+{
+  "_header": {
+    "comparison_rule": "Compare the input, response and drawers subtrees against governing_subtree.sha256. NEVER the whole-file hash.",
+    "declared_production_pin": "3.11.0",
+    "excluded": [
+      "response.generated_at (clock-dependent)"
+    ],
+    "freeze_interpreter": {
+      "pydantic": "1.10.13",
+      "python": "3.11.12"
+    },
+    "governing_subtree": {
+      "digest_definition": "sha256 over json.dumps(sort_keys=True, separators=(',',':'), ensure_ascii=False)",
+      "keys": [
+        "input",
+        "response",
+        "drawers"
+      ],
+      "sha256": "45a303a5c6ee20ce9ad2af233bb344faca4458fda05e940cbeec22a0a13d429f"
+    },
+    "input_provenance": "DECLARED interpretation-layer input. The D1 placements are the accepted P6 generator's reviewed SPEC. The D9 view is DECLARED, not a certified navamsa mapping, and must never be read as one. Certified astronomy is frozen separately by the /chart golden.",
+    "interpreter": {
+      "pydantic": "1.10.13",
+      "python": "3.11.12"
+    },
+    "layer": "interpretation",
+    "modules": {
+      "d1_contract.py": "36b3d131713959b23362407b2ee928eba4cf8b547c630fa02812a777f890b51f",
+      "d1_engine.py": "59da497a697e31f6fdc3fd8d7ad2facc09ec8bde1d2ef5cd61793c0415c451d8",
+      "d1_functional_roles.py": "7689984fcb9fe01ad36c4926f284a506ce4daa9eb51135505e2b94cf5aff3cc3",
+      "d1_synthesis.py": "8bb49c9a9cea356e05fd870976ca0f9e5364381da6049a12afff4a89682c4757"
+    },
+    "observed_production_python": null,
+    "subject_html": {
+      "file": "newphalit_fixed.html",
+      "sha256": "c475284dd5da80daae757e8702b3bf837715ae646ed6e93100c3d3e6335ca252"
+    },
+    "swiss_certificate": {
+      "ayanamsha_model": "lahiri-linear-fit-2026-07",
+      "chart_engine_version": "1.1.0",
+      "dasha_year_days": 365.2425,
+      "ephemeris_backend": "swisseph",
+      "ephemeris_dataset": "modern-era-se1",
+      "ephemeris_dataset_hash": "73377f2ff49778826c12346af0626023cff457f85c08d526dc8ebf8627296a65",
+      "ephemeris_files": [
+        "semo_18.se1",
+        "sepl_18.se1"
+      ],
+      "ephemeris_manifest_enforced": true,
+      "ephemeris_manifest_status": "verified",
+      "house_system": "whole-sign",
+      "node_type": "mean",
+      "supported_year_range": [
+        1800,
+        2150
+      ]
+    },
+    "ticket": "KAR-093 step 10",
+    "varga": "D9"
+  },
+  "drawers": {
+    "chart_token": "KAR093STEP10GOLDEN",
+    "drawers": [
+      {
+        "bhava_karaka": {
+          "corpus_ref": {
+            "corpus": "BHAVA_KARAKA",
+            "dignity": null,
+            "graha": null,
+            "key": "2",
+            "resolvable": true,
+            "varga": "D9"
+          },
+          "house": 2,
+          "karaka_positions": [
+            {
+              "degree_in_sign": 15.7,
+              "dignity": "Friend",
+              "dignity_label": "Mitra Rāśi (Friend)",
+              "graha": "Jupiter",
+              "house": 12,
+              "retrograde": false,
+              "sign": "Gemini",
+              "vargottama": null
+            }
+          ],
+          "karaka_support": "moderate",
+          "karakas": [
+            "Jupiter"
+          ],
+          "primary_karaka": "Jupiter",
+          "subject_is_karaka_of_own_house": false
+        },
+        "bhavat_bhavam": {
+          "bb_house": 3,
+          "bb_house_name": "Sahaja",
+          "bb_lord": "Mercury",
+          "bb_lord_position": {
+            "degree_in_sign": 3.1,
+            "dignity": "Friend",
+            "dignity_label": "Mitra Rāśi (Friend)",
+            "graha": "Mercury",
+            "house": 7,
+            "retrograde": false,
+            "sign": "Capricorn",
+            "vargottama": null
+          },
+          "corpus_ref": {
+            "corpus": "BHAVAT_DESC",
+            "dignity": null,
+            "graha": null,
+            "key": "2",
+            "resolvable": true,
+            "varga": "D9"
+          },
+          "from_house": 2,
+          "sustaining": "moderate"
+        },
+        "bhavesh": {
+          "bhavesh": "Sun",
+          "drishti": {
+            "applicability": "not_applicable",
+            "challenging": [],
+            "mixed": [],
+            "net": "not_applicable",
+            "not_applicable_basis": "graha-dṛṣṭi is not cast in D9 (varga_aspect_policy=none); this is doctrine, not an absence of evidence",
+            "sources": [],
+            "subject": "Sun (Bhavesh)",
+            "supportive": [],
+            "unassessed": []
+          },
+          "of_sign": "Leo",
+          "position": {
+            "degree_in_sign": 12.5,
+            "dignity": "Friend",
+            "dignity_label": "Mitra Rāśi (Friend)",
+            "graha": "Sun",
+            "house": 2,
+            "retrograde": false,
+            "sign": "Leo",
+            "vargottama": null
+          },
+          "retrograde_note": false,
+          "support": "moderate"
+        },
+        "graha": "Sun",
+        "graha_saar": {
+          "at_digbala_peak_house": false,
+          "bhavesh_drishti": {
+            "applicability": "not_applicable",
+            "challenging": [],
+            "mixed": [],
+            "net": "not_applicable",
+            "not_applicable_basis": "graha-dṛṣṭi is not cast in D9 (varga_aspect_policy=none); this is doctrine, not an absence of evidence",
+            "sources": [],
+            "subject": "Sun (Bhavesh)",
+            "supportive": [],
+            "unassessed": []
+          },
+          "functional_basis_verse": "BPHS 34.20",
+          "functional_nature": "benefic",
+          "functional_roles_publishable": true,
+          "has_lordship_doctrine": true,
+          "house_drishti": {
+            "applicability": "not_applicable",
+            "challenging": [],
+            "mixed": [],
+            "net": "not_applicable",
+            "not_applicable_basis": "graha-dṛṣṭi is not cast in D9 (varga_aspect_policy=none); this is doctrine, not an absence of evidence",
+            "sources": [],
+            "subject": "H2",
+            "supportive": [],
+            "unassessed": []
+          },
+          "is_natural_karaka_of_own_house": false,
+          "maraka_status": "none",
+          "natural_nature": "natural_malefic",
+          "natural_nature_basis": "fixed natural nature (BPHS ch.3); dignity never alters it (KAR-083)",
+          "overall_verdict": "nuanced",
+          "ownership_yogakaraka": false,
+          "retrograde": false,
+          "strength_verdict": "well_placed",
+          "verdict_factors": [
+            {
+              "detail": "well_placed",
+              "direction": "positive",
+              "factor": "strength"
+            },
+            {
+              "detail": "graha-dṛṣṭi is not cast in this varga",
+              "direction": "not_applicable",
+              "factor": "house_drishti"
+            }
+          ],
+          "verse_yoga_status": "none"
+        },
+        "house": {
+          "corpus_ref": {
+            "corpus": "HOUSE_CORPUS",
+            "dignity": null,
+            "graha": "Sun",
+            "key": "2",
+            "resolvable": true,
+            "varga": "D9"
+          },
+          "drishti": {
+            "applicability": "not_applicable",
+            "challenging": [],
+            "mixed": [],
+            "net": "not_applicable",
+            "not_applicable_basis": "graha-dṛṣṭi is not cast in D9 (varga_aspect_policy=none); this is doctrine, not an absence of evidence",
+            "sources": [],
+            "subject": "H2",
+            "supportive": [],
+            "unassessed": []
+          },
+          "house": 2,
+          "house_lord": "Sun",
+          "house_name": "Dhana",
+          "sign": "Leo"
+        },
+        "position": {
+          "degree_in_sign": 12.5,
+          "dignity": "Friend",
+          "dignity_label": "Mitra Rāśi (Friend)",
+          "graha": "Sun",
+          "house": 2,
+          "retrograde": false,
+          "sign": "Leo",
+          "vargottama": null
+        },
+        "rashi": {
+          "corpus_ref": {
+            "corpus": "RASHI_CORPUS",
+            "dignity": "Friend",
+            "graha": "Sun",
+            "key": "Friend",
+            "resolvable": true,
+            "varga": "D9"
+          },
+          "dignity": "Friend",
+          "dignity_label": "Mitra Rāśi (Friend)",
+          "sign": "Leo",
+          "sign_index": 4,
+          "sign_lord": {
+            "degree_in_sign": 12.5,
+            "dignity": "Friend",
+            "dignity_label": "Mitra Rāśi (Friend)",
+            "graha": "Sun",
+            "house": 2,
+            "retrograde": false,
+            "sign": "Leo",
+            "vargottama": null
+          }
+        },
+        "shadbala": {
+          "at_digbala_peak_house": false,
+          "computed_server_side": false,
+          "digbala": null,
+          "digbala_band": null,
+          "naisargika_bala": null,
+          "naisargika_band": null,
+          "note_key": "shadbala_phase6",
+          "uchcha_bala": null,
+          "uchcha_band": null
+        },
+        "synthesis_version": "d1-synthesis-0.1.0",
+        "varga": "D9",
+        "varga_dignity_shift": {
+          "applicability": "applicable",
+          "basis": "Moolatrikona in D1 to Friend in D9",
+          "birth_dignity": "Moolatrikona",
+          "birth_rank": 5,
+          "corpus_ref": {
+            "corpus": "VARGA_SHIFT",
+            "dignity": null,
+            "graha": "Sun",
+            "key": "weaker",
+            "resolvable": true,
+            "varga": "D9"
+          },
+          "shift": "weaker",
+          "varga_dignity": "Friend",
+          "varga_rank": 3
+        }
+      },
+      {
+        "bhava_karaka": {
+          "corpus_ref": {
+            "corpus": "BHAVA_KARAKA",
+            "dignity": null,
+            "graha": null,
+            "key": "5",
+            "resolvable": true,
+            "varga": "D9"
+          },
+          "house": 5,
+          "karaka_positions": [
+            {
+              "degree_in_sign": 15.7,
+              "dignity": "Friend",
+              "dignity_label": "Mitra Rāśi (Friend)",
+              "graha": "Jupiter",
+              "house": 12,
+              "retrograde": false,
+              "sign": "Gemini",
+              "vargottama": null
+            }
+          ],
+          "karaka_support": "moderate",
+          "karakas": [
+            "Jupiter"
+          ],
+          "primary_karaka": "Jupiter",
+          "subject_is_karaka_of_own_house": false
+        },
+        "bhavat_bhavam": {
+          "bb_house": 9,
+          "bb_house_name": "Dharma",
+          "bb_lord": "Jupiter",
+          "bb_lord_position": {
+            "degree_in_sign": 15.7,
+            "dignity": "Friend",
+            "dignity_label": "Mitra Rāśi (Friend)",
+            "graha": "Jupiter",
+            "house": 12,
+            "retrograde": false,
+            "sign": "Gemini",
+            "vargottama": null
+          },
+          "corpus_ref": {
+            "corpus": "BHAVAT_DESC",
+            "dignity": null,
+            "graha": null,
+            "key": "5",
+            "resolvable": true,
+            "varga": "D9"
+          },
+          "from_house": 5,
+          "sustaining": "moderate"
+        },
+        "bhavesh": {
+          "bhavesh": "Mars",
+          "drishti": {
+            "applicability": "not_applicable",
+            "challenging": [],
+            "mixed": [],
+            "net": "not_applicable",
+            "not_applicable_basis": "graha-dṛṣṭi is not cast in D9 (varga_aspect_policy=none); this is doctrine, not an absence of evidence",
+            "sources": [],
+            "subject": "Mars (Bhavesh)",
+            "supportive": [],
+            "unassessed": []
+          },
+          "of_sign": "Scorpio",
+          "position": {
+            "degree_in_sign": 24.4,
+            "dignity": "Friend",
+            "dignity_label": "Mitra Rāśi (Friend)",
+            "graha": "Mars",
+            "house": 11,
+            "retrograde": false,
+            "sign": "Taurus",
+            "vargottama": null
+          },
+          "retrograde_note": false,
+          "support": "moderate"
+        },
+        "graha": "Moon",
+        "graha_saar": {
+          "at_digbala_peak_house": false,
+          "bhavesh_drishti": {
+            "applicability": "not_applicable",
+            "challenging": [],
+            "mixed": [],
+            "net": "not_applicable",
+            "not_applicable_basis": "graha-dṛṣṭi is not cast in D9 (varga_aspect_policy=none); this is doctrine, not an absence of evidence",
+            "sources": [],
+            "subject": "Mars (Bhavesh)",
+            "supportive": [],
+            "unassessed": []
+          },
+          "functional_basis_verse": "BPHS 34.19-22",
+          "functional_nature": "mixed",
+          "functional_roles_publishable": true,
+          "has_lordship_doctrine": true,
+          "house_drishti": {
+            "applicability": "not_applicable",
+            "challenging": [],
+            "mixed": [],
+            "net": "not_applicable",
+            "not_applicable_basis": "graha-dṛṣṭi is not cast in D9 (varga_aspect_policy=none); this is doctrine, not an absence of evidence",
+            "sources": [],
+            "subject": "H5",
+            "supportive": [],
+            "unassessed": []
+          },
+          "is_natural_karaka_of_own_house": false,
+          "maraka_status": "none",
+          "natural_nature": "natural_benefic",
+          "natural_nature_basis": "from the single stored pakṣa resolution (KAR-086)",
+          "overall_verdict": "nuanced",
+          "ownership_yogakaraka": false,
+          "retrograde": false,
+          "strength_verdict": "well_placed",
+          "verdict_factors": [
+            {
+              "detail": "well_placed",
+              "direction": "positive",
+              "factor": "strength"
+            },
+            {
+              "detail": "graha-dṛṣṭi is not cast in this varga",
+              "direction": "not_applicable",
+              "factor": "house_drishti"
+            }
+          ],
+          "verse_yoga_status": "none"
+        },
+        "house": {
+          "corpus_ref": {
+            "corpus": "HOUSE_CORPUS",
+            "dignity": null,
+            "graha": "Moon",
+            "key": "5",
+            "resolvable": true,
+            "varga": "D9"
+          },
+          "drishti": {
+            "applicability": "not_applicable",
+            "challenging": [],
+            "mixed": [],
+            "net": "not_applicable",
+            "not_applicable_basis": "graha-dṛṣṭi is not cast in D9 (varga_aspect_policy=none); this is doctrine, not an absence of evidence",
+            "sources": [],
+            "subject": "H5",
+            "supportive": [],
+            "unassessed": []
+          },
+          "house": 5,
+          "house_lord": "Mars",
+          "house_name": "Putra",
+          "sign": "Scorpio"
+        },
+        "position": {
+          "degree_in_sign": 8.2,
+          "dignity": "Friend",
+          "dignity_label": "Mitra Rāśi (Friend)",
+          "graha": "Moon",
+          "house": 5,
+          "retrograde": false,
+          "sign": "Scorpio",
+          "vargottama": null
+        },
+        "rashi": {
+          "corpus_ref": {
+            "corpus": "RASHI_CORPUS",
+            "dignity": "Friend",
+            "graha": "Moon",
+            "key": "Friend",
+            "resolvable": true,
+            "varga": "D9"
+          },
+          "dignity": "Friend",
+          "dignity_label": "Mitra Rāśi (Friend)",
+          "sign": "Scorpio",
+          "sign_index": 7,
+          "sign_lord": {
+            "degree_in_sign": 24.4,
+            "dignity": "Friend",
+            "dignity_label": "Mitra Rāśi (Friend)",
+            "graha": "Mars",
+            "house": 11,
+            "retrograde": false,
+            "sign": "Taurus",
+            "vargottama": null
+          }
+        },
+        "shadbala": {
+          "at_digbala_peak_house": false,
+          "computed_server_side": false,
+          "digbala": null,
+          "digbala_band": null,
+          "naisargika_bala": null,
+          "naisargika_band": null,
+          "note_key": "shadbala_phase6",
+          "uchcha_bala": null,
+          "uchcha_band": null
+        },
+        "synthesis_version": "d1-synthesis-0.1.0",
+        "varga": "D9",
+        "varga_dignity_shift": {
+          "applicability": "applicable",
+          "basis": "Own Sign in D1 to Friend in D9",
+          "birth_dignity": "Own Sign",
+          "birth_rank": 4,
+          "corpus_ref": {
+            "corpus": "VARGA_SHIFT",
+            "dignity": null,
+            "graha": "Moon",
+            "key": "weaker",
+            "resolvable": true,
+            "varga": "D9"
+          },
+          "shift": "weaker",
+          "varga_dignity": "Friend",
+          "varga_rank": 3
+        }
+      },
+      {
+        "bhava_karaka": {
+          "corpus_ref": {
+            "corpus": "BHAVA_KARAKA",
+            "dignity": null,
+            "graha": null,
+            "key": "11",
+            "resolvable": true,
+            "varga": "D9"
+          },
+          "house": 11,
+          "karaka_positions": [
+            {
+              "degree_in_sign": 15.7,
+              "dignity": "Friend",
+              "dignity_label": "Mitra Rāśi (Friend)",
+              "graha": "Jupiter",
+              "house": 12,
+              "retrograde": false,
+              "sign": "Gemini",
+              "vargottama": null
+            }
+          ],
+          "karaka_support": "moderate",
+          "karakas": [
+            "Jupiter"
+          ],
+          "primary_karaka": "Jupiter",
+          "subject_is_karaka_of_own_house": false
+        },
+        "bhavat_bhavam": {
+          "bb_house": 9,
+          "bb_house_name": "Dharma",
+          "bb_lord": "Jupiter",
+          "bb_lord_position": {
+            "degree_in_sign": 15.7,
+            "dignity": "Friend",
+            "dignity_label": "Mitra Rāśi (Friend)",
+            "graha": "Jupiter",
+            "house": 12,
+            "retrograde": false,
+            "sign": "Gemini",
+            "vargottama": null
+          },
+          "corpus_ref": {
+            "corpus": "BHAVAT_DESC",
+            "dignity": null,
+            "graha": null,
+            "key": "11",
+            "resolvable": true,
+            "varga": "D9"
+          },
+          "from_house": 11,
+          "sustaining": "moderate"
+        },
+        "bhavesh": {
+          "bhavesh": "Venus",
+          "drishti": {
+            "applicability": "not_applicable",
+            "challenging": [],
+            "mixed": [],
+            "net": "not_applicable",
+            "not_applicable_basis": "graha-dṛṣṭi is not cast in D9 (varga_aspect_policy=none); this is doctrine, not an absence of evidence",
+            "sources": [],
+            "subject": "Venus (Bhavesh)",
+            "supportive": [],
+            "unassessed": []
+          },
+          "of_sign": "Taurus",
+          "position": {
+            "degree_in_sign": 21.3,
+            "dignity": "Friend",
+            "dignity_label": "Mitra Rāśi (Friend)",
+            "graha": "Venus",
+            "house": 3,
+            "retrograde": false,
+            "sign": "Virgo",
+            "vargottama": null
+          },
+          "retrograde_note": false,
+          "support": "moderate"
+        },
+        "graha": "Mars",
+        "graha_saar": {
+          "at_digbala_peak_house": false,
+          "bhavesh_drishti": {
+            "applicability": "not_applicable",
+            "challenging": [],
+            "mixed": [],
+            "net": "not_applicable",
+            "not_applicable_basis": "graha-dṛṣṭi is not cast in D9 (varga_aspect_policy=none); this is doctrine, not an absence of evidence",
+            "sources": [],
+            "subject": "Venus (Bhavesh)",
+            "supportive": [],
+            "unassessed": []
+          },
+          "functional_basis_verse": "BPHS 34.19",
+          "functional_nature": "mixed",
+          "functional_roles_publishable": true,
+          "has_lordship_doctrine": true,
+          "house_drishti": {
+            "applicability": "not_applicable",
+            "challenging": [],
+            "mixed": [],
+            "net": "not_applicable",
+            "not_applicable_basis": "graha-dṛṣṭi is not cast in D9 (varga_aspect_policy=none); this is doctrine, not an absence of evidence",
+            "sources": [],
+            "subject": "H11",
+            "supportive": [],
+            "unassessed": []
+          },
+          "is_natural_karaka_of_own_house": false,
+          "maraka_status": "none",
+          "natural_nature": "natural_malefic",
+          "natural_nature_basis": "fixed natural nature (BPHS ch.3); dignity never alters it (KAR-083)",
+          "overall_verdict": "nuanced",
+          "ownership_yogakaraka": false,
+          "retrograde": false,
+          "strength_verdict": "well_placed",
+          "verdict_factors": [
+            {
+              "detail": "well_placed",
+              "direction": "positive",
+              "factor": "strength"
+            },
+            {
+              "detail": "graha-dṛṣṭi is not cast in this varga",
+              "direction": "not_applicable",
+              "factor": "house_drishti"
+            }
+          ],
+          "verse_yoga_status": "none"
+        },
+        "house": {
+          "corpus_ref": {
+            "corpus": "HOUSE_CORPUS",
+            "dignity": null,
+            "graha": "Mars",
+            "key": "11",
+            "resolvable": true,
+            "varga": "D9"
+          },
+          "drishti": {
+            "applicability": "not_applicable",
+            "challenging": [],
+            "mixed": [],
+            "net": "not_applicable",
+            "not_applicable_basis": "graha-dṛṣṭi is not cast in D9 (varga_aspect_policy=none); this is doctrine, not an absence of evidence",
+            "sources": [],
+            "subject": "H11",
+            "supportive": [],
+            "unassessed": []
+          },
+          "house": 11,
+          "house_lord": "Venus",
+          "house_name": "Labha",
+          "sign": "Taurus"
+        },
+        "position": {
+          "degree_in_sign": 24.4,
+          "dignity": "Friend",
+          "dignity_label": "Mitra Rāśi (Friend)",
+          "graha": "Mars",
+          "house": 11,
+          "retrograde": false,
+          "sign": "Taurus",
+          "vargottama": null
+        },
+        "rashi": {
+          "corpus_ref": {
+            "corpus": "RASHI_CORPUS",
+            "dignity": "Friend",
+            "graha": "Mars",
+            "key": "Friend",
+            "resolvable": true,
+            "varga": "D9"
+          },
+          "dignity": "Friend",
+          "dignity_label": "Mitra Rāśi (Friend)",
+          "sign": "Taurus",
+          "sign_index": 1,
+          "sign_lord": {
+            "degree_in_sign": 21.3,
+            "dignity": "Friend",
+            "dignity_label": "Mitra Rāśi (Friend)",
+            "graha": "Venus",
+            "house": 3,
+            "retrograde": false,
+            "sign": "Virgo",
+            "vargottama": null
+          }
+        },
+        "shadbala": {
+          "at_digbala_peak_house": false,
+          "computed_server_side": false,
+          "digbala": null,
+          "digbala_band": null,
+          "naisargika_bala": null,
+          "naisargika_band": null,
+          "note_key": "shadbala_phase6",
+          "uchcha_bala": null,
+          "uchcha_band": null
+        },
+        "synthesis_version": "d1-synthesis-0.1.0",
+        "varga": "D9",
+        "varga_dignity_shift": {
+          "applicability": "applicable",
+          "basis": "Great Friend in D1 to Friend in D9",
+          "birth_dignity": "Great Friend",
+          "birth_rank": 3,
+          "corpus_ref": {
+            "corpus": "VARGA_SHIFT",
+            "dignity": null,
+            "graha": "Mars",
+            "key": "held",
+            "resolvable": true,
+            "varga": "D9"
+          },
+          "shift": "held",
+          "varga_dignity": "Friend",
+          "varga_rank": 3
+        }
+      },
+      {
+        "bhava_karaka": {
+          "corpus_ref": {
+            "corpus": "BHAVA_KARAKA",
+            "dignity": null,
+            "graha": null,
+            "key": "7",
+            "resolvable": true,
+            "varga": "D9"
+          },
+          "house": 7,
+          "karaka_positions": [
+            {
+              "degree_in_sign": 21.3,
+              "dignity": "Friend",
+              "dignity_label": "Mitra Rāśi (Friend)",
+              "graha": "Venus",
+              "house": 3,
+              "retrograde": false,
+              "sign": "Virgo",
+              "vargottama": null
+            }
+          ],
+          "karaka_support": "moderate",
+          "karakas": [
+            "Venus"
+          ],
+          "primary_karaka": "Venus",
+          "subject_is_karaka_of_own_house": false
+        },
+        "bhavat_bhavam": {
+          "bb_house": 1,
+          "bb_house_name": "Tanu",
+          "bb_lord": "Moon",
+          "bb_lord_position": {
+            "degree_in_sign": 8.2,
+            "dignity": "Friend",
+            "dignity_label": "Mitra Rāśi (Friend)",
+            "graha": "Moon",
+            "house": 5,
+            "retrograde": false,
+            "sign": "Scorpio",
+            "vargottama": null
+          },
+          "corpus_ref": {
+            "corpus": "BHAVAT_DESC",
+            "dignity": null,
+            "graha": null,
+            "key": "7",
+            "resolvable": true,
+            "varga": "D9"
+          },
+          "from_house": 7,
+          "sustaining": "moderate"
+        },
+        "bhavesh": {
+          "bhavesh": "Saturn",
+          "drishti": {
+            "applicability": "not_applicable",
+            "challenging": [],
+            "mixed": [],
+            "net": "not_applicable",
+            "not_applicable_basis": "graha-dṛṣṭi is not cast in D9 (varga_aspect_policy=none); this is doctrine, not an absence of evidence",
+            "sources": [],
+            "subject": "Saturn (Bhavesh)",
+            "supportive": [],
+            "unassessed": []
+          },
+          "of_sign": "Capricorn",
+          "position": {
+            "degree_in_sign": 5.9,
+            "dignity": "Friend",
+            "dignity_label": "Mitra Rāśi (Friend)",
+            "graha": "Saturn",
+            "house": 8,
+            "retrograde": false,
+            "sign": "Aquarius",
+            "vargottama": null
+          },
+          "retrograde_note": false,
+          "support": "moderate"
+        },
+        "graha": "Mercury",
+        "graha_saar": {
+          "at_digbala_peak_house": false,
+          "bhavesh_drishti": {
+            "applicability": "not_applicable",
+            "challenging": [],
+            "mixed": [],
+            "net": "not_applicable",
+            "not_applicable_basis": "graha-dṛṣṭi is not cast in D9 (varga_aspect_policy=none); this is doctrine, not an absence of evidence",
+            "sources": [],
+            "subject": "Saturn (Bhavesh)",
+            "supportive": [],
+            "unassessed": []
+          },
+          "functional_basis_verse": "BPHS 34.20",
+          "functional_nature": "malefic",
+          "functional_roles_publishable": true,
+          "has_lordship_doctrine": true,
+          "house_drishti": {
+            "applicability": "not_applicable",
+            "challenging": [],
+            "mixed": [],
+            "net": "not_applicable",
+            "not_applicable_basis": "graha-dṛṣṭi is not cast in D9 (varga_aspect_policy=none); this is doctrine, not an absence of evidence",
+            "sources": [],
+            "subject": "H7",
+            "supportive": [],
+            "unassessed": []
+          },
+          "is_natural_karaka_of_own_house": false,
+          "maraka_status": "qualified",
+          "natural_nature": "natural_benefic",
+          "natural_nature_basis": "Mercury unafflicted by malefic association (BPHS ch.3)",
+          "overall_verdict": "nuanced",
+          "ownership_yogakaraka": false,
+          "retrograde": false,
+          "strength_verdict": "well_placed",
+          "verdict_factors": [
+            {
+              "detail": "well_placed",
+              "direction": "positive",
+              "factor": "strength"
+            },
+            {
+              "detail": "graha-dṛṣṭi is not cast in this varga",
+              "direction": "not_applicable",
+              "factor": "house_drishti"
+            }
+          ],
+          "verse_yoga_status": "none"
+        },
+        "house": {
+          "corpus_ref": {
+            "corpus": "HOUSE_CORPUS",
+            "dignity": null,
+            "graha": "Mercury",
+            "key": "7",
+            "resolvable": true,
+            "varga": "D9"
+          },
+          "drishti": {
+            "applicability": "not_applicable",
+            "challenging": [],
+            "mixed": [],
+            "net": "not_applicable",
+            "not_applicable_basis": "graha-dṛṣṭi is not cast in D9 (varga_aspect_policy=none); this is doctrine, not an absence of evidence",
+            "sources": [],
+            "subject": "H7",
+            "supportive": [],
+            "unassessed": []
+          },
+          "house": 7,
+          "house_lord": "Saturn",
+          "house_name": "Yuvati",
+          "sign": "Capricorn"
+        },
+        "position": {
+          "degree_in_sign": 3.1,
+          "dignity": "Friend",
+          "dignity_label": "Mitra Rāśi (Friend)",
+          "graha": "Mercury",
+          "house": 7,
+          "retrograde": false,
+          "sign": "Capricorn",
+          "vargottama": null
+        },
+        "rashi": {
+          "corpus_ref": {
+            "corpus": "RASHI_CORPUS",
+            "dignity": "Friend",
+            "graha": "Mercury",
+            "key": "Friend",
+            "resolvable": true,
+            "varga": "D9"
+          },
+          "dignity": "Friend",
+          "dignity_label": "Mitra Rāśi (Friend)",
+          "sign": "Capricorn",
+          "sign_index": 9,
+          "sign_lord": {
+            "degree_in_sign": 5.9,
+            "dignity": "Friend",
+            "dignity_label": "Mitra Rāśi (Friend)",
+            "graha": "Saturn",
+            "house": 8,
+            "retrograde": false,
+            "sign": "Aquarius",
+            "vargottama": null
+          }
+        },
+        "shadbala": {
+          "at_digbala_peak_house": false,
+          "computed_server_side": false,
+          "digbala": null,
+          "digbala_band": null,
+          "naisargika_bala": null,
+          "naisargika_band": null,
+          "note_key": "shadbala_phase6",
+          "uchcha_bala": null,
+          "uchcha_band": null
+        },
+        "synthesis_version": "d1-synthesis-0.1.0",
+        "varga": "D9",
+        "varga_dignity_shift": {
+          "applicability": "applicable",
+          "basis": "Friend in D1 to Friend in D9",
+          "birth_dignity": "Friend",
+          "birth_rank": 3,
+          "corpus_ref": {
+            "corpus": "VARGA_SHIFT",
+            "dignity": null,
+            "graha": "Mercury",
+            "key": "held",
+            "resolvable": true,
+            "varga": "D9"
+          },
+          "shift": "held",
+          "varga_dignity": "Friend",
+          "varga_rank": 3
+        }
+      },
+      {
+        "bhava_karaka": {
+          "corpus_ref": {
+            "corpus": "BHAVA_KARAKA",
+            "dignity": null,
+            "graha": null,
+            "key": "12",
+            "resolvable": true,
+            "varga": "D9"
+          },
+          "house": 12,
+          "karaka_positions": [
+            {
+              "degree_in_sign": 5.9,
+              "dignity": "Friend",
+              "dignity_label": "Mitra Rāśi (Friend)",
+              "graha": "Saturn",
+              "house": 8,
+              "retrograde": false,
+              "sign": "Aquarius",
+              "vargottama": null
+            }
+          ],
+          "karaka_support": "moderate",
+          "karakas": [
+            "Saturn"
+          ],
+          "primary_karaka": "Saturn",
+          "subject_is_karaka_of_own_house": false
+        },
+        "bhavat_bhavam": {
+          "bb_house": 11,
+          "bb_house_name": "Labha",
+          "bb_lord": "Venus",
+          "bb_lord_position": {
+            "degree_in_sign": 21.3,
+            "dignity": "Friend",
+            "dignity_label": "Mitra Rāśi (Friend)",
+            "graha": "Venus",
+            "house": 3,
+            "retrograde": false,
+            "sign": "Virgo",
+            "vargottama": null
+          },
+          "corpus_ref": {
+            "corpus": "BHAVAT_DESC",
+            "dignity": null,
+            "graha": null,
+            "key": "12",
+            "resolvable": true,
+            "varga": "D9"
+          },
+          "from_house": 12,
+          "sustaining": "moderate"
+        },
+        "bhavesh": {
+          "bhavesh": "Mercury",
+          "drishti": {
+            "applicability": "not_applicable",
+            "challenging": [],
+            "mixed": [],
+            "net": "not_applicable",
+            "not_applicable_basis": "graha-dṛṣṭi is not cast in D9 (varga_aspect_policy=none); this is doctrine, not an absence of evidence",
+            "sources": [],
+            "subject": "Mercury (Bhavesh)",
+            "supportive": [],
+            "unassessed": []
+          },
+          "of_sign": "Gemini",
+          "position": {
+            "degree_in_sign": 3.1,
+            "dignity": "Friend",
+            "dignity_label": "Mitra Rāśi (Friend)",
+            "graha": "Mercury",
+            "house": 7,
+            "retrograde": false,
+            "sign": "Capricorn",
+            "vargottama": null
+          },
+          "retrograde_note": false,
+          "support": "moderate"
+        },
+        "graha": "Jupiter",
+        "graha_saar": {
+          "at_digbala_peak_house": false,
+          "bhavesh_drishti": {
+            "applicability": "not_applicable",
+            "challenging": [],
+            "mixed": [],
+            "net": "not_applicable",
+            "not_applicable_basis": "graha-dṛṣṭi is not cast in D9 (varga_aspect_policy=none); this is doctrine, not an absence of evidence",
+            "sources": [],
+            "subject": "Mercury (Bhavesh)",
+            "supportive": [],
+            "unassessed": []
+          },
+          "functional_basis_verse": "BPHS 34.20",
+          "functional_nature": "benefic",
+          "functional_roles_publishable": true,
+          "has_lordship_doctrine": true,
+          "house_drishti": {
+            "applicability": "not_applicable",
+            "challenging": [],
+            "mixed": [],
+            "net": "not_applicable",
+            "not_applicable_basis": "graha-dṛṣṭi is not cast in D9 (varga_aspect_policy=none); this is doctrine, not an absence of evidence",
+            "sources": [],
+            "subject": "H12",
+            "supportive": [],
+            "unassessed": []
+          },
+          "is_natural_karaka_of_own_house": false,
+          "maraka_status": "none",
+          "natural_nature": "natural_benefic",
+          "natural_nature_basis": "fixed natural nature (BPHS ch.3); dignity never alters it (KAR-083)",
+          "overall_verdict": "nuanced",
+          "ownership_yogakaraka": false,
+          "retrograde": false,
+          "strength_verdict": "well_placed",
+          "verdict_factors": [
+            {
+              "detail": "well_placed",
+              "direction": "positive",
+              "factor": "strength"
+            },
+            {
+              "detail": "graha-dṛṣṭi is not cast in this varga",
+              "direction": "not_applicable",
+              "factor": "house_drishti"
+            }
+          ],
+          "verse_yoga_status": "none"
+        },
+        "house": {
+          "corpus_ref": {
+            "corpus": "HOUSE_CORPUS",
+            "dignity": null,
+            "graha": "Jupiter",
+            "key": "12",
+            "resolvable": true,
+            "varga": "D9"
+          },
+          "drishti": {
+            "applicability": "not_applicable",
+            "challenging": [],
+            "mixed": [],
+            "net": "not_applicable",
+            "not_applicable_basis": "graha-dṛṣṭi is not cast in D9 (varga_aspect_policy=none); this is doctrine, not an absence of evidence",
+            "sources": [],
+            "subject": "H12",
+            "supportive": [],
+            "unassessed": []
+          },
+          "house": 12,
+          "house_lord": "Mercury",
+          "house_name": "Vyaya",
+          "sign": "Gemini"
+        },
+        "position": {
+          "degree_in_sign": 15.7,
+          "dignity": "Friend",
+          "dignity_label": "Mitra Rāśi (Friend)",
+          "graha": "Jupiter",
+          "house": 12,
+          "retrograde": false,
+          "sign": "Gemini",
+          "vargottama": null
+        },
+        "rashi": {
+          "corpus_ref": {
+            "corpus": "RASHI_CORPUS",
+            "dignity": "Friend",
+            "graha": "Jupiter",
+            "key": "Friend",
+            "resolvable": true,
+            "varga": "D9"
+          },
+          "dignity": "Friend",
+          "dignity_label": "Mitra Rāśi (Friend)",
+          "sign": "Gemini",
+          "sign_index": 2,
+          "sign_lord": {
+            "degree_in_sign": 3.1,
+            "dignity": "Friend",
+            "dignity_label": "Mitra Rāśi (Friend)",
+            "graha": "Mercury",
+            "house": 7,
+            "retrograde": false,
+            "sign": "Capricorn",
+            "vargottama": null
+          }
+        },
+        "shadbala": {
+          "at_digbala_peak_house": false,
+          "computed_server_side": false,
+          "digbala": null,
+          "digbala_band": null,
+          "naisargika_bala": null,
+          "naisargika_band": null,
+          "note_key": "shadbala_phase6",
+          "uchcha_bala": null,
+          "uchcha_band": null
+        },
+        "synthesis_version": "d1-synthesis-0.1.0",
+        "varga": "D9",
+        "varga_dignity_shift": {
+          "applicability": "applicable",
+          "basis": "Neutral in D1 to Friend in D9",
+          "birth_dignity": "Neutral",
+          "birth_rank": 2,
+          "corpus_ref": {
+            "corpus": "VARGA_SHIFT",
+            "dignity": null,
+            "graha": "Jupiter",
+            "key": "stronger",
+            "resolvable": true,
+            "varga": "D9"
+          },
+          "shift": "stronger",
+          "varga_dignity": "Friend",
+          "varga_rank": 3
+        }
+      },
+      {
+        "bhava_karaka": {
+          "corpus_ref": {
+            "corpus": "BHAVA_KARAKA",
+            "dignity": null,
+            "graha": null,
+            "key": "3",
+            "resolvable": true,
+            "varga": "D9"
+          },
+          "house": 3,
+          "karaka_positions": [
+            {
+              "degree_in_sign": 24.4,
+              "dignity": "Friend",
+              "dignity_label": "Mitra Rāśi (Friend)",
+              "graha": "Mars",
+              "house": 11,
+              "retrograde": false,
+              "sign": "Taurus",
+              "vargottama": null
+            }
+          ],
+          "karaka_support": "moderate",
+          "karakas": [
+            "Mars"
+          ],
+          "primary_karaka": "Mars",
+          "subject_is_karaka_of_own_house": false
+        },
+        "bhavat_bhavam": {
+          "bb_house": 5,
+          "bb_house_name": "Putra",
+          "bb_lord": "Mars",
+          "bb_lord_position": {
+            "degree_in_sign": 24.4,
+            "dignity": "Friend",
+            "dignity_label": "Mitra Rāśi (Friend)",
+            "graha": "Mars",
+            "house": 11,
+            "retrograde": false,
+            "sign": "Taurus",
+            "vargottama": null
+          },
+          "corpus_ref": {
+            "corpus": "BHAVAT_DESC",
+            "dignity": null,
+            "graha": null,
+            "key": "3",
+            "resolvable": true,
+            "varga": "D9"
+          },
+          "from_house": 3,
+          "sustaining": "moderate"
+        },
+        "bhavesh": {
+          "bhavesh": "Mercury",
+          "drishti": {
+            "applicability": "not_applicable",
+            "challenging": [],
+            "mixed": [],
+            "net": "not_applicable",
+            "not_applicable_basis": "graha-dṛṣṭi is not cast in D9 (varga_aspect_policy=none); this is doctrine, not an absence of evidence",
+            "sources": [],
+            "subject": "Mercury (Bhavesh)",
+            "supportive": [],
+            "unassessed": []
+          },
+          "of_sign": "Virgo",
+          "position": {
+            "degree_in_sign": 3.1,
+            "dignity": "Friend",
+            "dignity_label": "Mitra Rāśi (Friend)",
+            "graha": "Mercury",
+            "house": 7,
+            "retrograde": false,
+            "sign": "Capricorn",
+            "vargottama": null
+          },
+          "retrograde_note": false,
+          "support": "moderate"
+        },
+        "graha": "Venus",
+        "graha_saar": {
+          "at_digbala_peak_house": false,
+          "bhavesh_drishti": {
+            "applicability": "not_applicable",
+            "challenging": [],
+            "mixed": [],
+            "net": "not_applicable",
+            "not_applicable_basis": "graha-dṛṣṭi is not cast in D9 (varga_aspect_policy=none); this is doctrine, not an absence of evidence",
+            "sources": [],
+            "subject": "Mercury (Bhavesh)",
+            "supportive": [],
+            "unassessed": []
+          },
+          "functional_basis_verse": "BPHS 34.20-21",
+          "functional_nature": "malefic",
+          "functional_roles_publishable": true,
+          "has_lordship_doctrine": true,
+          "house_drishti": {
+            "applicability": "not_applicable",
+            "challenging": [],
+            "mixed": [],
+            "net": "not_applicable",
+            "not_applicable_basis": "graha-dṛṣṭi is not cast in D9 (varga_aspect_policy=none); this is doctrine, not an absence of evidence",
+            "sources": [],
+            "subject": "H3",
+            "supportive": [],
+            "unassessed": []
+          },
+          "is_natural_karaka_of_own_house": false,
+          "maraka_status": "primary_killer",
+          "natural_nature": "natural_benefic",
+          "natural_nature_basis": "fixed natural nature (BPHS ch.3); dignity never alters it (KAR-083)",
+          "overall_verdict": "nuanced",
+          "ownership_yogakaraka": false,
+          "retrograde": false,
+          "strength_verdict": "well_placed",
+          "verdict_factors": [
+            {
+              "detail": "well_placed",
+              "direction": "positive",
+              "factor": "strength"
+            },
+            {
+              "detail": "graha-dṛṣṭi is not cast in this varga",
+              "direction": "not_applicable",
+              "factor": "house_drishti"
+            }
+          ],
+          "verse_yoga_status": "none"
+        },
+        "house": {
+          "corpus_ref": {
+            "corpus": "HOUSE_CORPUS",
+            "dignity": null,
+            "graha": "Venus",
+            "key": "3",
+            "resolvable": true,
+            "varga": "D9"
+          },
+          "drishti": {
+            "applicability": "not_applicable",
+            "challenging": [],
+            "mixed": [],
+            "net": "not_applicable",
+            "not_applicable_basis": "graha-dṛṣṭi is not cast in D9 (varga_aspect_policy=none); this is doctrine, not an absence of evidence",
+            "sources": [],
+            "subject": "H3",
+            "supportive": [],
+            "unassessed": []
+          },
+          "house": 3,
+          "house_lord": "Mercury",
+          "house_name": "Sahaja",
+          "sign": "Virgo"
+        },
+        "position": {
+          "degree_in_sign": 21.3,
+          "dignity": "Friend",
+          "dignity_label": "Mitra Rāśi (Friend)",
+          "graha": "Venus",
+          "house": 3,
+          "retrograde": false,
+          "sign": "Virgo",
+          "vargottama": null
+        },
+        "rashi": {
+          "corpus_ref": {
+            "corpus": "RASHI_CORPUS",
+            "dignity": "Friend",
+            "graha": "Venus",
+            "key": "Friend",
+            "resolvable": true,
+            "varga": "D9"
+          },
+          "dignity": "Friend",
+          "dignity_label": "Mitra Rāśi (Friend)",
+          "sign": "Virgo",
+          "sign_index": 5,
+          "sign_lord": {
+            "degree_in_sign": 3.1,
+            "dignity": "Friend",
+            "dignity_label": "Mitra Rāśi (Friend)",
+            "graha": "Mercury",
+            "house": 7,
+            "retrograde": false,
+            "sign": "Capricorn",
+            "vargottama": null
+          }
+        },
+        "shadbala": {
+          "at_digbala_peak_house": false,
+          "computed_server_side": false,
+          "digbala": null,
+          "digbala_band": null,
+          "naisargika_bala": null,
+          "naisargika_band": null,
+          "note_key": "shadbala_phase6",
+          "uchcha_bala": null,
+          "uchcha_band": null
+        },
+        "synthesis_version": "d1-synthesis-0.1.0",
+        "varga": "D9",
+        "varga_dignity_shift": {
+          "applicability": "applicable",
+          "basis": "Enemy in D1 to Friend in D9",
+          "birth_dignity": "Enemy",
+          "birth_rank": 1,
+          "corpus_ref": {
+            "corpus": "VARGA_SHIFT",
+            "dignity": null,
+            "graha": "Venus",
+            "key": "stronger",
+            "resolvable": true,
+            "varga": "D9"
+          },
+          "shift": "stronger",
+          "varga_dignity": "Friend",
+          "varga_rank": 3
+        }
+      },
+      {
+        "bhava_karaka": {
+          "corpus_ref": {
+            "corpus": "BHAVA_KARAKA",
+            "dignity": null,
+            "graha": null,
+            "key": "8",
+            "resolvable": true,
+            "varga": "D9"
+          },
+          "house": 8,
+          "karaka_positions": [
+            {
+              "degree_in_sign": 5.9,
+              "dignity": "Friend",
+              "dignity_label": "Mitra Rāśi (Friend)",
+              "graha": "Saturn",
+              "house": 8,
+              "retrograde": false,
+              "sign": "Aquarius",
+              "vargottama": null
+            }
+          ],
+          "karaka_support": "moderate",
+          "karakas": [
+            "Saturn"
+          ],
+          "primary_karaka": "Saturn",
+          "subject_is_karaka_of_own_house": true
+        },
+        "bhavat_bhavam": {
+          "bb_house": 3,
+          "bb_house_name": "Sahaja",
+          "bb_lord": "Mercury",
+          "bb_lord_position": {
+            "degree_in_sign": 3.1,
+            "dignity": "Friend",
+            "dignity_label": "Mitra Rāśi (Friend)",
+            "graha": "Mercury",
+            "house": 7,
+            "retrograde": false,
+            "sign": "Capricorn",
+            "vargottama": null
+          },
+          "corpus_ref": {
+            "corpus": "BHAVAT_DESC",
+            "dignity": null,
+            "graha": null,
+            "key": "8",
+            "resolvable": true,
+            "varga": "D9"
+          },
+          "from_house": 8,
+          "sustaining": "moderate"
+        },
+        "bhavesh": {
+          "bhavesh": "Saturn",
+          "drishti": {
+            "applicability": "not_applicable",
+            "challenging": [],
+            "mixed": [],
+            "net": "not_applicable",
+            "not_applicable_basis": "graha-dṛṣṭi is not cast in D9 (varga_aspect_policy=none); this is doctrine, not an absence of evidence",
+            "sources": [],
+            "subject": "Saturn (Bhavesh)",
+            "supportive": [],
+            "unassessed": []
+          },
+          "of_sign": "Aquarius",
+          "position": {
+            "degree_in_sign": 5.9,
+            "dignity": "Friend",
+            "dignity_label": "Mitra Rāśi (Friend)",
+            "graha": "Saturn",
+            "house": 8,
+            "retrograde": false,
+            "sign": "Aquarius",
+            "vargottama": null
+          },
+          "retrograde_note": false,
+          "support": "moderate"
+        },
+        "graha": "Saturn",
+        "graha_saar": {
+          "at_digbala_peak_house": false,
+          "bhavesh_drishti": {
+            "applicability": "not_applicable",
+            "challenging": [],
+            "mixed": [],
+            "net": "not_applicable",
+            "not_applicable_basis": "graha-dṛṣṭi is not cast in D9 (varga_aspect_policy=none); this is doctrine, not an absence of evidence",
+            "sources": [],
+            "subject": "Saturn (Bhavesh)",
+            "supportive": [],
+            "unassessed": []
+          },
+          "functional_basis_verse": "BPHS 34.20",
+          "functional_nature": "malefic",
+          "functional_roles_publishable": true,
+          "has_lordship_doctrine": true,
+          "house_drishti": {
+            "applicability": "not_applicable",
+            "challenging": [],
+            "mixed": [],
+            "net": "not_applicable",
+            "not_applicable_basis": "graha-dṛṣṭi is not cast in D9 (varga_aspect_policy=none); this is doctrine, not an absence of evidence",
+            "sources": [],
+            "subject": "H8",
+            "supportive": [],
+            "unassessed": []
+          },
+          "is_natural_karaka_of_own_house": true,
+          "maraka_status": "qualified",
+          "natural_nature": "natural_malefic",
+          "natural_nature_basis": "fixed natural nature (BPHS ch.3); dignity never alters it (KAR-083)",
+          "overall_verdict": "nuanced",
+          "ownership_yogakaraka": false,
+          "retrograde": false,
+          "strength_verdict": "well_placed",
+          "verdict_factors": [
+            {
+              "detail": "well_placed",
+              "direction": "positive",
+              "factor": "strength"
+            },
+            {
+              "detail": "graha-dṛṣṭi is not cast in this varga",
+              "direction": "not_applicable",
+              "factor": "house_drishti"
+            },
+            {
+              "detail": "natural karaka of its own house",
+              "direction": "positive",
+              "factor": "natural_karaka"
+            }
+          ],
+          "verse_yoga_status": "none"
+        },
+        "house": {
+          "corpus_ref": {
+            "corpus": "HOUSE_CORPUS",
+            "dignity": null,
+            "graha": "Saturn",
+            "key": "8",
+            "resolvable": true,
+            "varga": "D9"
+          },
+          "drishti": {
+            "applicability": "not_applicable",
+            "challenging": [],
+            "mixed": [],
+            "net": "not_applicable",
+            "not_applicable_basis": "graha-dṛṣṭi is not cast in D9 (varga_aspect_policy=none); this is doctrine, not an absence of evidence",
+            "sources": [],
+            "subject": "H8",
+            "supportive": [],
+            "unassessed": []
+          },
+          "house": 8,
+          "house_lord": "Saturn",
+          "house_name": "Randhra",
+          "sign": "Aquarius"
+        },
+        "position": {
+          "degree_in_sign": 5.9,
+          "dignity": "Friend",
+          "dignity_label": "Mitra Rāśi (Friend)",
+          "graha": "Saturn",
+          "house": 8,
+          "retrograde": false,
+          "sign": "Aquarius",
+          "vargottama": null
+        },
+        "rashi": {
+          "corpus_ref": {
+            "corpus": "RASHI_CORPUS",
+            "dignity": "Friend",
+            "graha": "Saturn",
+            "key": "Friend",
+            "resolvable": true,
+            "varga": "D9"
+          },
+          "dignity": "Friend",
+          "dignity_label": "Mitra Rāśi (Friend)",
+          "sign": "Aquarius",
+          "sign_index": 10,
+          "sign_lord": {
+            "degree_in_sign": 5.9,
+            "dignity": "Friend",
+            "dignity_label": "Mitra Rāśi (Friend)",
+            "graha": "Saturn",
+            "house": 8,
+            "retrograde": false,
+            "sign": "Aquarius",
+            "vargottama": null
+          }
+        },
+        "shadbala": {
+          "at_digbala_peak_house": false,
+          "computed_server_side": false,
+          "digbala": null,
+          "digbala_band": null,
+          "naisargika_bala": null,
+          "naisargika_band": null,
+          "note_key": "shadbala_phase6",
+          "uchcha_bala": null,
+          "uchcha_band": null
+        },
+        "synthesis_version": "d1-synthesis-0.1.0",
+        "varga": "D9",
+        "varga_dignity_shift": {
+          "applicability": "applicable",
+          "basis": "Great Enemy in D1 to Friend in D9",
+          "birth_dignity": "Great Enemy",
+          "birth_rank": 1,
+          "corpus_ref": {
+            "corpus": "VARGA_SHIFT",
+            "dignity": null,
+            "graha": "Saturn",
+            "key": "stronger",
+            "resolvable": true,
+            "varga": "D9"
+          },
+          "shift": "stronger",
+          "varga_dignity": "Friend",
+          "varga_rank": 3
+        }
+      },
+      {
+        "bhava_karaka": {
+          "corpus_ref": {
+            "corpus": "BHAVA_KARAKA",
+            "dignity": null,
+            "graha": null,
+            "key": "4",
+            "resolvable": true,
+            "varga": "D9"
+          },
+          "house": 4,
+          "karaka_positions": [
+            {
+              "degree_in_sign": 8.2,
+              "dignity": "Friend",
+              "dignity_label": "Mitra Rāśi (Friend)",
+              "graha": "Moon",
+              "house": 5,
+              "retrograde": false,
+              "sign": "Scorpio",
+              "vargottama": null
+            }
+          ],
+          "karaka_support": "moderate",
+          "karakas": [
+            "Moon"
+          ],
+          "primary_karaka": "Moon",
+          "subject_is_karaka_of_own_house": false
+        },
+        "bhavat_bhavam": {
+          "bb_house": 7,
+          "bb_house_name": "Yuvati",
+          "bb_lord": "Saturn",
+          "bb_lord_position": {
+            "degree_in_sign": 5.9,
+            "dignity": "Friend",
+            "dignity_label": "Mitra Rāśi (Friend)",
+            "graha": "Saturn",
+            "house": 8,
+            "retrograde": false,
+            "sign": "Aquarius",
+            "vargottama": null
+          },
+          "corpus_ref": {
+            "corpus": "BHAVAT_DESC",
+            "dignity": null,
+            "graha": null,
+            "key": "4",
+            "resolvable": true,
+            "varga": "D9"
+          },
+          "from_house": 4,
+          "sustaining": "moderate"
+        },
+        "bhavesh": {
+          "bhavesh": "Venus",
+          "drishti": {
+            "applicability": "not_applicable",
+            "challenging": [],
+            "mixed": [],
+            "net": "not_applicable",
+            "not_applicable_basis": "graha-dṛṣṭi is not cast in D9 (varga_aspect_policy=none); this is doctrine, not an absence of evidence",
+            "sources": [],
+            "subject": "Venus (Bhavesh)",
+            "supportive": [],
+            "unassessed": []
+          },
+          "of_sign": "Libra",
+          "position": {
+            "degree_in_sign": 21.3,
+            "dignity": "Friend",
+            "dignity_label": "Mitra Rāśi (Friend)",
+            "graha": "Venus",
+            "house": 3,
+            "retrograde": false,
+            "sign": "Virgo",
+            "vargottama": null
+          },
+          "retrograde_note": false,
+          "support": "moderate"
+        },
+        "graha": "Rahu",
+        "graha_saar": {
+          "at_digbala_peak_house": false,
+          "bhavesh_drishti": {
+            "applicability": "not_applicable",
+            "challenging": [],
+            "mixed": [],
+            "net": "not_applicable",
+            "not_applicable_basis": "graha-dṛṣṭi is not cast in D9 (varga_aspect_policy=none); this is doctrine, not an absence of evidence",
+            "sources": [],
+            "subject": "Venus (Bhavesh)",
+            "supportive": [],
+            "unassessed": []
+          },
+          "functional_basis_verse": null,
+          "functional_nature": null,
+          "functional_roles_publishable": true,
+          "has_lordship_doctrine": false,
+          "house_drishti": {
+            "applicability": "not_applicable",
+            "challenging": [],
+            "mixed": [],
+            "net": "not_applicable",
+            "not_applicable_basis": "graha-dṛṣṭi is not cast in D9 (varga_aspect_policy=none); this is doctrine, not an absence of evidence",
+            "sources": [],
+            "subject": "H4",
+            "supportive": [],
+            "unassessed": []
+          },
+          "is_natural_karaka_of_own_house": false,
+          "maraka_status": null,
+          "natural_nature": "natural_malefic",
+          "natural_nature_basis": "fixed natural nature (BPHS ch.3); dignity never alters it (KAR-083)",
+          "overall_verdict": "nuanced",
+          "ownership_yogakaraka": null,
+          "retrograde": false,
+          "strength_verdict": "well_placed",
+          "verdict_factors": [
+            {
+              "detail": "well_placed",
+              "direction": "positive",
+              "factor": "strength"
+            },
+            {
+              "detail": "graha-dṛṣṭi is not cast in this varga",
+              "direction": "not_applicable",
+              "factor": "house_drishti"
+            }
+          ],
+          "verse_yoga_status": null
+        },
+        "house": {
+          "corpus_ref": {
+            "corpus": "HOUSE_CORPUS",
+            "dignity": null,
+            "graha": "Rahu",
+            "key": "4",
+            "resolvable": true,
+            "varga": "D9"
+          },
+          "drishti": {
+            "applicability": "not_applicable",
+            "challenging": [],
+            "mixed": [],
+            "net": "not_applicable",
+            "not_applicable_basis": "graha-dṛṣṭi is not cast in D9 (varga_aspect_policy=none); this is doctrine, not an absence of evidence",
+            "sources": [],
+            "subject": "H4",
+            "supportive": [],
+            "unassessed": []
+          },
+          "house": 4,
+          "house_lord": "Venus",
+          "house_name": "Sukha",
+          "sign": "Libra"
+        },
+        "position": {
+          "degree_in_sign": 17.0,
+          "dignity": "Friend",
+          "dignity_label": "Mitra Rāśi (Friend)",
+          "graha": "Rahu",
+          "house": 4,
+          "retrograde": false,
+          "sign": "Libra",
+          "vargottama": null
+        },
+        "rashi": {
+          "corpus_ref": {
+            "corpus": "RASHI_CORPUS",
+            "dignity": "Friend",
+            "graha": "Rahu",
+            "key": "Friend",
+            "resolvable": true,
+            "varga": "D9"
+          },
+          "dignity": "Friend",
+          "dignity_label": "Mitra Rāśi (Friend)",
+          "sign": "Libra",
+          "sign_index": 6,
+          "sign_lord": {
+            "degree_in_sign": 21.3,
+            "dignity": "Friend",
+            "dignity_label": "Mitra Rāśi (Friend)",
+            "graha": "Venus",
+            "house": 3,
+            "retrograde": false,
+            "sign": "Virgo",
+            "vargottama": null
+          }
+        },
+        "shadbala": {
+          "at_digbala_peak_house": false,
+          "computed_server_side": false,
+          "digbala": null,
+          "digbala_band": null,
+          "naisargika_bala": null,
+          "naisargika_band": null,
+          "note_key": "shadbala_phase6",
+          "uchcha_bala": null,
+          "uchcha_band": null
+        },
+        "synthesis_version": "d1-synthesis-0.1.0",
+        "varga": "D9",
+        "varga_dignity_shift": {
+          "applicability": "applicable",
+          "basis": "Debilitated in D1 to Friend in D9",
+          "birth_dignity": "Debilitated",
+          "birth_rank": 0,
+          "corpus_ref": {
+            "corpus": "VARGA_SHIFT",
+            "dignity": null,
+            "graha": "Rahu",
+            "key": "stronger",
+            "resolvable": true,
+            "varga": "D9"
+          },
+          "shift": "stronger",
+          "varga_dignity": "Friend",
+          "varga_rank": 3
+        }
+      },
+      {
+        "bhava_karaka": {
+          "corpus_ref": {
+            "corpus": "BHAVA_KARAKA",
+            "dignity": null,
+            "graha": null,
+            "key": "10",
+            "resolvable": true,
+            "varga": "D9"
+          },
+          "house": 10,
+          "karaka_positions": [
+            {
+              "degree_in_sign": 12.5,
+              "dignity": "Friend",
+              "dignity_label": "Mitra Rāśi (Friend)",
+              "graha": "Sun",
+              "house": 2,
+              "retrograde": false,
+              "sign": "Leo",
+              "vargottama": null
+            },
+            {
+              "degree_in_sign": 3.1,
+              "dignity": "Friend",
+              "dignity_label": "Mitra Rāśi (Friend)",
+              "graha": "Mercury",
+              "house": 7,
+              "retrograde": false,
+              "sign": "Capricorn",
+              "vargottama": null
+            }
+          ],
+          "karaka_support": "moderate",
+          "karakas": [
+            "Sun",
+            "Mercury"
+          ],
+          "primary_karaka": "Sun",
+          "subject_is_karaka_of_own_house": false
+        },
+        "bhavat_bhavam": {
+          "bb_house": 7,
+          "bb_house_name": "Yuvati",
+          "bb_lord": "Saturn",
+          "bb_lord_position": {
+            "degree_in_sign": 5.9,
+            "dignity": "Friend",
+            "dignity_label": "Mitra Rāśi (Friend)",
+            "graha": "Saturn",
+            "house": 8,
+            "retrograde": false,
+            "sign": "Aquarius",
+            "vargottama": null
+          },
+          "corpus_ref": {
+            "corpus": "BHAVAT_DESC",
+            "dignity": null,
+            "graha": null,
+            "key": "10",
+            "resolvable": true,
+            "varga": "D9"
+          },
+          "from_house": 10,
+          "sustaining": "moderate"
+        },
+        "bhavesh": {
+          "bhavesh": "Mars",
+          "drishti": {
+            "applicability": "not_applicable",
+            "challenging": [],
+            "mixed": [],
+            "net": "not_applicable",
+            "not_applicable_basis": "graha-dṛṣṭi is not cast in D9 (varga_aspect_policy=none); this is doctrine, not an absence of evidence",
+            "sources": [],
+            "subject": "Mars (Bhavesh)",
+            "supportive": [],
+            "unassessed": []
+          },
+          "of_sign": "Aries",
+          "position": {
+            "degree_in_sign": 24.4,
+            "dignity": "Friend",
+            "dignity_label": "Mitra Rāśi (Friend)",
+            "graha": "Mars",
+            "house": 11,
+            "retrograde": false,
+            "sign": "Taurus",
+            "vargottama": null
+          },
+          "retrograde_note": false,
+          "support": "moderate"
+        },
+        "graha": "Ketu",
+        "graha_saar": {
+          "at_digbala_peak_house": false,
+          "bhavesh_drishti": {
+            "applicability": "not_applicable",
+            "challenging": [],
+            "mixed": [],
+            "net": "not_applicable",
+            "not_applicable_basis": "graha-dṛṣṭi is not cast in D9 (varga_aspect_policy=none); this is doctrine, not an absence of evidence",
+            "sources": [],
+            "subject": "Mars (Bhavesh)",
+            "supportive": [],
+            "unassessed": []
+          },
+          "functional_basis_verse": null,
+          "functional_nature": null,
+          "functional_roles_publishable": true,
+          "has_lordship_doctrine": false,
+          "house_drishti": {
+            "applicability": "not_applicable",
+            "challenging": [],
+            "mixed": [],
+            "net": "not_applicable",
+            "not_applicable_basis": "graha-dṛṣṭi is not cast in D9 (varga_aspect_policy=none); this is doctrine, not an absence of evidence",
+            "sources": [],
+            "subject": "H10",
+            "supportive": [],
+            "unassessed": []
+          },
+          "is_natural_karaka_of_own_house": false,
+          "maraka_status": null,
+          "natural_nature": "natural_malefic",
+          "natural_nature_basis": "fixed natural nature (BPHS ch.3); dignity never alters it (KAR-083)",
+          "overall_verdict": "nuanced",
+          "ownership_yogakaraka": null,
+          "retrograde": false,
+          "strength_verdict": "well_placed",
+          "verdict_factors": [
+            {
+              "detail": "well_placed",
+              "direction": "positive",
+              "factor": "strength"
+            },
+            {
+              "detail": "graha-dṛṣṭi is not cast in this varga",
+              "direction": "not_applicable",
+              "factor": "house_drishti"
+            }
+          ],
+          "verse_yoga_status": null
+        },
+        "house": {
+          "corpus_ref": {
+            "corpus": "HOUSE_CORPUS",
+            "dignity": null,
+            "graha": "Ketu",
+            "key": "10",
+            "resolvable": true,
+            "varga": "D9"
+          },
+          "drishti": {
+            "applicability": "not_applicable",
+            "challenging": [],
+            "mixed": [],
+            "net": "not_applicable",
+            "not_applicable_basis": "graha-dṛṣṭi is not cast in D9 (varga_aspect_policy=none); this is doctrine, not an absence of evidence",
+            "sources": [],
+            "subject": "H10",
+            "supportive": [],
+            "unassessed": []
+          },
+          "house": 10,
+          "house_lord": "Mars",
+          "house_name": "Karma",
+          "sign": "Aries"
+        },
+        "position": {
+          "degree_in_sign": 17.0,
+          "dignity": "Friend",
+          "dignity_label": "Mitra Rāśi (Friend)",
+          "graha": "Ketu",
+          "house": 10,
+          "retrograde": false,
+          "sign": "Aries",
+          "vargottama": null
+        },
+        "rashi": {
+          "corpus_ref": {
+            "corpus": "RASHI_CORPUS",
+            "dignity": "Friend",
+            "graha": "Ketu",
+            "key": "Friend",
+            "resolvable": true,
+            "varga": "D9"
+          },
+          "dignity": "Friend",
+          "dignity_label": "Mitra Rāśi (Friend)",
+          "sign": "Aries",
+          "sign_index": 0,
+          "sign_lord": {
+            "degree_in_sign": 24.4,
+            "dignity": "Friend",
+            "dignity_label": "Mitra Rāśi (Friend)",
+            "graha": "Mars",
+            "house": 11,
+            "retrograde": false,
+            "sign": "Taurus",
+            "vargottama": null
+          }
+        },
+        "shadbala": {
+          "at_digbala_peak_house": false,
+          "computed_server_side": false,
+          "digbala": null,
+          "digbala_band": null,
+          "naisargika_bala": null,
+          "naisargika_band": null,
+          "note_key": "shadbala_phase6",
+          "uchcha_bala": null,
+          "uchcha_band": null
+        },
+        "synthesis_version": "d1-synthesis-0.1.0",
+        "varga": "D9",
+        "varga_dignity_shift": {
+          "applicability": "applicable",
+          "basis": "Exalted in D1 to Friend in D9",
+          "birth_dignity": "Exalted",
+          "birth_rank": 6,
+          "corpus_ref": {
+            "corpus": "VARGA_SHIFT",
+            "dignity": null,
+            "graha": "Ketu",
+            "key": "weaker",
+            "resolvable": true,
+            "varga": "D9"
+          },
+          "shift": "weaker",
+          "varga_dignity": "Friend",
+          "varga_rank": 3
+        }
+      }
+    ],
+    "synthesis_version": "d1-synthesis-0.1.0",
+    "varga": "D9"
+  },
+  "input": {
+    "d9_dignity": "Friend",
+    "d9_lagna_sign_index": 3,
+    "d9_view": {
+      "Jupiter": 2,
+      "Ketu": 0,
+      "Mars": 1,
+      "Mercury": 9,
+      "Moon": 7,
+      "Rahu": 6,
+      "Saturn": 10,
+      "Sun": 4,
+      "Venus": 5
+    },
+    "lagna_degree": 20.0586,
+    "lagna_sign_index": 0,
+    "spec": {
+      "Jupiter": [
+        3,
+        15.7,
+        "Neutral"
+      ],
+      "Ketu": [
+        7,
+        17.0,
+        "Exalted"
+      ],
+      "Mars": [
+        9,
+        24.4,
+        "Great Friend"
+      ],
+      "Mercury": [
+        5,
+        3.1,
+        "Friend"
+      ],
+      "Moon": [
+        1,
+        8.2,
+        "Own Sign"
+      ],
+      "Rahu": [
+        1,
+        17.0,
+        "Debilitated"
+      ],
+      "Saturn": [
+        6,
+        5.9,
+        "Great Enemy"
+      ],
+      "Sun": [
+        0,
+        12.5,
+        "Moolatrikona"
+      ],
+      "Venus": [
+        11,
+        21.3,
+        "Enemy"
+      ]
+    }
+  },
+  "response": {
+    "aspects": [],
+    "birth_lagna_sign_index": 0,
+    "chart_token": "KAR093STEP10GOLDEN",
+    "functional_roles": [
+      {
+        "basis": "BPHS 34.20: Aries Lagna: sūrya śubha (guru-divākarau śubhau)",
+        "graha": "Sun",
+        "lordships": [
+          5
+        ],
+        "role": "functional_benefic"
+      },
+      {
+        "basis": "BPHS 34.19-22: Aries Lagna: not classified in the ślokas; commentary reads sole kendra lordship as mixed",
+        "graha": "Moon",
+        "lordships": [
+          4
+        ],
+        "role": "functional_neutral"
+      },
+      {
+        "basis": "BPHS 34.19: Aries Lagna: randhreśatve api śubha-sahāyavān — favourable helper, not independently auspicious",
+        "graha": "Mars",
+        "lordships": [
+          1,
+          8
+        ],
+        "role": "functional_neutral"
+      },
+      {
+        "basis": "BPHS 34.20: Aries Lagna: saumya pāpa; killer status conditional under 34.22",
+        "graha": "Mercury",
+        "lordships": [
+          3,
+          6
+        ],
+        "role": "maraka"
+      },
+      {
+        "basis": "BPHS 34.20: Aries Lagna: guru śubha",
+        "graha": "Jupiter",
+        "lordships": [
+          9,
+          12
+        ],
+        "role": "functional_benefic"
+      },
+      {
+        "basis": "BPHS 34.20-21: Aries Lagna: sita pāpa; śukraḥ sākṣāt nihantā — direct and principal killer",
+        "graha": "Venus",
+        "lordships": [
+          2,
+          7
+        ],
+        "role": "maraka"
+      },
+      {
+        "basis": "BPHS 34.20: Aries Lagna: manda pāpa; killer status conditional under 34.22",
+        "graha": "Saturn",
+        "lordships": [
+          10,
+          11
+        ],
+        "role": "maraka"
+      },
+      {
+        "basis": "nodes own no rāśi; nature flows through axis, dispositor and association (locked ruling)",
+        "graha": "Rahu",
+        "lordships": [],
+        "role": "node_axis"
+      },
+      {
+        "basis": "nodes own no rāśi; nature flows through axis, dispositor and association (locked ruling)",
+        "graha": "Ketu",
+        "lordships": [],
+        "role": "node_axis"
+      }
+    ],
+    "grahas": [
+      {
+        "birth_dignity": "Moolatrikona",
+        "combust": false,
+        "degree_in_sign": 12.5,
+        "dignity": "Friend",
+        "dispositor": "Sun",
+        "graha": "Sun",
+        "house": 2,
+        "nakshatra": "Ashwini",
+        "nakshatra_pada": 1,
+        "retrograde": false,
+        "sign": "Leo",
+        "sign_index": 4,
+        "vargottama": null
+      },
+      {
+        "birth_dignity": "Own Sign",
+        "combust": false,
+        "degree_in_sign": 8.2,
+        "dignity": "Friend",
+        "dispositor": "Mars",
+        "graha": "Moon",
+        "house": 5,
+        "nakshatra": "Ashwini",
+        "nakshatra_pada": 1,
+        "retrograde": false,
+        "sign": "Scorpio",
+        "sign_index": 7,
+        "vargottama": null
+      },
+      {
+        "birth_dignity": "Great Friend",
+        "combust": false,
+        "degree_in_sign": 24.4,
+        "dignity": "Friend",
+        "dispositor": "Venus",
+        "graha": "Mars",
+        "house": 11,
+        "nakshatra": "Ashwini",
+        "nakshatra_pada": 1,
+        "retrograde": false,
+        "sign": "Taurus",
+        "sign_index": 1,
+        "vargottama": null
+      },
+      {
+        "birth_dignity": "Friend",
+        "combust": false,
+        "degree_in_sign": 3.1,
+        "dignity": "Friend",
+        "dispositor": "Saturn",
+        "graha": "Mercury",
+        "house": 7,
+        "nakshatra": "Ashwini",
+        "nakshatra_pada": 1,
+        "retrograde": false,
+        "sign": "Capricorn",
+        "sign_index": 9,
+        "vargottama": null
+      },
+      {
+        "birth_dignity": "Neutral",
+        "combust": false,
+        "degree_in_sign": 15.7,
+        "dignity": "Friend",
+        "dispositor": "Mercury",
+        "graha": "Jupiter",
+        "house": 12,
+        "nakshatra": "Ashwini",
+        "nakshatra_pada": 1,
+        "retrograde": false,
+        "sign": "Gemini",
+        "sign_index": 2,
+        "vargottama": null
+      },
+      {
+        "birth_dignity": "Enemy",
+        "combust": false,
+        "degree_in_sign": 21.3,
+        "dignity": "Friend",
+        "dispositor": "Mercury",
+        "graha": "Venus",
+        "house": 3,
+        "nakshatra": "Ashwini",
+        "nakshatra_pada": 1,
+        "retrograde": false,
+        "sign": "Virgo",
+        "sign_index": 5,
+        "vargottama": null
+      },
+      {
+        "birth_dignity": "Great Enemy",
+        "combust": false,
+        "degree_in_sign": 5.9,
+        "dignity": "Friend",
+        "dispositor": "Saturn",
+        "graha": "Saturn",
+        "house": 8,
+        "nakshatra": "Ashwini",
+        "nakshatra_pada": 1,
+        "retrograde": false,
+        "sign": "Aquarius",
+        "sign_index": 10,
+        "vargottama": null
+      },
+      {
+        "birth_dignity": "Debilitated",
+        "combust": false,
+        "degree_in_sign": 17.0,
+        "dignity": "Friend",
+        "dispositor": "Venus",
+        "graha": "Rahu",
+        "house": 4,
+        "nakshatra": "Ashwini",
+        "nakshatra_pada": 1,
+        "retrograde": false,
+        "sign": "Libra",
+        "sign_index": 6,
+        "vargottama": null
+      },
+      {
+        "birth_dignity": "Exalted",
+        "combust": false,
+        "degree_in_sign": 17.0,
+        "dignity": "Friend",
+        "dispositor": "Mars",
+        "graha": "Ketu",
+        "house": 10,
+        "nakshatra": "Ashwini",
+        "nakshatra_pada": 1,
+        "retrograde": false,
+        "sign": "Aries",
+        "sign_index": 0,
+        "vargottama": null
+      }
+    ],
+    "houses": [
+      {
+        "aspected_by": [],
+        "house": 1,
+        "lord": "Moon",
+        "occupants": [],
+        "sign": "Cancer",
+        "sign_index": 3
+      },
+      {
+        "aspected_by": [],
+        "house": 2,
+        "lord": "Sun",
+        "occupants": [
+          "Sun"
+        ],
+        "sign": "Leo",
+        "sign_index": 4
+      },
+      {
+        "aspected_by": [],
+        "house": 3,
+        "lord": "Mercury",
+        "occupants": [
+          "Venus"
+        ],
+        "sign": "Virgo",
+        "sign_index": 5
+      },
+      {
+        "aspected_by": [],
+        "house": 4,
+        "lord": "Venus",
+        "occupants": [
+          "Rahu"
+        ],
+        "sign": "Libra",
+        "sign_index": 6
+      },
+      {
+        "aspected_by": [],
+        "house": 5,
+        "lord": "Mars",
+        "occupants": [
+          "Moon"
+        ],
+        "sign": "Scorpio",
+        "sign_index": 7
+      },
+      {
+        "aspected_by": [],
+        "house": 6,
+        "lord": "Jupiter",
+        "occupants": [],
+        "sign": "Sagittarius",
+        "sign_index": 8
+      },
+      {
+        "aspected_by": [],
+        "house": 7,
+        "lord": "Saturn",
+        "occupants": [
+          "Mercury"
+        ],
+        "sign": "Capricorn",
+        "sign_index": 9
+      },
+      {
+        "aspected_by": [],
+        "house": 8,
+        "lord": "Saturn",
+        "occupants": [
+          "Saturn"
+        ],
+        "sign": "Aquarius",
+        "sign_index": 10
+      },
+      {
+        "aspected_by": [],
+        "house": 9,
+        "lord": "Jupiter",
+        "occupants": [],
+        "sign": "Pisces",
+        "sign_index": 11
+      },
+      {
+        "aspected_by": [],
+        "house": 10,
+        "lord": "Mars",
+        "occupants": [
+          "Ketu"
+        ],
+        "sign": "Aries",
+        "sign_index": 0
+      },
+      {
+        "aspected_by": [],
+        "house": 11,
+        "lord": "Venus",
+        "occupants": [
+          "Mars"
+        ],
+        "sign": "Taurus",
+        "sign_index": 1
+      },
+      {
+        "aspected_by": [],
+        "house": 12,
+        "lord": "Mercury",
+        "occupants": [
+          "Jupiter"
+        ],
+        "sign": "Gemini",
+        "sign_index": 2
+      }
+    ],
+    "lagna_degree": 20.0586,
+    "lagna_sign": "Cancer",
+    "lagna_sign_index": 3,
+    "nodal_axis": {
+      "ketu_dispositor": "Mars",
+      "ketu_house": 10,
+      "ketu_sign": "Aries",
+      "rahu_dispositor": "Venus",
+      "rahu_house": 4,
+      "rahu_sign": "Libra"
+    },
+    "policy": {
+      "aspect_policy_version": "parashari-d1-1.0",
+      "ayanamsha": "lahiri",
+      "engine_version": "d1-engine-0.1.0",
+      "functional_role_lagna_anchor": "birth_lagna",
+      "house_system": "whole_sign",
+      "node_aspect_policy": "no_independent_drishti",
+      "varga": "D9",
+      "varga_aspect_policy": "none"
+    }
+  }
+}
