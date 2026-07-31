@@ -1,0 +1,5105 @@
+{
+  "policy": {
+    "engine_version": "d1-engine-0.1.0",
+    "ayanamsha": "lahiri",
+    "house_system": "whole_sign",
+    "aspect_policy_version": "parashari-d1-1.0",
+    "node_aspect_policy": "no_independent_drishti",
+    "varga": "D1",
+    "varga_aspect_policy": "parashari_full",
+    "functional_role_lagna_anchor": "birth_lagna"
+  },
+  "drawers": {
+    "synthesis_version": "d1-synthesis-0.1.0",
+    "varga": "D1",
+    "chart_token": "ZQXCHARTTOKENQ7",
+    "drawers": [
+      {
+        "synthesis_version": "d1-synthesis-0.1.0",
+        "varga": "D1",
+        "graha": "Sun",
+        "position": {
+          "graha": "Sun",
+          "house": 1,
+          "sign": "ZQXSUNSIGNQ7",
+          "degree_in_sign": 12.5,
+          "dignity": "Moolatrikona",
+          "dignity_label": "ZQXSUNDIGNITYLABELQ7",
+          "retrograde": false,
+          "vargottama": null
+        },
+        "rashi": {
+          "sign": "ZQXSUNSIGNQ7",
+          "sign_index": 0,
+          "dignity": "Moolatrikona",
+          "dignity_label": "ZQXSUNDIGNITYLABELQ7",
+          "sign_lord": {
+            "graha": "Mars",
+            "house": 10,
+            "sign": "ZQXSUNSIGNQ7",
+            "degree_in_sign": 24.4,
+            "dignity": "Great Friend",
+            "dignity_label": "ZQXSUNDIGNITYLABELQ7",
+            "retrograde": false,
+            "vargottama": null
+          },
+          "corpus_ref": {
+            "corpus": "RASHI_CORPUS",
+            "key": "Moolatrikona",
+            "graha": "Sun",
+            "dignity": "Moolatrikona",
+            "resolvable": true,
+            "varga": "D1"
+          }
+        },
+        "house": {
+          "house": 1,
+          "house_name": "ZQXSUNHOUSENAMEQ7",
+          "sign": "ZQXSUNSIGNQ7",
+          "house_lord": "Mars",
+          "drishti": {
+            "subject": "ZQXSUNSUBJECTQ7",
+            "sources": [
+              {
+                "source": "Mars",
+                "kind": "4th",
+                "polarity": "mixed",
+                "basis": "Mars: functionally mixed — nat=malefic,fn=mixed,yoga=none,yk=False,maraka=none (4th dṛṣṭi)"
+              },
+              {
+                "source": "Saturn",
+                "kind": "7th",
+                "polarity": "challenging",
+                "basis": "Saturn: malefic — nat=malefic,fn=malefic,yoga=none,yk=False,maraka=qualified (7th dṛṣṭi)"
+              }
+            ],
+            "net": "mixed",
+            "applicability": "applicable",
+            "not_applicable_basis": null,
+            "supportive": [],
+            "challenging": [
+              "Saturn"
+            ],
+            "mixed": [
+              "Mars"
+            ],
+            "unassessed": []
+          },
+          "corpus_ref": {
+            "corpus": "HOUSE_CORPUS",
+            "key": "1",
+            "graha": "Sun",
+            "dignity": null,
+            "resolvable": true,
+            "varga": "D1"
+          }
+        },
+        "bhavesh": {
+          "bhavesh": "Mars",
+          "of_sign": "ZQXSUNOFSIGNQ7",
+          "position": {
+            "graha": "Mars",
+            "house": 10,
+            "sign": "ZQXSUNSIGNQ7",
+            "degree_in_sign": 24.4,
+            "dignity": "Great Friend",
+            "dignity_label": "ZQXSUNDIGNITYLABELQ7",
+            "retrograde": false,
+            "vargottama": null
+          },
+          "support": "moderate",
+          "retrograde_note": false,
+          "drishti": {
+            "subject": "ZQXSUNSUBJECTQ7",
+            "sources": [
+              {
+                "source": "Jupiter",
+                "kind": "7th",
+                "polarity": "supportive",
+                "basis": "Jupiter: benefic — nat=benefic,fn=benefic,yoga=none,yk=False,maraka=none (7th dṛṣṭi)"
+              }
+            ],
+            "net": "supportive",
+            "applicability": "applicable",
+            "not_applicable_basis": null,
+            "supportive": [
+              "Jupiter"
+            ],
+            "challenging": [],
+            "mixed": [],
+            "unassessed": []
+          }
+        },
+        "bhavat_bhavam": {
+          "from_house": 1,
+          "bb_house": 1,
+          "bb_house_name": "ZQXSUNBBHOUSENAMEQ7",
+          "bb_lord": "Mars",
+          "bb_lord_position": {
+            "graha": "Mars",
+            "house": 10,
+            "sign": "ZQXSUNSIGNQ7",
+            "degree_in_sign": 24.4,
+            "dignity": "Great Friend",
+            "dignity_label": "ZQXSUNDIGNITYLABELQ7",
+            "retrograde": false,
+            "vargottama": null
+          },
+          "sustaining": "moderate",
+          "corpus_ref": {
+            "corpus": "BHAVAT_DESC",
+            "key": "1",
+            "graha": null,
+            "dignity": null,
+            "resolvable": true,
+            "varga": "D1"
+          }
+        },
+        "bhava_karaka": {
+          "house": 1,
+          "karakas": [
+            "Sun"
+          ],
+          "karaka_positions": [
+            {
+              "graha": "Sun",
+              "house": 1,
+              "sign": "ZQXSUNSIGNQ7",
+              "degree_in_sign": 12.5,
+              "dignity": "Moolatrikona",
+              "dignity_label": "ZQXSUNDIGNITYLABELQ7",
+              "retrograde": false,
+              "vargottama": null
+            }
+          ],
+          "primary_karaka": "Sun",
+          "karaka_support": "strong",
+          "subject_is_karaka_of_own_house": true,
+          "corpus_ref": {
+            "corpus": "BHAVA_KARAKA",
+            "key": "1",
+            "graha": null,
+            "dignity": null,
+            "resolvable": true,
+            "varga": "D1"
+          }
+        },
+        "shadbala": {
+          "computed_server_side": false,
+          "digbala": null,
+          "digbala_band": null,
+          "uchcha_bala": null,
+          "uchcha_band": null,
+          "naisargika_bala": null,
+          "naisargika_band": null,
+          "at_digbala_peak_house": false,
+          "note_key": "shadbala_phase6"
+        },
+        "graha_saar": {
+          "strength_verdict": "exceptional",
+          "natural_nature": "natural_malefic",
+          "natural_nature_basis": "ZQXSUNNATURALNATUREBASISQ7",
+          "has_lordship_doctrine": true,
+          "functional_nature": "benefic",
+          "verse_yoga_status": "none",
+          "ownership_yogakaraka": false,
+          "maraka_status": "none",
+          "functional_basis_verse": "ZQXSUNFUNCTIONALBASISVERSEQ7",
+          "functional_roles_publishable": true,
+          "retrograde": false,
+          "at_digbala_peak_house": false,
+          "is_natural_karaka_of_own_house": true,
+          "house_drishti": {
+            "subject": "ZQXSUNSUBJECTQ7",
+            "sources": [
+              {
+                "source": "Mars",
+                "kind": "4th",
+                "polarity": "mixed",
+                "basis": "Mars: functionally mixed — nat=malefic,fn=mixed,yoga=none,yk=False,maraka=none (4th dṛṣṭi)"
+              },
+              {
+                "source": "Saturn",
+                "kind": "7th",
+                "polarity": "challenging",
+                "basis": "Saturn: malefic — nat=malefic,fn=malefic,yoga=none,yk=False,maraka=qualified (7th dṛṣṭi)"
+              }
+            ],
+            "net": "mixed",
+            "applicability": "applicable",
+            "not_applicable_basis": null,
+            "supportive": [],
+            "challenging": [
+              "Saturn"
+            ],
+            "mixed": [
+              "Mars"
+            ],
+            "unassessed": []
+          },
+          "bhavesh_drishti": {
+            "subject": "ZQXSUNSUBJECTQ7",
+            "sources": [
+              {
+                "source": "Jupiter",
+                "kind": "7th",
+                "polarity": "supportive",
+                "basis": "Jupiter: benefic — nat=benefic,fn=benefic,yoga=none,yk=False,maraka=none (7th dṛṣṭi)"
+              }
+            ],
+            "net": "supportive",
+            "applicability": "applicable",
+            "not_applicable_basis": null,
+            "supportive": [
+              "Jupiter"
+            ],
+            "challenging": [],
+            "mixed": [],
+            "unassessed": []
+          },
+          "overall_verdict": "nuanced",
+          "verdict_factors": [
+            {
+              "factor": "strength",
+              "direction": "positive",
+              "detail": "exceptional"
+            },
+            {
+              "factor": "house_drishti",
+              "direction": "negative",
+              "detail": "mixed drishti"
+            },
+            {
+              "factor": "bhava_karaka",
+              "direction": "positive",
+              "detail": "natural significator strong"
+            },
+            {
+              "factor": "natural_karaka",
+              "direction": "positive",
+              "detail": "natural karaka of its own house"
+            }
+          ]
+        },
+        "varga_dignity_shift": {
+          "applicability": "not_applicable",
+          "shift": "unknown",
+          "birth_dignity": "Moolatrikona",
+          "varga_dignity": "Moolatrikona",
+          "birth_rank": 5,
+          "varga_rank": 5,
+          "corpus_ref": null,
+          "basis": "ZQXSUNBASISQ7"
+        }
+      },
+      {
+        "synthesis_version": "d1-synthesis-0.1.0",
+        "varga": "D1",
+        "graha": "Moon",
+        "position": {
+          "graha": "Moon",
+          "house": 2,
+          "sign": "ZQXMOONSIGNQ7",
+          "degree_in_sign": 8.2,
+          "dignity": "Own Sign",
+          "dignity_label": "ZQXMOONDIGNITYLABELQ7",
+          "retrograde": false,
+          "vargottama": null
+        },
+        "rashi": {
+          "sign": "ZQXMOONSIGNQ7",
+          "sign_index": 1,
+          "dignity": "Own Sign",
+          "dignity_label": "ZQXMOONDIGNITYLABELQ7",
+          "sign_lord": {
+            "graha": "Venus",
+            "house": 12,
+            "sign": "ZQXMOONSIGNQ7",
+            "degree_in_sign": 21.3,
+            "dignity": "Enemy",
+            "dignity_label": "ZQXMOONDIGNITYLABELQ7",
+            "retrograde": true,
+            "vargottama": null
+          },
+          "corpus_ref": {
+            "corpus": "RASHI_CORPUS",
+            "key": "Own Sign",
+            "graha": "Moon",
+            "dignity": "Own Sign",
+            "resolvable": true,
+            "varga": "D1"
+          }
+        },
+        "house": {
+          "house": 2,
+          "house_name": "ZQXMOONHOUSENAMEQ7",
+          "sign": "ZQXMOONSIGNQ7",
+          "house_lord": "Venus",
+          "drishti": {
+            "subject": "ZQXMOONSUBJECTQ7",
+            "sources": [],
+            "net": "unassessed",
+            "applicability": "applicable",
+            "not_applicable_basis": null,
+            "supportive": [],
+            "challenging": [],
+            "mixed": [],
+            "unassessed": []
+          },
+          "corpus_ref": {
+            "corpus": "HOUSE_CORPUS",
+            "key": "2",
+            "graha": "Moon",
+            "dignity": null,
+            "resolvable": true,
+            "varga": "D1"
+          }
+        },
+        "bhavesh": {
+          "bhavesh": "Venus",
+          "of_sign": "ZQXMOONOFSIGNQ7",
+          "position": {
+            "graha": "Venus",
+            "house": 12,
+            "sign": "ZQXMOONSIGNQ7",
+            "degree_in_sign": 21.3,
+            "dignity": "Enemy",
+            "dignity_label": "ZQXMOONDIGNITYLABELQ7",
+            "retrograde": true,
+            "vargottama": null
+          },
+          "support": "weak",
+          "retrograde_note": true,
+          "drishti": {
+            "subject": "ZQXMOONSUBJECTQ7",
+            "sources": [
+              {
+                "source": "Mercury",
+                "kind": "7th",
+                "polarity": "challenging",
+                "basis": "Mercury: malefic — nat=benefic,fn=malefic,yoga=none,yk=False,maraka=qualified (7th dṛṣṭi)"
+              },
+              {
+                "source": "Jupiter",
+                "kind": "9th",
+                "polarity": "supportive",
+                "basis": "Jupiter: benefic — nat=benefic,fn=benefic,yoga=none,yk=False,maraka=none (9th dṛṣṭi)"
+              }
+            ],
+            "net": "mixed",
+            "applicability": "applicable",
+            "not_applicable_basis": null,
+            "supportive": [
+              "Jupiter"
+            ],
+            "challenging": [
+              "Mercury"
+            ],
+            "mixed": [],
+            "unassessed": []
+          }
+        },
+        "bhavat_bhavam": {
+          "from_house": 2,
+          "bb_house": 3,
+          "bb_house_name": "ZQXMOONBBHOUSENAMEQ7",
+          "bb_lord": "Mercury",
+          "bb_lord_position": {
+            "graha": "Mercury",
+            "house": 6,
+            "sign": "ZQXMOONSIGNQ7",
+            "degree_in_sign": 3.1,
+            "dignity": "Friend",
+            "dignity_label": "ZQXMOONDIGNITYLABELQ7",
+            "retrograde": false,
+            "vargottama": null
+          },
+          "sustaining": "moderate",
+          "corpus_ref": {
+            "corpus": "BHAVAT_DESC",
+            "key": "2",
+            "graha": null,
+            "dignity": null,
+            "resolvable": true,
+            "varga": "D1"
+          }
+        },
+        "bhava_karaka": {
+          "house": 2,
+          "karakas": [
+            "Jupiter"
+          ],
+          "karaka_positions": [
+            {
+              "graha": "Jupiter",
+              "house": 4,
+              "sign": "ZQXMOONSIGNQ7",
+              "degree_in_sign": 15.7,
+              "dignity": "Neutral",
+              "dignity_label": "ZQXMOONDIGNITYLABELQ7",
+              "retrograde": false,
+              "vargottama": null
+            }
+          ],
+          "primary_karaka": "Jupiter",
+          "karaka_support": "moderate",
+          "subject_is_karaka_of_own_house": false,
+          "corpus_ref": {
+            "corpus": "BHAVA_KARAKA",
+            "key": "2",
+            "graha": null,
+            "dignity": null,
+            "resolvable": true,
+            "varga": "D1"
+          }
+        },
+        "shadbala": {
+          "computed_server_side": false,
+          "digbala": null,
+          "digbala_band": null,
+          "uchcha_bala": null,
+          "uchcha_band": null,
+          "naisargika_bala": null,
+          "naisargika_band": null,
+          "at_digbala_peak_house": false,
+          "note_key": "shadbala_phase6"
+        },
+        "graha_saar": {
+          "strength_verdict": "well_placed",
+          "natural_nature": "natural_benefic",
+          "natural_nature_basis": "ZQXMOONNATURALNATUREBASISQ7",
+          "has_lordship_doctrine": true,
+          "functional_nature": "mixed",
+          "verse_yoga_status": "none",
+          "ownership_yogakaraka": false,
+          "maraka_status": "none",
+          "functional_basis_verse": "ZQXMOONFUNCTIONALBASISVERSEQ7",
+          "functional_roles_publishable": true,
+          "retrograde": false,
+          "at_digbala_peak_house": false,
+          "is_natural_karaka_of_own_house": false,
+          "house_drishti": {
+            "subject": "ZQXMOONSUBJECTQ7",
+            "sources": [],
+            "net": "unassessed",
+            "applicability": "applicable",
+            "not_applicable_basis": null,
+            "supportive": [],
+            "challenging": [],
+            "mixed": [],
+            "unassessed": []
+          },
+          "bhavesh_drishti": {
+            "subject": "ZQXMOONSUBJECTQ7",
+            "sources": [
+              {
+                "source": "Mercury",
+                "kind": "7th",
+                "polarity": "challenging",
+                "basis": "Mercury: malefic — nat=benefic,fn=malefic,yoga=none,yk=False,maraka=qualified (7th dṛṣṭi)"
+              },
+              {
+                "source": "Jupiter",
+                "kind": "9th",
+                "polarity": "supportive",
+                "basis": "Jupiter: benefic — nat=benefic,fn=benefic,yoga=none,yk=False,maraka=none (9th dṛṣṭi)"
+              }
+            ],
+            "net": "mixed",
+            "applicability": "applicable",
+            "not_applicable_basis": null,
+            "supportive": [
+              "Jupiter"
+            ],
+            "challenging": [
+              "Mercury"
+            ],
+            "mixed": [],
+            "unassessed": []
+          },
+          "overall_verdict": "nuanced",
+          "verdict_factors": [
+            {
+              "factor": "strength",
+              "direction": "positive",
+              "detail": "well_placed"
+            },
+            {
+              "factor": "bhavesh",
+              "direction": "negative",
+              "detail": "sign lord weakly placed"
+            }
+          ]
+        },
+        "varga_dignity_shift": {
+          "applicability": "not_applicable",
+          "shift": "unknown",
+          "birth_dignity": "Own Sign",
+          "varga_dignity": "Own Sign",
+          "birth_rank": 4,
+          "varga_rank": 4,
+          "corpus_ref": null,
+          "basis": "ZQXMOONBASISQ7"
+        }
+      },
+      {
+        "synthesis_version": "d1-synthesis-0.1.0",
+        "varga": "D1",
+        "graha": "Mars",
+        "position": {
+          "graha": "Mars",
+          "house": 10,
+          "sign": "ZQXMARSSIGNQ7",
+          "degree_in_sign": 24.4,
+          "dignity": "Great Friend",
+          "dignity_label": "ZQXMARSDIGNITYLABELQ7",
+          "retrograde": false,
+          "vargottama": null
+        },
+        "rashi": {
+          "sign": "ZQXMARSSIGNQ7",
+          "sign_index": 9,
+          "dignity": "Great Friend",
+          "dignity_label": "ZQXMARSDIGNITYLABELQ7",
+          "sign_lord": {
+            "graha": "Saturn",
+            "house": 7,
+            "sign": "ZQXMARSSIGNQ7",
+            "degree_in_sign": 5.9,
+            "dignity": "Great Enemy",
+            "dignity_label": "ZQXMARSDIGNITYLABELQ7",
+            "retrograde": false,
+            "vargottama": null
+          },
+          "corpus_ref": {
+            "corpus": "RASHI_CORPUS",
+            "key": "Great Friend",
+            "graha": "Mars",
+            "dignity": "Great Friend",
+            "resolvable": true,
+            "varga": "D1"
+          }
+        },
+        "house": {
+          "house": 10,
+          "house_name": "ZQXMARSHOUSENAMEQ7",
+          "sign": "ZQXMARSSIGNQ7",
+          "house_lord": "Saturn",
+          "drishti": {
+            "subject": "ZQXMARSSUBJECTQ7",
+            "sources": [
+              {
+                "source": "Jupiter",
+                "kind": "7th",
+                "polarity": "supportive",
+                "basis": "Jupiter: benefic — nat=benefic,fn=benefic,yoga=none,yk=False,maraka=none (7th dṛṣṭi)"
+              }
+            ],
+            "net": "supportive",
+            "applicability": "applicable",
+            "not_applicable_basis": null,
+            "supportive": [
+              "Jupiter"
+            ],
+            "challenging": [],
+            "mixed": [],
+            "unassessed": []
+          },
+          "corpus_ref": {
+            "corpus": "HOUSE_CORPUS",
+            "key": "10",
+            "graha": "Mars",
+            "dignity": null,
+            "resolvable": true,
+            "varga": "D1"
+          }
+        },
+        "bhavesh": {
+          "bhavesh": "Saturn",
+          "of_sign": "ZQXMARSOFSIGNQ7",
+          "position": {
+            "graha": "Saturn",
+            "house": 7,
+            "sign": "ZQXMARSSIGNQ7",
+            "degree_in_sign": 5.9,
+            "dignity": "Great Enemy",
+            "dignity_label": "ZQXMARSDIGNITYLABELQ7",
+            "retrograde": false,
+            "vargottama": null
+          },
+          "support": "weak",
+          "retrograde_note": false,
+          "drishti": {
+            "subject": "ZQXMARSSUBJECTQ7",
+            "sources": [
+              {
+                "source": "Sun",
+                "kind": "7th",
+                "polarity": "supportive",
+                "basis": "Sun: benefic — nat=malefic,fn=benefic,yoga=none,yk=False,maraka=none (7th dṛṣṭi)"
+              }
+            ],
+            "net": "supportive",
+            "applicability": "applicable",
+            "not_applicable_basis": null,
+            "supportive": [
+              "Sun"
+            ],
+            "challenging": [],
+            "mixed": [],
+            "unassessed": []
+          }
+        },
+        "bhavat_bhavam": {
+          "from_house": 10,
+          "bb_house": 7,
+          "bb_house_name": "ZQXMARSBBHOUSENAMEQ7",
+          "bb_lord": "Venus",
+          "bb_lord_position": {
+            "graha": "Venus",
+            "house": 12,
+            "sign": "ZQXMARSSIGNQ7",
+            "degree_in_sign": 21.3,
+            "dignity": "Enemy",
+            "dignity_label": "ZQXMARSDIGNITYLABELQ7",
+            "retrograde": true,
+            "vargottama": null
+          },
+          "sustaining": "weak",
+          "corpus_ref": {
+            "corpus": "BHAVAT_DESC",
+            "key": "10",
+            "graha": null,
+            "dignity": null,
+            "resolvable": true,
+            "varga": "D1"
+          }
+        },
+        "bhava_karaka": {
+          "house": 10,
+          "karakas": [
+            "Sun",
+            "Mercury"
+          ],
+          "karaka_positions": [
+            {
+              "graha": "Sun",
+              "house": 1,
+              "sign": "ZQXMARSSIGNQ7",
+              "degree_in_sign": 12.5,
+              "dignity": "Moolatrikona",
+              "dignity_label": "ZQXMARSDIGNITYLABELQ7",
+              "retrograde": false,
+              "vargottama": null
+            },
+            {
+              "graha": "Mercury",
+              "house": 6,
+              "sign": "ZQXMARSSIGNQ7",
+              "degree_in_sign": 3.1,
+              "dignity": "Friend",
+              "dignity_label": "ZQXMARSDIGNITYLABELQ7",
+              "retrograde": false,
+              "vargottama": null
+            }
+          ],
+          "primary_karaka": "Sun",
+          "karaka_support": "strong",
+          "subject_is_karaka_of_own_house": false,
+          "corpus_ref": {
+            "corpus": "BHAVA_KARAKA",
+            "key": "10",
+            "graha": null,
+            "dignity": null,
+            "resolvable": true,
+            "varga": "D1"
+          }
+        },
+        "shadbala": {
+          "computed_server_side": false,
+          "digbala": null,
+          "digbala_band": null,
+          "uchcha_bala": null,
+          "uchcha_band": null,
+          "naisargika_bala": null,
+          "naisargika_band": null,
+          "at_digbala_peak_house": true,
+          "note_key": "shadbala_phase6"
+        },
+        "graha_saar": {
+          "strength_verdict": "well_placed",
+          "natural_nature": "natural_malefic",
+          "natural_nature_basis": "ZQXMARSNATURALNATUREBASISQ7",
+          "has_lordship_doctrine": true,
+          "functional_nature": "mixed",
+          "verse_yoga_status": "none",
+          "ownership_yogakaraka": false,
+          "maraka_status": "none",
+          "functional_basis_verse": "ZQXMARSFUNCTIONALBASISVERSEQ7",
+          "functional_roles_publishable": true,
+          "retrograde": false,
+          "at_digbala_peak_house": true,
+          "is_natural_karaka_of_own_house": false,
+          "house_drishti": {
+            "subject": "ZQXMARSSUBJECTQ7",
+            "sources": [
+              {
+                "source": "Jupiter",
+                "kind": "7th",
+                "polarity": "supportive",
+                "basis": "Jupiter: benefic — nat=benefic,fn=benefic,yoga=none,yk=False,maraka=none (7th dṛṣṭi)"
+              }
+            ],
+            "net": "supportive",
+            "applicability": "applicable",
+            "not_applicable_basis": null,
+            "supportive": [
+              "Jupiter"
+            ],
+            "challenging": [],
+            "mixed": [],
+            "unassessed": []
+          },
+          "bhavesh_drishti": {
+            "subject": "ZQXMARSSUBJECTQ7",
+            "sources": [
+              {
+                "source": "Sun",
+                "kind": "7th",
+                "polarity": "supportive",
+                "basis": "Sun: benefic — nat=malefic,fn=benefic,yoga=none,yk=False,maraka=none (7th dṛṣṭi)"
+              }
+            ],
+            "net": "supportive",
+            "applicability": "applicable",
+            "not_applicable_basis": null,
+            "supportive": [
+              "Sun"
+            ],
+            "challenging": [],
+            "mixed": [],
+            "unassessed": []
+          },
+          "overall_verdict": "nuanced",
+          "verdict_factors": [
+            {
+              "factor": "strength",
+              "direction": "positive",
+              "detail": "well_placed"
+            },
+            {
+              "factor": "bhavesh",
+              "direction": "negative",
+              "detail": "sign lord weakly placed"
+            },
+            {
+              "factor": "house_drishti",
+              "direction": "positive",
+              "detail": "supportive drishti"
+            },
+            {
+              "factor": "bhava_karaka",
+              "direction": "positive",
+              "detail": "natural significator strong"
+            },
+            {
+              "factor": "digbala_house",
+              "direction": "positive",
+              "detail": "house of maximum directional strength"
+            }
+          ]
+        },
+        "varga_dignity_shift": {
+          "applicability": "not_applicable",
+          "shift": "unknown",
+          "birth_dignity": "Great Friend",
+          "varga_dignity": "Great Friend",
+          "birth_rank": 3,
+          "varga_rank": 3,
+          "corpus_ref": null,
+          "basis": "ZQXMARSBASISQ7"
+        }
+      },
+      {
+        "synthesis_version": "d1-synthesis-0.1.0",
+        "varga": "D1",
+        "graha": "Mercury",
+        "position": {
+          "graha": "Mercury",
+          "house": 6,
+          "sign": "ZQXMERCURYSIGNQ7",
+          "degree_in_sign": 3.1,
+          "dignity": "Friend",
+          "dignity_label": "ZQXMERCURYDIGNITYLABELQ7",
+          "retrograde": false,
+          "vargottama": null
+        },
+        "rashi": {
+          "sign": "ZQXMERCURYSIGNQ7",
+          "sign_index": 5,
+          "dignity": "Friend",
+          "dignity_label": "ZQXMERCURYDIGNITYLABELQ7",
+          "sign_lord": {
+            "graha": "Mercury",
+            "house": 6,
+            "sign": "ZQXMERCURYSIGNQ7",
+            "degree_in_sign": 3.1,
+            "dignity": "Friend",
+            "dignity_label": "ZQXMERCURYDIGNITYLABELQ7",
+            "retrograde": false,
+            "vargottama": null
+          },
+          "corpus_ref": {
+            "corpus": "RASHI_CORPUS",
+            "key": "Friend",
+            "graha": "Mercury",
+            "dignity": "Friend",
+            "resolvable": true,
+            "varga": "D1"
+          }
+        },
+        "house": {
+          "house": 6,
+          "house_name": "ZQXMERCURYHOUSENAMEQ7",
+          "sign": "ZQXMERCURYSIGNQ7",
+          "house_lord": "Mercury",
+          "drishti": {
+            "subject": "ZQXMERCURYSUBJECTQ7",
+            "sources": [
+              {
+                "source": "Venus",
+                "kind": "7th",
+                "polarity": "challenging",
+                "basis": "Venus: malefic — nat=benefic,fn=malefic,yoga=none,yk=False,maraka=primary_killer (7th dṛṣṭi)"
+              }
+            ],
+            "net": "challenging",
+            "applicability": "applicable",
+            "not_applicable_basis": null,
+            "supportive": [],
+            "challenging": [
+              "Venus"
+            ],
+            "mixed": [],
+            "unassessed": []
+          },
+          "corpus_ref": {
+            "corpus": "HOUSE_CORPUS",
+            "key": "6",
+            "graha": "Mercury",
+            "dignity": null,
+            "resolvable": true,
+            "varga": "D1"
+          }
+        },
+        "bhavesh": {
+          "bhavesh": "Mercury",
+          "of_sign": "ZQXMERCURYOFSIGNQ7",
+          "position": {
+            "graha": "Mercury",
+            "house": 6,
+            "sign": "ZQXMERCURYSIGNQ7",
+            "degree_in_sign": 3.1,
+            "dignity": "Friend",
+            "dignity_label": "ZQXMERCURYDIGNITYLABELQ7",
+            "retrograde": false,
+            "vargottama": null
+          },
+          "support": "moderate",
+          "retrograde_note": false,
+          "drishti": {
+            "subject": "ZQXMERCURYSUBJECTQ7",
+            "sources": [
+              {
+                "source": "Venus",
+                "kind": "7th",
+                "polarity": "challenging",
+                "basis": "Venus: malefic — nat=benefic,fn=malefic,yoga=none,yk=False,maraka=primary_killer (7th dṛṣṭi)"
+              }
+            ],
+            "net": "challenging",
+            "applicability": "applicable",
+            "not_applicable_basis": null,
+            "supportive": [],
+            "challenging": [
+              "Venus"
+            ],
+            "mixed": [],
+            "unassessed": []
+          }
+        },
+        "bhavat_bhavam": {
+          "from_house": 6,
+          "bb_house": 11,
+          "bb_house_name": "ZQXMERCURYBBHOUSENAMEQ7",
+          "bb_lord": "Saturn",
+          "bb_lord_position": {
+            "graha": "Saturn",
+            "house": 7,
+            "sign": "ZQXMERCURYSIGNQ7",
+            "degree_in_sign": 5.9,
+            "dignity": "Great Enemy",
+            "dignity_label": "ZQXMERCURYDIGNITYLABELQ7",
+            "retrograde": false,
+            "vargottama": null
+          },
+          "sustaining": "weak",
+          "corpus_ref": {
+            "corpus": "BHAVAT_DESC",
+            "key": "6",
+            "graha": null,
+            "dignity": null,
+            "resolvable": true,
+            "varga": "D1"
+          }
+        },
+        "bhava_karaka": {
+          "house": 6,
+          "karakas": [
+            "Saturn",
+            "Mars"
+          ],
+          "karaka_positions": [
+            {
+              "graha": "Saturn",
+              "house": 7,
+              "sign": "ZQXMERCURYSIGNQ7",
+              "degree_in_sign": 5.9,
+              "dignity": "Great Enemy",
+              "dignity_label": "ZQXMERCURYDIGNITYLABELQ7",
+              "retrograde": false,
+              "vargottama": null
+            },
+            {
+              "graha": "Mars",
+              "house": 10,
+              "sign": "ZQXMERCURYSIGNQ7",
+              "degree_in_sign": 24.4,
+              "dignity": "Great Friend",
+              "dignity_label": "ZQXMERCURYDIGNITYLABELQ7",
+              "retrograde": false,
+              "vargottama": null
+            }
+          ],
+          "primary_karaka": "Saturn",
+          "karaka_support": "weak",
+          "subject_is_karaka_of_own_house": false,
+          "corpus_ref": {
+            "corpus": "BHAVA_KARAKA",
+            "key": "6",
+            "graha": null,
+            "dignity": null,
+            "resolvable": true,
+            "varga": "D1"
+          }
+        },
+        "shadbala": {
+          "computed_server_side": false,
+          "digbala": null,
+          "digbala_band": null,
+          "uchcha_bala": null,
+          "uchcha_band": null,
+          "naisargika_bala": null,
+          "naisargika_band": null,
+          "at_digbala_peak_house": false,
+          "note_key": "shadbala_phase6"
+        },
+        "graha_saar": {
+          "strength_verdict": "well_placed",
+          "natural_nature": "natural_benefic",
+          "natural_nature_basis": "ZQXMERCURYNATURALNATUREBASISQ7",
+          "has_lordship_doctrine": true,
+          "functional_nature": "malefic",
+          "verse_yoga_status": "none",
+          "ownership_yogakaraka": false,
+          "maraka_status": "qualified",
+          "functional_basis_verse": "ZQXMERCURYFUNCTIONALBASISVERSEQ7",
+          "functional_roles_publishable": true,
+          "retrograde": false,
+          "at_digbala_peak_house": false,
+          "is_natural_karaka_of_own_house": false,
+          "house_drishti": {
+            "subject": "ZQXMERCURYSUBJECTQ7",
+            "sources": [
+              {
+                "source": "Venus",
+                "kind": "7th",
+                "polarity": "challenging",
+                "basis": "Venus: malefic — nat=benefic,fn=malefic,yoga=none,yk=False,maraka=primary_killer (7th dṛṣṭi)"
+              }
+            ],
+            "net": "challenging",
+            "applicability": "applicable",
+            "not_applicable_basis": null,
+            "supportive": [],
+            "challenging": [
+              "Venus"
+            ],
+            "mixed": [],
+            "unassessed": []
+          },
+          "bhavesh_drishti": {
+            "subject": "ZQXMERCURYSUBJECTQ7",
+            "sources": [
+              {
+                "source": "Venus",
+                "kind": "7th",
+                "polarity": "challenging",
+                "basis": "Venus: malefic — nat=benefic,fn=malefic,yoga=none,yk=False,maraka=primary_killer (7th dṛṣṭi)"
+              }
+            ],
+            "net": "challenging",
+            "applicability": "applicable",
+            "not_applicable_basis": null,
+            "supportive": [],
+            "challenging": [
+              "Venus"
+            ],
+            "mixed": [],
+            "unassessed": []
+          },
+          "overall_verdict": "nuanced",
+          "verdict_factors": [
+            {
+              "factor": "strength",
+              "direction": "positive",
+              "detail": "well_placed"
+            },
+            {
+              "factor": "house_drishti",
+              "direction": "negative",
+              "detail": "challenging drishti"
+            },
+            {
+              "factor": "bhava_karaka",
+              "direction": "negative",
+              "detail": "natural significator weak"
+            }
+          ]
+        },
+        "varga_dignity_shift": {
+          "applicability": "not_applicable",
+          "shift": "unknown",
+          "birth_dignity": "Friend",
+          "varga_dignity": "Friend",
+          "birth_rank": 3,
+          "varga_rank": 3,
+          "corpus_ref": null,
+          "basis": "ZQXMERCURYBASISQ7"
+        }
+      },
+      {
+        "synthesis_version": "d1-synthesis-0.1.0",
+        "varga": "D1",
+        "graha": "Jupiter",
+        "position": {
+          "graha": "Jupiter",
+          "house": 4,
+          "sign": "ZQXJUPITERSIGNQ7",
+          "degree_in_sign": 15.7,
+          "dignity": "Neutral",
+          "dignity_label": "ZQXJUPITERDIGNITYLABELQ7",
+          "retrograde": false,
+          "vargottama": null
+        },
+        "rashi": {
+          "sign": "ZQXJUPITERSIGNQ7",
+          "sign_index": 3,
+          "dignity": "Neutral",
+          "dignity_label": "ZQXJUPITERDIGNITYLABELQ7",
+          "sign_lord": {
+            "graha": "Moon",
+            "house": 2,
+            "sign": "ZQXJUPITERSIGNQ7",
+            "degree_in_sign": 8.2,
+            "dignity": "Own Sign",
+            "dignity_label": "ZQXJUPITERDIGNITYLABELQ7",
+            "retrograde": false,
+            "vargottama": null
+          },
+          "corpus_ref": {
+            "corpus": "RASHI_CORPUS",
+            "key": "Neutral",
+            "graha": "Jupiter",
+            "dignity": "Neutral",
+            "resolvable": true,
+            "varga": "D1"
+          }
+        },
+        "house": {
+          "house": 4,
+          "house_name": "ZQXJUPITERHOUSENAMEQ7",
+          "sign": "ZQXJUPITERSIGNQ7",
+          "house_lord": "Moon",
+          "drishti": {
+            "subject": "ZQXJUPITERSUBJECTQ7",
+            "sources": [
+              {
+                "source": "Mars",
+                "kind": "7th",
+                "polarity": "mixed",
+                "basis": "Mars: functionally mixed — nat=malefic,fn=mixed,yoga=none,yk=False,maraka=none (7th dṛṣṭi)"
+              },
+              {
+                "source": "Saturn",
+                "kind": "10th",
+                "polarity": "challenging",
+                "basis": "Saturn: malefic — nat=malefic,fn=malefic,yoga=none,yk=False,maraka=qualified (10th dṛṣṭi)"
+              }
+            ],
+            "net": "mixed",
+            "applicability": "applicable",
+            "not_applicable_basis": null,
+            "supportive": [],
+            "challenging": [
+              "Saturn"
+            ],
+            "mixed": [
+              "Mars"
+            ],
+            "unassessed": []
+          },
+          "corpus_ref": {
+            "corpus": "HOUSE_CORPUS",
+            "key": "4",
+            "graha": "Jupiter",
+            "dignity": null,
+            "resolvable": true,
+            "varga": "D1"
+          }
+        },
+        "bhavesh": {
+          "bhavesh": "Moon",
+          "of_sign": "ZQXJUPITEROFSIGNQ7",
+          "position": {
+            "graha": "Moon",
+            "house": 2,
+            "sign": "ZQXJUPITERSIGNQ7",
+            "degree_in_sign": 8.2,
+            "dignity": "Own Sign",
+            "dignity_label": "ZQXJUPITERDIGNITYLABELQ7",
+            "retrograde": false,
+            "vargottama": null
+          },
+          "support": "strong",
+          "retrograde_note": false,
+          "drishti": {
+            "subject": "ZQXJUPITERSUBJECTQ7",
+            "sources": [],
+            "net": "unassessed",
+            "applicability": "applicable",
+            "not_applicable_basis": null,
+            "supportive": [],
+            "challenging": [],
+            "mixed": [],
+            "unassessed": []
+          }
+        },
+        "bhavat_bhavam": {
+          "from_house": 4,
+          "bb_house": 7,
+          "bb_house_name": "ZQXJUPITERBBHOUSENAMEQ7",
+          "bb_lord": "Venus",
+          "bb_lord_position": {
+            "graha": "Venus",
+            "house": 12,
+            "sign": "ZQXJUPITERSIGNQ7",
+            "degree_in_sign": 21.3,
+            "dignity": "Enemy",
+            "dignity_label": "ZQXJUPITERDIGNITYLABELQ7",
+            "retrograde": true,
+            "vargottama": null
+          },
+          "sustaining": "weak",
+          "corpus_ref": {
+            "corpus": "BHAVAT_DESC",
+            "key": "4",
+            "graha": null,
+            "dignity": null,
+            "resolvable": true,
+            "varga": "D1"
+          }
+        },
+        "bhava_karaka": {
+          "house": 4,
+          "karakas": [
+            "Moon"
+          ],
+          "karaka_positions": [
+            {
+              "graha": "Moon",
+              "house": 2,
+              "sign": "ZQXJUPITERSIGNQ7",
+              "degree_in_sign": 8.2,
+              "dignity": "Own Sign",
+              "dignity_label": "ZQXJUPITERDIGNITYLABELQ7",
+              "retrograde": false,
+              "vargottama": null
+            }
+          ],
+          "primary_karaka": "Moon",
+          "karaka_support": "moderate",
+          "subject_is_karaka_of_own_house": false,
+          "corpus_ref": {
+            "corpus": "BHAVA_KARAKA",
+            "key": "4",
+            "graha": null,
+            "dignity": null,
+            "resolvable": true,
+            "varga": "D1"
+          }
+        },
+        "shadbala": {
+          "computed_server_side": false,
+          "digbala": null,
+          "digbala_band": null,
+          "uchcha_bala": null,
+          "uchcha_band": null,
+          "naisargika_bala": null,
+          "naisargika_band": null,
+          "at_digbala_peak_house": false,
+          "note_key": "shadbala_phase6"
+        },
+        "graha_saar": {
+          "strength_verdict": "neutral",
+          "natural_nature": "natural_benefic",
+          "natural_nature_basis": "ZQXJUPITERNATURALNATUREBASISQ7",
+          "has_lordship_doctrine": true,
+          "functional_nature": "benefic",
+          "verse_yoga_status": "none",
+          "ownership_yogakaraka": false,
+          "maraka_status": "none",
+          "functional_basis_verse": "ZQXJUPITERFUNCTIONALBASISVERSEQ7",
+          "functional_roles_publishable": true,
+          "retrograde": false,
+          "at_digbala_peak_house": false,
+          "is_natural_karaka_of_own_house": false,
+          "house_drishti": {
+            "subject": "ZQXJUPITERSUBJECTQ7",
+            "sources": [
+              {
+                "source": "Mars",
+                "kind": "7th",
+                "polarity": "mixed",
+                "basis": "Mars: functionally mixed — nat=malefic,fn=mixed,yoga=none,yk=False,maraka=none (7th dṛṣṭi)"
+              },
+              {
+                "source": "Saturn",
+                "kind": "10th",
+                "polarity": "challenging",
+                "basis": "Saturn: malefic — nat=malefic,fn=malefic,yoga=none,yk=False,maraka=qualified (10th dṛṣṭi)"
+              }
+            ],
+            "net": "mixed",
+            "applicability": "applicable",
+            "not_applicable_basis": null,
+            "supportive": [],
+            "challenging": [
+              "Saturn"
+            ],
+            "mixed": [
+              "Mars"
+            ],
+            "unassessed": []
+          },
+          "bhavesh_drishti": {
+            "subject": "ZQXJUPITERSUBJECTQ7",
+            "sources": [],
+            "net": "unassessed",
+            "applicability": "applicable",
+            "not_applicable_basis": null,
+            "supportive": [],
+            "challenging": [],
+            "mixed": [],
+            "unassessed": []
+          },
+          "overall_verdict": "nuanced",
+          "verdict_factors": [
+            {
+              "factor": "bhavesh",
+              "direction": "positive",
+              "detail": "sign lord well placed"
+            },
+            {
+              "factor": "house_drishti",
+              "direction": "negative",
+              "detail": "mixed drishti"
+            }
+          ]
+        },
+        "varga_dignity_shift": {
+          "applicability": "not_applicable",
+          "shift": "unknown",
+          "birth_dignity": "Neutral",
+          "varga_dignity": "Neutral",
+          "birth_rank": 2,
+          "varga_rank": 2,
+          "corpus_ref": null,
+          "basis": "ZQXJUPITERBASISQ7"
+        }
+      },
+      {
+        "synthesis_version": "d1-synthesis-0.1.0",
+        "varga": "D1",
+        "graha": "Venus",
+        "position": {
+          "graha": "Venus",
+          "house": 12,
+          "sign": "ZQXVENUSSIGNQ7",
+          "degree_in_sign": 21.3,
+          "dignity": "Enemy",
+          "dignity_label": "ZQXVENUSDIGNITYLABELQ7",
+          "retrograde": true,
+          "vargottama": null
+        },
+        "rashi": {
+          "sign": "ZQXVENUSSIGNQ7",
+          "sign_index": 11,
+          "dignity": "Enemy",
+          "dignity_label": "ZQXVENUSDIGNITYLABELQ7",
+          "sign_lord": {
+            "graha": "Jupiter",
+            "house": 4,
+            "sign": "ZQXVENUSSIGNQ7",
+            "degree_in_sign": 15.7,
+            "dignity": "Neutral",
+            "dignity_label": "ZQXVENUSDIGNITYLABELQ7",
+            "retrograde": false,
+            "vargottama": null
+          },
+          "corpus_ref": {
+            "corpus": "RASHI_CORPUS",
+            "key": "Enemy",
+            "graha": "Venus",
+            "dignity": "Enemy",
+            "resolvable": true,
+            "varga": "D1"
+          }
+        },
+        "house": {
+          "house": 12,
+          "house_name": "ZQXVENUSHOUSENAMEQ7",
+          "sign": "ZQXVENUSSIGNQ7",
+          "house_lord": "Jupiter",
+          "drishti": {
+            "subject": "ZQXVENUSSUBJECTQ7",
+            "sources": [
+              {
+                "source": "Mercury",
+                "kind": "7th",
+                "polarity": "challenging",
+                "basis": "Mercury: malefic — nat=benefic,fn=malefic,yoga=none,yk=False,maraka=qualified (7th dṛṣṭi)"
+              },
+              {
+                "source": "Jupiter",
+                "kind": "9th",
+                "polarity": "supportive",
+                "basis": "Jupiter: benefic — nat=benefic,fn=benefic,yoga=none,yk=False,maraka=none (9th dṛṣṭi)"
+              }
+            ],
+            "net": "mixed",
+            "applicability": "applicable",
+            "not_applicable_basis": null,
+            "supportive": [
+              "Jupiter"
+            ],
+            "challenging": [
+              "Mercury"
+            ],
+            "mixed": [],
+            "unassessed": []
+          },
+          "corpus_ref": {
+            "corpus": "HOUSE_CORPUS",
+            "key": "12",
+            "graha": "Venus",
+            "dignity": null,
+            "resolvable": true,
+            "varga": "D1"
+          }
+        },
+        "bhavesh": {
+          "bhavesh": "Jupiter",
+          "of_sign": "ZQXVENUSOFSIGNQ7",
+          "position": {
+            "graha": "Jupiter",
+            "house": 4,
+            "sign": "ZQXVENUSSIGNQ7",
+            "degree_in_sign": 15.7,
+            "dignity": "Neutral",
+            "dignity_label": "ZQXVENUSDIGNITYLABELQ7",
+            "retrograde": false,
+            "vargottama": null
+          },
+          "support": "moderate",
+          "retrograde_note": false,
+          "drishti": {
+            "subject": "ZQXVENUSSUBJECTQ7",
+            "sources": [
+              {
+                "source": "Mars",
+                "kind": "7th",
+                "polarity": "mixed",
+                "basis": "Mars: functionally mixed — nat=malefic,fn=mixed,yoga=none,yk=False,maraka=none (7th dṛṣṭi)"
+              },
+              {
+                "source": "Saturn",
+                "kind": "10th",
+                "polarity": "challenging",
+                "basis": "Saturn: malefic — nat=malefic,fn=malefic,yoga=none,yk=False,maraka=qualified (10th dṛṣṭi)"
+              }
+            ],
+            "net": "mixed",
+            "applicability": "applicable",
+            "not_applicable_basis": null,
+            "supportive": [],
+            "challenging": [
+              "Saturn"
+            ],
+            "mixed": [
+              "Mars"
+            ],
+            "unassessed": []
+          }
+        },
+        "bhavat_bhavam": {
+          "from_house": 12,
+          "bb_house": 11,
+          "bb_house_name": "ZQXVENUSBBHOUSENAMEQ7",
+          "bb_lord": "Saturn",
+          "bb_lord_position": {
+            "graha": "Saturn",
+            "house": 7,
+            "sign": "ZQXVENUSSIGNQ7",
+            "degree_in_sign": 5.9,
+            "dignity": "Great Enemy",
+            "dignity_label": "ZQXVENUSDIGNITYLABELQ7",
+            "retrograde": false,
+            "vargottama": null
+          },
+          "sustaining": "weak",
+          "corpus_ref": {
+            "corpus": "BHAVAT_DESC",
+            "key": "12",
+            "graha": null,
+            "dignity": null,
+            "resolvable": true,
+            "varga": "D1"
+          }
+        },
+        "bhava_karaka": {
+          "house": 12,
+          "karakas": [
+            "Saturn"
+          ],
+          "karaka_positions": [
+            {
+              "graha": "Saturn",
+              "house": 7,
+              "sign": "ZQXVENUSSIGNQ7",
+              "degree_in_sign": 5.9,
+              "dignity": "Great Enemy",
+              "dignity_label": "ZQXVENUSDIGNITYLABELQ7",
+              "retrograde": false,
+              "vargottama": null
+            }
+          ],
+          "primary_karaka": "Saturn",
+          "karaka_support": "weak",
+          "subject_is_karaka_of_own_house": false,
+          "corpus_ref": {
+            "corpus": "BHAVA_KARAKA",
+            "key": "12",
+            "graha": null,
+            "dignity": null,
+            "resolvable": true,
+            "varga": "D1"
+          }
+        },
+        "shadbala": {
+          "computed_server_side": false,
+          "digbala": null,
+          "digbala_band": null,
+          "uchcha_bala": null,
+          "uchcha_band": null,
+          "naisargika_bala": null,
+          "naisargika_band": null,
+          "at_digbala_peak_house": false,
+          "note_key": "shadbala_phase6"
+        },
+        "graha_saar": {
+          "strength_verdict": "strained",
+          "natural_nature": "natural_benefic",
+          "natural_nature_basis": "ZQXVENUSNATURALNATUREBASISQ7",
+          "has_lordship_doctrine": true,
+          "functional_nature": "malefic",
+          "verse_yoga_status": "none",
+          "ownership_yogakaraka": false,
+          "maraka_status": "primary_killer",
+          "functional_basis_verse": "ZQXVENUSFUNCTIONALBASISVERSEQ7",
+          "functional_roles_publishable": true,
+          "retrograde": true,
+          "at_digbala_peak_house": false,
+          "is_natural_karaka_of_own_house": false,
+          "house_drishti": {
+            "subject": "ZQXVENUSSUBJECTQ7",
+            "sources": [
+              {
+                "source": "Mercury",
+                "kind": "7th",
+                "polarity": "challenging",
+                "basis": "Mercury: malefic — nat=benefic,fn=malefic,yoga=none,yk=False,maraka=qualified (7th dṛṣṭi)"
+              },
+              {
+                "source": "Jupiter",
+                "kind": "9th",
+                "polarity": "supportive",
+                "basis": "Jupiter: benefic — nat=benefic,fn=benefic,yoga=none,yk=False,maraka=none (9th dṛṣṭi)"
+              }
+            ],
+            "net": "mixed",
+            "applicability": "applicable",
+            "not_applicable_basis": null,
+            "supportive": [
+              "Jupiter"
+            ],
+            "challenging": [
+              "Mercury"
+            ],
+            "mixed": [],
+            "unassessed": []
+          },
+          "bhavesh_drishti": {
+            "subject": "ZQXVENUSSUBJECTQ7",
+            "sources": [
+              {
+                "source": "Mars",
+                "kind": "7th",
+                "polarity": "mixed",
+                "basis": "Mars: functionally mixed — nat=malefic,fn=mixed,yoga=none,yk=False,maraka=none (7th dṛṣṭi)"
+              },
+              {
+                "source": "Saturn",
+                "kind": "10th",
+                "polarity": "challenging",
+                "basis": "Saturn: malefic — nat=malefic,fn=malefic,yoga=none,yk=False,maraka=qualified (10th dṛṣṭi)"
+              }
+            ],
+            "net": "mixed",
+            "applicability": "applicable",
+            "not_applicable_basis": null,
+            "supportive": [],
+            "challenging": [
+              "Saturn"
+            ],
+            "mixed": [
+              "Mars"
+            ],
+            "unassessed": []
+          },
+          "overall_verdict": "nuanced",
+          "verdict_factors": [
+            {
+              "factor": "strength",
+              "direction": "negative",
+              "detail": "strained"
+            },
+            {
+              "factor": "house_drishti",
+              "direction": "negative",
+              "detail": "mixed drishti"
+            },
+            {
+              "factor": "bhava_karaka",
+              "direction": "negative",
+              "detail": "natural significator weak"
+            }
+          ]
+        },
+        "varga_dignity_shift": {
+          "applicability": "not_applicable",
+          "shift": "unknown",
+          "birth_dignity": "Enemy",
+          "varga_dignity": "Enemy",
+          "birth_rank": 1,
+          "varga_rank": 1,
+          "corpus_ref": null,
+          "basis": "ZQXVENUSBASISQ7"
+        }
+      },
+      {
+        "synthesis_version": "d1-synthesis-0.1.0",
+        "varga": "D1",
+        "graha": "Saturn",
+        "position": {
+          "graha": "Saturn",
+          "house": 7,
+          "sign": "ZQXSATURNSIGNQ7",
+          "degree_in_sign": 5.9,
+          "dignity": "Great Enemy",
+          "dignity_label": "ZQXSATURNDIGNITYLABELQ7",
+          "retrograde": false,
+          "vargottama": null
+        },
+        "rashi": {
+          "sign": "ZQXSATURNSIGNQ7",
+          "sign_index": 6,
+          "dignity": "Great Enemy",
+          "dignity_label": "ZQXSATURNDIGNITYLABELQ7",
+          "sign_lord": {
+            "graha": "Venus",
+            "house": 12,
+            "sign": "ZQXSATURNSIGNQ7",
+            "degree_in_sign": 21.3,
+            "dignity": "Enemy",
+            "dignity_label": "ZQXSATURNDIGNITYLABELQ7",
+            "retrograde": true,
+            "vargottama": null
+          },
+          "corpus_ref": {
+            "corpus": "RASHI_CORPUS",
+            "key": "Great Enemy",
+            "graha": "Saturn",
+            "dignity": "Great Enemy",
+            "resolvable": true,
+            "varga": "D1"
+          }
+        },
+        "house": {
+          "house": 7,
+          "house_name": "ZQXSATURNHOUSENAMEQ7",
+          "sign": "ZQXSATURNSIGNQ7",
+          "house_lord": "Venus",
+          "drishti": {
+            "subject": "ZQXSATURNSUBJECTQ7",
+            "sources": [
+              {
+                "source": "Sun",
+                "kind": "7th",
+                "polarity": "supportive",
+                "basis": "Sun: benefic — nat=malefic,fn=benefic,yoga=none,yk=False,maraka=none (7th dṛṣṭi)"
+              }
+            ],
+            "net": "supportive",
+            "applicability": "applicable",
+            "not_applicable_basis": null,
+            "supportive": [
+              "Sun"
+            ],
+            "challenging": [],
+            "mixed": [],
+            "unassessed": []
+          },
+          "corpus_ref": {
+            "corpus": "HOUSE_CORPUS",
+            "key": "7",
+            "graha": "Saturn",
+            "dignity": null,
+            "resolvable": true,
+            "varga": "D1"
+          }
+        },
+        "bhavesh": {
+          "bhavesh": "Venus",
+          "of_sign": "ZQXSATURNOFSIGNQ7",
+          "position": {
+            "graha": "Venus",
+            "house": 12,
+            "sign": "ZQXSATURNSIGNQ7",
+            "degree_in_sign": 21.3,
+            "dignity": "Enemy",
+            "dignity_label": "ZQXSATURNDIGNITYLABELQ7",
+            "retrograde": true,
+            "vargottama": null
+          },
+          "support": "weak",
+          "retrograde_note": true,
+          "drishti": {
+            "subject": "ZQXSATURNSUBJECTQ7",
+            "sources": [
+              {
+                "source": "Mercury",
+                "kind": "7th",
+                "polarity": "challenging",
+                "basis": "Mercury: malefic — nat=benefic,fn=malefic,yoga=none,yk=False,maraka=qualified (7th dṛṣṭi)"
+              },
+              {
+                "source": "Jupiter",
+                "kind": "9th",
+                "polarity": "supportive",
+                "basis": "Jupiter: benefic — nat=benefic,fn=benefic,yoga=none,yk=False,maraka=none (9th dṛṣṭi)"
+              }
+            ],
+            "net": "mixed",
+            "applicability": "applicable",
+            "not_applicable_basis": null,
+            "supportive": [
+              "Jupiter"
+            ],
+            "challenging": [
+              "Mercury"
+            ],
+            "mixed": [],
+            "unassessed": []
+          }
+        },
+        "bhavat_bhavam": {
+          "from_house": 7,
+          "bb_house": 1,
+          "bb_house_name": "ZQXSATURNBBHOUSENAMEQ7",
+          "bb_lord": "Mars",
+          "bb_lord_position": {
+            "graha": "Mars",
+            "house": 10,
+            "sign": "ZQXSATURNSIGNQ7",
+            "degree_in_sign": 24.4,
+            "dignity": "Great Friend",
+            "dignity_label": "ZQXSATURNDIGNITYLABELQ7",
+            "retrograde": false,
+            "vargottama": null
+          },
+          "sustaining": "moderate",
+          "corpus_ref": {
+            "corpus": "BHAVAT_DESC",
+            "key": "7",
+            "graha": null,
+            "dignity": null,
+            "resolvable": true,
+            "varga": "D1"
+          }
+        },
+        "bhava_karaka": {
+          "house": 7,
+          "karakas": [
+            "Venus"
+          ],
+          "karaka_positions": [
+            {
+              "graha": "Venus",
+              "house": 12,
+              "sign": "ZQXSATURNSIGNQ7",
+              "degree_in_sign": 21.3,
+              "dignity": "Enemy",
+              "dignity_label": "ZQXSATURNDIGNITYLABELQ7",
+              "retrograde": true,
+              "vargottama": null
+            }
+          ],
+          "primary_karaka": "Venus",
+          "karaka_support": "weak",
+          "subject_is_karaka_of_own_house": false,
+          "corpus_ref": {
+            "corpus": "BHAVA_KARAKA",
+            "key": "7",
+            "graha": null,
+            "dignity": null,
+            "resolvable": true,
+            "varga": "D1"
+          }
+        },
+        "shadbala": {
+          "computed_server_side": false,
+          "digbala": null,
+          "digbala_band": null,
+          "uchcha_bala": null,
+          "uchcha_band": null,
+          "naisargika_bala": null,
+          "naisargika_band": null,
+          "at_digbala_peak_house": true,
+          "note_key": "shadbala_phase6"
+        },
+        "graha_saar": {
+          "strength_verdict": "weakened",
+          "natural_nature": "natural_malefic",
+          "natural_nature_basis": "ZQXSATURNNATURALNATUREBASISQ7",
+          "has_lordship_doctrine": true,
+          "functional_nature": "malefic",
+          "verse_yoga_status": "none",
+          "ownership_yogakaraka": false,
+          "maraka_status": "qualified",
+          "functional_basis_verse": "ZQXSATURNFUNCTIONALBASISVERSEQ7",
+          "functional_roles_publishable": true,
+          "retrograde": false,
+          "at_digbala_peak_house": true,
+          "is_natural_karaka_of_own_house": false,
+          "house_drishti": {
+            "subject": "ZQXSATURNSUBJECTQ7",
+            "sources": [
+              {
+                "source": "Sun",
+                "kind": "7th",
+                "polarity": "supportive",
+                "basis": "Sun: benefic — nat=malefic,fn=benefic,yoga=none,yk=False,maraka=none (7th dṛṣṭi)"
+              }
+            ],
+            "net": "supportive",
+            "applicability": "applicable",
+            "not_applicable_basis": null,
+            "supportive": [
+              "Sun"
+            ],
+            "challenging": [],
+            "mixed": [],
+            "unassessed": []
+          },
+          "bhavesh_drishti": {
+            "subject": "ZQXSATURNSUBJECTQ7",
+            "sources": [
+              {
+                "source": "Mercury",
+                "kind": "7th",
+                "polarity": "challenging",
+                "basis": "Mercury: malefic — nat=benefic,fn=malefic,yoga=none,yk=False,maraka=qualified (7th dṛṣṭi)"
+              },
+              {
+                "source": "Jupiter",
+                "kind": "9th",
+                "polarity": "supportive",
+                "basis": "Jupiter: benefic — nat=benefic,fn=benefic,yoga=none,yk=False,maraka=none (9th dṛṣṭi)"
+              }
+            ],
+            "net": "mixed",
+            "applicability": "applicable",
+            "not_applicable_basis": null,
+            "supportive": [
+              "Jupiter"
+            ],
+            "challenging": [
+              "Mercury"
+            ],
+            "mixed": [],
+            "unassessed": []
+          },
+          "overall_verdict": "nuanced",
+          "verdict_factors": [
+            {
+              "factor": "strength",
+              "direction": "negative",
+              "detail": "weakened"
+            },
+            {
+              "factor": "bhavesh",
+              "direction": "negative",
+              "detail": "sign lord weakly placed"
+            },
+            {
+              "factor": "house_drishti",
+              "direction": "positive",
+              "detail": "supportive drishti"
+            },
+            {
+              "factor": "bhava_karaka",
+              "direction": "negative",
+              "detail": "natural significator weak"
+            },
+            {
+              "factor": "digbala_house",
+              "direction": "positive",
+              "detail": "house of maximum directional strength"
+            }
+          ]
+        },
+        "varga_dignity_shift": {
+          "applicability": "not_applicable",
+          "shift": "unknown",
+          "birth_dignity": "Great Enemy",
+          "varga_dignity": "Great Enemy",
+          "birth_rank": 1,
+          "varga_rank": 1,
+          "corpus_ref": null,
+          "basis": "ZQXSATURNBASISQ7"
+        }
+      },
+      {
+        "synthesis_version": "d1-synthesis-0.1.0",
+        "varga": "D1",
+        "graha": "Rahu",
+        "position": {
+          "graha": "Rahu",
+          "house": 2,
+          "sign": "ZQXRAHUSIGNQ7",
+          "degree_in_sign": 17.0,
+          "dignity": "Debilitated",
+          "dignity_label": "ZQXRAHUDIGNITYLABELQ7",
+          "retrograde": true,
+          "vargottama": null
+        },
+        "rashi": {
+          "sign": "ZQXRAHUSIGNQ7",
+          "sign_index": 1,
+          "dignity": "Debilitated",
+          "dignity_label": "ZQXRAHUDIGNITYLABELQ7",
+          "sign_lord": {
+            "graha": "Venus",
+            "house": 12,
+            "sign": "ZQXRAHUSIGNQ7",
+            "degree_in_sign": 21.3,
+            "dignity": "Enemy",
+            "dignity_label": "ZQXRAHUDIGNITYLABELQ7",
+            "retrograde": true,
+            "vargottama": null
+          },
+          "corpus_ref": {
+            "corpus": "RASHI_CORPUS",
+            "key": "Debilitated",
+            "graha": "Rahu",
+            "dignity": "Debilitated",
+            "resolvable": true,
+            "varga": "D1"
+          }
+        },
+        "house": {
+          "house": 2,
+          "house_name": "ZQXRAHUHOUSENAMEQ7",
+          "sign": "ZQXRAHUSIGNQ7",
+          "house_lord": "Venus",
+          "drishti": {
+            "subject": "ZQXRAHUSUBJECTQ7",
+            "sources": [],
+            "net": "unassessed",
+            "applicability": "applicable",
+            "not_applicable_basis": null,
+            "supportive": [],
+            "challenging": [],
+            "mixed": [],
+            "unassessed": []
+          },
+          "corpus_ref": {
+            "corpus": "HOUSE_CORPUS",
+            "key": "2",
+            "graha": "Rahu",
+            "dignity": null,
+            "resolvable": true,
+            "varga": "D1"
+          }
+        },
+        "bhavesh": {
+          "bhavesh": "Venus",
+          "of_sign": "ZQXRAHUOFSIGNQ7",
+          "position": {
+            "graha": "Venus",
+            "house": 12,
+            "sign": "ZQXRAHUSIGNQ7",
+            "degree_in_sign": 21.3,
+            "dignity": "Enemy",
+            "dignity_label": "ZQXRAHUDIGNITYLABELQ7",
+            "retrograde": true,
+            "vargottama": null
+          },
+          "support": "weak",
+          "retrograde_note": true,
+          "drishti": {
+            "subject": "ZQXRAHUSUBJECTQ7",
+            "sources": [
+              {
+                "source": "Mercury",
+                "kind": "7th",
+                "polarity": "challenging",
+                "basis": "Mercury: malefic — nat=benefic,fn=malefic,yoga=none,yk=False,maraka=qualified (7th dṛṣṭi)"
+              },
+              {
+                "source": "Jupiter",
+                "kind": "9th",
+                "polarity": "supportive",
+                "basis": "Jupiter: benefic — nat=benefic,fn=benefic,yoga=none,yk=False,maraka=none (9th dṛṣṭi)"
+              }
+            ],
+            "net": "mixed",
+            "applicability": "applicable",
+            "not_applicable_basis": null,
+            "supportive": [
+              "Jupiter"
+            ],
+            "challenging": [
+              "Mercury"
+            ],
+            "mixed": [],
+            "unassessed": []
+          }
+        },
+        "bhavat_bhavam": {
+          "from_house": 2,
+          "bb_house": 3,
+          "bb_house_name": "ZQXRAHUBBHOUSENAMEQ7",
+          "bb_lord": "Mercury",
+          "bb_lord_position": {
+            "graha": "Mercury",
+            "house": 6,
+            "sign": "ZQXRAHUSIGNQ7",
+            "degree_in_sign": 3.1,
+            "dignity": "Friend",
+            "dignity_label": "ZQXRAHUDIGNITYLABELQ7",
+            "retrograde": false,
+            "vargottama": null
+          },
+          "sustaining": "moderate",
+          "corpus_ref": {
+            "corpus": "BHAVAT_DESC",
+            "key": "2",
+            "graha": null,
+            "dignity": null,
+            "resolvable": true,
+            "varga": "D1"
+          }
+        },
+        "bhava_karaka": {
+          "house": 2,
+          "karakas": [
+            "Jupiter"
+          ],
+          "karaka_positions": [
+            {
+              "graha": "Jupiter",
+              "house": 4,
+              "sign": "ZQXRAHUSIGNQ7",
+              "degree_in_sign": 15.7,
+              "dignity": "Neutral",
+              "dignity_label": "ZQXRAHUDIGNITYLABELQ7",
+              "retrograde": false,
+              "vargottama": null
+            }
+          ],
+          "primary_karaka": "Jupiter",
+          "karaka_support": "moderate",
+          "subject_is_karaka_of_own_house": false,
+          "corpus_ref": {
+            "corpus": "BHAVA_KARAKA",
+            "key": "2",
+            "graha": null,
+            "dignity": null,
+            "resolvable": true,
+            "varga": "D1"
+          }
+        },
+        "shadbala": {
+          "computed_server_side": false,
+          "digbala": null,
+          "digbala_band": null,
+          "uchcha_bala": null,
+          "uchcha_band": null,
+          "naisargika_bala": null,
+          "naisargika_band": null,
+          "at_digbala_peak_house": false,
+          "note_key": "shadbala_phase6"
+        },
+        "graha_saar": {
+          "strength_verdict": "weakened",
+          "natural_nature": "natural_malefic",
+          "natural_nature_basis": "ZQXRAHUNATURALNATUREBASISQ7",
+          "has_lordship_doctrine": false,
+          "functional_nature": null,
+          "verse_yoga_status": null,
+          "ownership_yogakaraka": null,
+          "maraka_status": null,
+          "functional_basis_verse": null,
+          "functional_roles_publishable": true,
+          "retrograde": true,
+          "at_digbala_peak_house": false,
+          "is_natural_karaka_of_own_house": false,
+          "house_drishti": {
+            "subject": "ZQXRAHUSUBJECTQ7",
+            "sources": [],
+            "net": "unassessed",
+            "applicability": "applicable",
+            "not_applicable_basis": null,
+            "supportive": [],
+            "challenging": [],
+            "mixed": [],
+            "unassessed": []
+          },
+          "bhavesh_drishti": {
+            "subject": "ZQXRAHUSUBJECTQ7",
+            "sources": [
+              {
+                "source": "Mercury",
+                "kind": "7th",
+                "polarity": "challenging",
+                "basis": "Mercury: malefic — nat=benefic,fn=malefic,yoga=none,yk=False,maraka=qualified (7th dṛṣṭi)"
+              },
+              {
+                "source": "Jupiter",
+                "kind": "9th",
+                "polarity": "supportive",
+                "basis": "Jupiter: benefic — nat=benefic,fn=benefic,yoga=none,yk=False,maraka=none (9th dṛṣṭi)"
+              }
+            ],
+            "net": "mixed",
+            "applicability": "applicable",
+            "not_applicable_basis": null,
+            "supportive": [
+              "Jupiter"
+            ],
+            "challenging": [
+              "Mercury"
+            ],
+            "mixed": [],
+            "unassessed": []
+          },
+          "overall_verdict": "weak",
+          "verdict_factors": [
+            {
+              "factor": "strength",
+              "direction": "negative",
+              "detail": "weakened"
+            },
+            {
+              "factor": "bhavesh",
+              "direction": "negative",
+              "detail": "sign lord weakly placed"
+            }
+          ]
+        },
+        "varga_dignity_shift": {
+          "applicability": "not_applicable",
+          "shift": "unknown",
+          "birth_dignity": "Debilitated",
+          "varga_dignity": "Debilitated",
+          "birth_rank": 0,
+          "varga_rank": 0,
+          "corpus_ref": null,
+          "basis": "ZQXRAHUBASISQ7"
+        }
+      },
+      {
+        "synthesis_version": "d1-synthesis-0.1.0",
+        "varga": "D1",
+        "graha": "Ketu",
+        "position": {
+          "graha": "Ketu",
+          "house": 8,
+          "sign": "ZQXKETUSIGNQ7",
+          "degree_in_sign": 17.0,
+          "dignity": "Exalted",
+          "dignity_label": "ZQXKETUDIGNITYLABELQ7",
+          "retrograde": true,
+          "vargottama": null
+        },
+        "rashi": {
+          "sign": "ZQXKETUSIGNQ7",
+          "sign_index": 7,
+          "dignity": "Exalted",
+          "dignity_label": "ZQXKETUDIGNITYLABELQ7",
+          "sign_lord": {
+            "graha": "Mars",
+            "house": 10,
+            "sign": "ZQXKETUSIGNQ7",
+            "degree_in_sign": 24.4,
+            "dignity": "Great Friend",
+            "dignity_label": "ZQXKETUDIGNITYLABELQ7",
+            "retrograde": false,
+            "vargottama": null
+          },
+          "corpus_ref": {
+            "corpus": "RASHI_CORPUS",
+            "key": "Exalted",
+            "graha": "Ketu",
+            "dignity": "Exalted",
+            "resolvable": true,
+            "varga": "D1"
+          }
+        },
+        "house": {
+          "house": 8,
+          "house_name": "ZQXKETUHOUSENAMEQ7",
+          "sign": "ZQXKETUSIGNQ7",
+          "house_lord": "Mars",
+          "drishti": {
+            "subject": "ZQXKETUSUBJECTQ7",
+            "sources": [
+              {
+                "source": "Moon",
+                "kind": "7th",
+                "polarity": "mixed",
+                "basis": "Moon: functionally mixed — nat=benefic,fn=mixed,yoga=none,yk=False,maraka=none (7th dṛṣṭi)"
+              },
+              {
+                "source": "Jupiter",
+                "kind": "5th",
+                "polarity": "supportive",
+                "basis": "Jupiter: benefic — nat=benefic,fn=benefic,yoga=none,yk=False,maraka=none (5th dṛṣṭi)"
+              }
+            ],
+            "net": "mixed",
+            "applicability": "applicable",
+            "not_applicable_basis": null,
+            "supportive": [
+              "Jupiter"
+            ],
+            "challenging": [],
+            "mixed": [
+              "Moon"
+            ],
+            "unassessed": []
+          },
+          "corpus_ref": {
+            "corpus": "HOUSE_CORPUS",
+            "key": "8",
+            "graha": "Ketu",
+            "dignity": null,
+            "resolvable": true,
+            "varga": "D1"
+          }
+        },
+        "bhavesh": {
+          "bhavesh": "Mars",
+          "of_sign": "ZQXKETUOFSIGNQ7",
+          "position": {
+            "graha": "Mars",
+            "house": 10,
+            "sign": "ZQXKETUSIGNQ7",
+            "degree_in_sign": 24.4,
+            "dignity": "Great Friend",
+            "dignity_label": "ZQXKETUDIGNITYLABELQ7",
+            "retrograde": false,
+            "vargottama": null
+          },
+          "support": "moderate",
+          "retrograde_note": false,
+          "drishti": {
+            "subject": "ZQXKETUSUBJECTQ7",
+            "sources": [
+              {
+                "source": "Jupiter",
+                "kind": "7th",
+                "polarity": "supportive",
+                "basis": "Jupiter: benefic — nat=benefic,fn=benefic,yoga=none,yk=False,maraka=none (7th dṛṣṭi)"
+              }
+            ],
+            "net": "supportive",
+            "applicability": "applicable",
+            "not_applicable_basis": null,
+            "supportive": [
+              "Jupiter"
+            ],
+            "challenging": [],
+            "mixed": [],
+            "unassessed": []
+          }
+        },
+        "bhavat_bhavam": {
+          "from_house": 8,
+          "bb_house": 3,
+          "bb_house_name": "ZQXKETUBBHOUSENAMEQ7",
+          "bb_lord": "Mercury",
+          "bb_lord_position": {
+            "graha": "Mercury",
+            "house": 6,
+            "sign": "ZQXKETUSIGNQ7",
+            "degree_in_sign": 3.1,
+            "dignity": "Friend",
+            "dignity_label": "ZQXKETUDIGNITYLABELQ7",
+            "retrograde": false,
+            "vargottama": null
+          },
+          "sustaining": "moderate",
+          "corpus_ref": {
+            "corpus": "BHAVAT_DESC",
+            "key": "8",
+            "graha": null,
+            "dignity": null,
+            "resolvable": true,
+            "varga": "D1"
+          }
+        },
+        "bhava_karaka": {
+          "house": 8,
+          "karakas": [
+            "Saturn"
+          ],
+          "karaka_positions": [
+            {
+              "graha": "Saturn",
+              "house": 7,
+              "sign": "ZQXKETUSIGNQ7",
+              "degree_in_sign": 5.9,
+              "dignity": "Great Enemy",
+              "dignity_label": "ZQXKETUDIGNITYLABELQ7",
+              "retrograde": false,
+              "vargottama": null
+            }
+          ],
+          "primary_karaka": "Saturn",
+          "karaka_support": "weak",
+          "subject_is_karaka_of_own_house": false,
+          "corpus_ref": {
+            "corpus": "BHAVA_KARAKA",
+            "key": "8",
+            "graha": null,
+            "dignity": null,
+            "resolvable": true,
+            "varga": "D1"
+          }
+        },
+        "shadbala": {
+          "computed_server_side": false,
+          "digbala": null,
+          "digbala_band": null,
+          "uchcha_bala": null,
+          "uchcha_band": null,
+          "naisargika_bala": null,
+          "naisargika_band": null,
+          "at_digbala_peak_house": false,
+          "note_key": "shadbala_phase6"
+        },
+        "graha_saar": {
+          "strength_verdict": "exceptional",
+          "natural_nature": "natural_malefic",
+          "natural_nature_basis": "ZQXKETUNATURALNATUREBASISQ7",
+          "has_lordship_doctrine": false,
+          "functional_nature": null,
+          "verse_yoga_status": null,
+          "ownership_yogakaraka": null,
+          "maraka_status": null,
+          "functional_basis_verse": null,
+          "functional_roles_publishable": true,
+          "retrograde": true,
+          "at_digbala_peak_house": false,
+          "is_natural_karaka_of_own_house": false,
+          "house_drishti": {
+            "subject": "ZQXKETUSUBJECTQ7",
+            "sources": [
+              {
+                "source": "Moon",
+                "kind": "7th",
+                "polarity": "mixed",
+                "basis": "Moon: functionally mixed — nat=benefic,fn=mixed,yoga=none,yk=False,maraka=none (7th dṛṣṭi)"
+              },
+              {
+                "source": "Jupiter",
+                "kind": "5th",
+                "polarity": "supportive",
+                "basis": "Jupiter: benefic — nat=benefic,fn=benefic,yoga=none,yk=False,maraka=none (5th dṛṣṭi)"
+              }
+            ],
+            "net": "mixed",
+            "applicability": "applicable",
+            "not_applicable_basis": null,
+            "supportive": [
+              "Jupiter"
+            ],
+            "challenging": [],
+            "mixed": [
+              "Moon"
+            ],
+            "unassessed": []
+          },
+          "bhavesh_drishti": {
+            "subject": "ZQXKETUSUBJECTQ7",
+            "sources": [
+              {
+                "source": "Jupiter",
+                "kind": "7th",
+                "polarity": "supportive",
+                "basis": "Jupiter: benefic — nat=benefic,fn=benefic,yoga=none,yk=False,maraka=none (7th dṛṣṭi)"
+              }
+            ],
+            "net": "supportive",
+            "applicability": "applicable",
+            "not_applicable_basis": null,
+            "supportive": [
+              "Jupiter"
+            ],
+            "challenging": [],
+            "mixed": [],
+            "unassessed": []
+          },
+          "overall_verdict": "nuanced",
+          "verdict_factors": [
+            {
+              "factor": "strength",
+              "direction": "positive",
+              "detail": "exceptional"
+            },
+            {
+              "factor": "house_drishti",
+              "direction": "negative",
+              "detail": "mixed drishti"
+            },
+            {
+              "factor": "bhava_karaka",
+              "direction": "negative",
+              "detail": "natural significator weak"
+            }
+          ]
+        },
+        "varga_dignity_shift": {
+          "applicability": "not_applicable",
+          "shift": "unknown",
+          "birth_dignity": "Exalted",
+          "varga_dignity": "Exalted",
+          "birth_rank": 6,
+          "varga_rank": 6,
+          "corpus_ref": null,
+          "basis": "ZQXKETUBASISQ7"
+        }
+      }
+    ]
+  },
+  "_evidence": {
+    "generated_by": "kar093_p6_generate_fixture.py",
+    "runtime": {
+      "python": "3.12.3",
+      "pydantic": "1.10.13"
+    },
+    "modules": {
+      "d1_contract.py": "36b3d131713959b23362407b2ee928eba4cf8b547c630fa02812a777f890b51f",
+      "d1_engine.py": "59da497a697e31f6fdc3fd8d7ad2facc09ec8bde1d2ef5cd61793c0415c451d8",
+      "d1_functional_roles.py": "7689984fcb9fe01ad36c4926f284a506ce4daa9eb51135505e2b94cf5aff3cc3",
+      "d1_synthesis.py": "8bb49c9a9cea356e05fd870976ca0f9e5364381da6049a12afff4a89682c4757"
+    },
+    "import_chain_closed": true,
+    "aspect_manifest": {
+      "edge_count": 13,
+      "edges": [
+        "Jupiter 5th",
+        "Jupiter 7th",
+        "Jupiter 9th",
+        "Mars 4th",
+        "Mars 7th",
+        "Mars 8th",
+        "Mercury 7th",
+        "Moon 7th",
+        "Saturn 10th",
+        "Saturn 3rd",
+        "Saturn 7th",
+        "Sun 7th",
+        "Venus 7th"
+      ]
+    },
+    "doctrine": {
+      "functional_roles_status": "published",
+      "orthogonal_roles_publishable": true,
+      "legacy_flat_roles_publishable": false,
+      "moon_paksha_status": "waxing"
+    },
+    "sentinels": {
+      "distinct": 80,
+      "occurrences": 210,
+      "free_text_map": {
+        "BhavatBhavamSection": [
+          "bb_house_name"
+        ],
+        "BhaveshSection": [
+          "of_sign"
+        ],
+        "DrishtiBlock": [
+          "not_applicable_basis",
+          "subject"
+        ],
+        "GrahaRef": [
+          "dignity_label",
+          "sign"
+        ],
+        "GrahaSaarSection": [
+          "functional_basis_verse",
+          "natural_nature_basis"
+        ],
+        "HouseSection": [
+          "house_name",
+          "sign"
+        ],
+        "RashiSection": [
+          "dignity_label",
+          "sign"
+        ],
+        "VargaDignityShiftBlock": [
+          "basis"
+        ]
+      },
+      "excluded_str_fields": {
+        "CorpusRef": [
+          "key"
+        ],
+        "DrishtiSource": [
+          "kind",
+          "basis"
+        ],
+        "D1Doctrine": [
+          "functional_role_policy_version",
+          "functional_roles_status"
+        ],
+        "D1DrawerPayload": [
+          "synthesis_version",
+          "chart_token"
+        ],
+        "D1PrepareResponse": [
+          "lagna_sign"
+        ],
+        "GrahaDrawer": [
+          "synthesis_version"
+        ],
+        "ShadbalaSection": [
+          "note_key"
+        ],
+        "VerdictFactor": [
+          "factor",
+          "direction",
+          "detail"
+        ]
+      }
+    },
+    "product_subject": {
+      "file": "newphalit_fixed.html",
+      "sha256": "c475284dd5da80daae757e8702b3bf837715ae646ed6e93100c3d3e6335ca252",
+      "sentinel_collisions": []
+    },
+    "revalidated_through": "d1_synthesis.D1DrawerPayload.parse_obj"
+  },
+  "_chart": {
+    "chart_token": "ZQXCHARTTOKENQ7",
+    "lagna": {
+      "sign_index": 0,
+      "degree": 20.0586
+    },
+    "grahas": {
+      "Sun": {
+        "varga_sign_index": null,
+        "varga_dignity": null,
+        "vargottama": null,
+        "sign_index": 0,
+        "degree_in_sign": 12.5,
+        "longitude": 12.5,
+        "dignity": "Moolatrikona",
+        "retrograde": false,
+        "combust": false,
+        "nakshatra": "Ashwini",
+        "nakshatra_pada": 1
+      },
+      "Moon": {
+        "varga_sign_index": null,
+        "varga_dignity": null,
+        "vargottama": null,
+        "sign_index": 1,
+        "degree_in_sign": 8.2,
+        "longitude": 38.2,
+        "dignity": "Own Sign",
+        "retrograde": false,
+        "combust": false,
+        "nakshatra": "Ashwini",
+        "nakshatra_pada": 1
+      },
+      "Mars": {
+        "varga_sign_index": null,
+        "varga_dignity": null,
+        "vargottama": null,
+        "sign_index": 9,
+        "degree_in_sign": 24.4,
+        "longitude": 294.4,
+        "dignity": "Great Friend",
+        "retrograde": false,
+        "combust": false,
+        "nakshatra": "Ashwini",
+        "nakshatra_pada": 1
+      },
+      "Mercury": {
+        "varga_sign_index": null,
+        "varga_dignity": null,
+        "vargottama": null,
+        "sign_index": 5,
+        "degree_in_sign": 3.1,
+        "longitude": 153.1,
+        "dignity": "Friend",
+        "retrograde": false,
+        "combust": false,
+        "nakshatra": "Ashwini",
+        "nakshatra_pada": 1
+      },
+      "Jupiter": {
+        "varga_sign_index": null,
+        "varga_dignity": null,
+        "vargottama": null,
+        "sign_index": 3,
+        "degree_in_sign": 15.7,
+        "longitude": 105.7,
+        "dignity": "Neutral",
+        "retrograde": false,
+        "combust": false,
+        "nakshatra": "Ashwini",
+        "nakshatra_pada": 1
+      },
+      "Venus": {
+        "varga_sign_index": null,
+        "varga_dignity": null,
+        "vargottama": null,
+        "sign_index": 11,
+        "degree_in_sign": 21.3,
+        "longitude": 351.3,
+        "dignity": "Enemy",
+        "retrograde": true,
+        "combust": false,
+        "nakshatra": "Ashwini",
+        "nakshatra_pada": 1
+      },
+      "Saturn": {
+        "varga_sign_index": null,
+        "varga_dignity": null,
+        "vargottama": null,
+        "sign_index": 6,
+        "degree_in_sign": 5.9,
+        "longitude": 185.9,
+        "dignity": "Great Enemy",
+        "retrograde": false,
+        "combust": false,
+        "nakshatra": "Ashwini",
+        "nakshatra_pada": 1
+      },
+      "Rahu": {
+        "varga_sign_index": null,
+        "varga_dignity": null,
+        "vargottama": null,
+        "sign_index": 1,
+        "degree_in_sign": 17.0,
+        "longitude": 47.0,
+        "dignity": "Debilitated",
+        "retrograde": true,
+        "combust": false,
+        "nakshatra": "Ashwini",
+        "nakshatra_pada": 1
+      },
+      "Ketu": {
+        "varga_sign_index": null,
+        "varga_dignity": null,
+        "vargottama": null,
+        "sign_index": 7,
+        "degree_in_sign": 17.0,
+        "longitude": 227.0,
+        "dignity": "Exalted",
+        "retrograde": true,
+        "combust": false,
+        "nakshatra": "Ashwini",
+        "nakshatra_pada": 1
+      }
+    }
+  },
+  "_variants": {
+    "node_without_dignity": {
+      "policy": {
+        "engine_version": "d1-engine-0.1.0",
+        "ayanamsha": "lahiri",
+        "house_system": "whole_sign",
+        "aspect_policy_version": "parashari-d1-1.0",
+        "node_aspect_policy": "no_independent_drishti",
+        "varga": "D1",
+        "varga_aspect_policy": "parashari_full",
+        "functional_role_lagna_anchor": "birth_lagna"
+      },
+      "drawers": {
+        "synthesis_version": "d1-synthesis-0.1.0",
+        "varga": "D1",
+        "chart_token": "ZQXVARIANTTOKENQ7",
+        "drawers": [
+          {
+            "synthesis_version": "d1-synthesis-0.1.0",
+            "varga": "D1",
+            "graha": "Sun",
+            "position": {
+              "graha": "Sun",
+              "house": 1,
+              "sign": "ZQXSUNSIGNQ7",
+              "degree_in_sign": 12.5,
+              "dignity": "Moolatrikona",
+              "dignity_label": "ZQXSUNDIGNITYLABELQ7",
+              "retrograde": false,
+              "vargottama": null
+            },
+            "rashi": {
+              "sign": "ZQXSUNSIGNQ7",
+              "sign_index": 0,
+              "dignity": "Moolatrikona",
+              "dignity_label": "ZQXSUNDIGNITYLABELQ7",
+              "sign_lord": {
+                "graha": "Mars",
+                "house": 10,
+                "sign": "ZQXSUNSIGNQ7",
+                "degree_in_sign": 24.4,
+                "dignity": "Great Friend",
+                "dignity_label": "ZQXSUNDIGNITYLABELQ7",
+                "retrograde": false,
+                "vargottama": null
+              },
+              "corpus_ref": {
+                "corpus": "RASHI_CORPUS",
+                "key": "Moolatrikona",
+                "graha": "Sun",
+                "dignity": "Moolatrikona",
+                "resolvable": true,
+                "varga": "D1"
+              }
+            },
+            "house": {
+              "house": 1,
+              "house_name": "ZQXSUNHOUSENAMEQ7",
+              "sign": "ZQXSUNSIGNQ7",
+              "house_lord": "Mars",
+              "drishti": {
+                "subject": "ZQXSUNSUBJECTQ7",
+                "sources": [
+                  {
+                    "source": "Mars",
+                    "kind": "4th",
+                    "polarity": "mixed",
+                    "basis": "Mars: functionally mixed — nat=malefic,fn=mixed,yoga=none,yk=False,maraka=none (4th dṛṣṭi)"
+                  },
+                  {
+                    "source": "Saturn",
+                    "kind": "7th",
+                    "polarity": "challenging",
+                    "basis": "Saturn: malefic — nat=malefic,fn=malefic,yoga=none,yk=False,maraka=qualified (7th dṛṣṭi)"
+                  }
+                ],
+                "net": "mixed",
+                "applicability": "applicable",
+                "not_applicable_basis": null,
+                "supportive": [],
+                "challenging": [
+                  "Saturn"
+                ],
+                "mixed": [
+                  "Mars"
+                ],
+                "unassessed": []
+              },
+              "corpus_ref": {
+                "corpus": "HOUSE_CORPUS",
+                "key": "1",
+                "graha": "Sun",
+                "dignity": null,
+                "resolvable": true,
+                "varga": "D1"
+              }
+            },
+            "bhavesh": {
+              "bhavesh": "Mars",
+              "of_sign": "ZQXSUNOFSIGNQ7",
+              "position": {
+                "graha": "Mars",
+                "house": 10,
+                "sign": "ZQXSUNSIGNQ7",
+                "degree_in_sign": 24.4,
+                "dignity": "Great Friend",
+                "dignity_label": "ZQXSUNDIGNITYLABELQ7",
+                "retrograde": false,
+                "vargottama": null
+              },
+              "support": "moderate",
+              "retrograde_note": false,
+              "drishti": {
+                "subject": "ZQXSUNSUBJECTQ7",
+                "sources": [
+                  {
+                    "source": "Jupiter",
+                    "kind": "7th",
+                    "polarity": "supportive",
+                    "basis": "Jupiter: benefic — nat=benefic,fn=benefic,yoga=none,yk=False,maraka=none (7th dṛṣṭi)"
+                  }
+                ],
+                "net": "supportive",
+                "applicability": "applicable",
+                "not_applicable_basis": null,
+                "supportive": [
+                  "Jupiter"
+                ],
+                "challenging": [],
+                "mixed": [],
+                "unassessed": []
+              }
+            },
+            "bhavat_bhavam": {
+              "from_house": 1,
+              "bb_house": 1,
+              "bb_house_name": "ZQXSUNBBHOUSENAMEQ7",
+              "bb_lord": "Mars",
+              "bb_lord_position": {
+                "graha": "Mars",
+                "house": 10,
+                "sign": "ZQXSUNSIGNQ7",
+                "degree_in_sign": 24.4,
+                "dignity": "Great Friend",
+                "dignity_label": "ZQXSUNDIGNITYLABELQ7",
+                "retrograde": false,
+                "vargottama": null
+              },
+              "sustaining": "moderate",
+              "corpus_ref": {
+                "corpus": "BHAVAT_DESC",
+                "key": "1",
+                "graha": null,
+                "dignity": null,
+                "resolvable": true,
+                "varga": "D1"
+              }
+            },
+            "bhava_karaka": {
+              "house": 1,
+              "karakas": [
+                "Sun"
+              ],
+              "karaka_positions": [
+                {
+                  "graha": "Sun",
+                  "house": 1,
+                  "sign": "ZQXSUNSIGNQ7",
+                  "degree_in_sign": 12.5,
+                  "dignity": "Moolatrikona",
+                  "dignity_label": "ZQXSUNDIGNITYLABELQ7",
+                  "retrograde": false,
+                  "vargottama": null
+                }
+              ],
+              "primary_karaka": "Sun",
+              "karaka_support": "strong",
+              "subject_is_karaka_of_own_house": true,
+              "corpus_ref": {
+                "corpus": "BHAVA_KARAKA",
+                "key": "1",
+                "graha": null,
+                "dignity": null,
+                "resolvable": true,
+                "varga": "D1"
+              }
+            },
+            "shadbala": {
+              "computed_server_side": false,
+              "digbala": null,
+              "digbala_band": null,
+              "uchcha_bala": null,
+              "uchcha_band": null,
+              "naisargika_bala": null,
+              "naisargika_band": null,
+              "at_digbala_peak_house": false,
+              "note_key": "shadbala_phase6"
+            },
+            "graha_saar": {
+              "strength_verdict": "exceptional",
+              "natural_nature": "natural_malefic",
+              "natural_nature_basis": "ZQXSUNNATURALNATUREBASISQ7",
+              "has_lordship_doctrine": true,
+              "functional_nature": "benefic",
+              "verse_yoga_status": "none",
+              "ownership_yogakaraka": false,
+              "maraka_status": "none",
+              "functional_basis_verse": "ZQXSUNFUNCTIONALBASISVERSEQ7",
+              "functional_roles_publishable": true,
+              "retrograde": false,
+              "at_digbala_peak_house": false,
+              "is_natural_karaka_of_own_house": true,
+              "house_drishti": {
+                "subject": "ZQXSUNSUBJECTQ7",
+                "sources": [
+                  {
+                    "source": "Mars",
+                    "kind": "4th",
+                    "polarity": "mixed",
+                    "basis": "Mars: functionally mixed — nat=malefic,fn=mixed,yoga=none,yk=False,maraka=none (4th dṛṣṭi)"
+                  },
+                  {
+                    "source": "Saturn",
+                    "kind": "7th",
+                    "polarity": "challenging",
+                    "basis": "Saturn: malefic — nat=malefic,fn=malefic,yoga=none,yk=False,maraka=qualified (7th dṛṣṭi)"
+                  }
+                ],
+                "net": "mixed",
+                "applicability": "applicable",
+                "not_applicable_basis": null,
+                "supportive": [],
+                "challenging": [
+                  "Saturn"
+                ],
+                "mixed": [
+                  "Mars"
+                ],
+                "unassessed": []
+              },
+              "bhavesh_drishti": {
+                "subject": "ZQXSUNSUBJECTQ7",
+                "sources": [
+                  {
+                    "source": "Jupiter",
+                    "kind": "7th",
+                    "polarity": "supportive",
+                    "basis": "Jupiter: benefic — nat=benefic,fn=benefic,yoga=none,yk=False,maraka=none (7th dṛṣṭi)"
+                  }
+                ],
+                "net": "supportive",
+                "applicability": "applicable",
+                "not_applicable_basis": null,
+                "supportive": [
+                  "Jupiter"
+                ],
+                "challenging": [],
+                "mixed": [],
+                "unassessed": []
+              },
+              "overall_verdict": "nuanced",
+              "verdict_factors": [
+                {
+                  "factor": "strength",
+                  "direction": "positive",
+                  "detail": "exceptional"
+                },
+                {
+                  "factor": "house_drishti",
+                  "direction": "negative",
+                  "detail": "mixed drishti"
+                },
+                {
+                  "factor": "bhava_karaka",
+                  "direction": "positive",
+                  "detail": "natural significator strong"
+                },
+                {
+                  "factor": "natural_karaka",
+                  "direction": "positive",
+                  "detail": "natural karaka of its own house"
+                }
+              ]
+            },
+            "varga_dignity_shift": {
+              "applicability": "not_applicable",
+              "shift": "unknown",
+              "birth_dignity": "Moolatrikona",
+              "varga_dignity": "Moolatrikona",
+              "birth_rank": 5,
+              "varga_rank": 5,
+              "corpus_ref": null,
+              "basis": "ZQXSUNBASISQ7"
+            }
+          },
+          {
+            "synthesis_version": "d1-synthesis-0.1.0",
+            "varga": "D1",
+            "graha": "Moon",
+            "position": {
+              "graha": "Moon",
+              "house": 2,
+              "sign": "ZQXMOONSIGNQ7",
+              "degree_in_sign": 8.2,
+              "dignity": "Own Sign",
+              "dignity_label": "ZQXMOONDIGNITYLABELQ7",
+              "retrograde": false,
+              "vargottama": null
+            },
+            "rashi": {
+              "sign": "ZQXMOONSIGNQ7",
+              "sign_index": 1,
+              "dignity": "Own Sign",
+              "dignity_label": "ZQXMOONDIGNITYLABELQ7",
+              "sign_lord": {
+                "graha": "Venus",
+                "house": 12,
+                "sign": "ZQXMOONSIGNQ7",
+                "degree_in_sign": 21.3,
+                "dignity": "Enemy",
+                "dignity_label": "ZQXMOONDIGNITYLABELQ7",
+                "retrograde": true,
+                "vargottama": null
+              },
+              "corpus_ref": {
+                "corpus": "RASHI_CORPUS",
+                "key": "Own Sign",
+                "graha": "Moon",
+                "dignity": "Own Sign",
+                "resolvable": true,
+                "varga": "D1"
+              }
+            },
+            "house": {
+              "house": 2,
+              "house_name": "ZQXMOONHOUSENAMEQ7",
+              "sign": "ZQXMOONSIGNQ7",
+              "house_lord": "Venus",
+              "drishti": {
+                "subject": "ZQXMOONSUBJECTQ7",
+                "sources": [],
+                "net": "unassessed",
+                "applicability": "applicable",
+                "not_applicable_basis": null,
+                "supportive": [],
+                "challenging": [],
+                "mixed": [],
+                "unassessed": []
+              },
+              "corpus_ref": {
+                "corpus": "HOUSE_CORPUS",
+                "key": "2",
+                "graha": "Moon",
+                "dignity": null,
+                "resolvable": true,
+                "varga": "D1"
+              }
+            },
+            "bhavesh": {
+              "bhavesh": "Venus",
+              "of_sign": "ZQXMOONOFSIGNQ7",
+              "position": {
+                "graha": "Venus",
+                "house": 12,
+                "sign": "ZQXMOONSIGNQ7",
+                "degree_in_sign": 21.3,
+                "dignity": "Enemy",
+                "dignity_label": "ZQXMOONDIGNITYLABELQ7",
+                "retrograde": true,
+                "vargottama": null
+              },
+              "support": "weak",
+              "retrograde_note": true,
+              "drishti": {
+                "subject": "ZQXMOONSUBJECTQ7",
+                "sources": [
+                  {
+                    "source": "Mercury",
+                    "kind": "7th",
+                    "polarity": "challenging",
+                    "basis": "Mercury: malefic — nat=benefic,fn=malefic,yoga=none,yk=False,maraka=qualified (7th dṛṣṭi)"
+                  },
+                  {
+                    "source": "Jupiter",
+                    "kind": "9th",
+                    "polarity": "supportive",
+                    "basis": "Jupiter: benefic — nat=benefic,fn=benefic,yoga=none,yk=False,maraka=none (9th dṛṣṭi)"
+                  }
+                ],
+                "net": "mixed",
+                "applicability": "applicable",
+                "not_applicable_basis": null,
+                "supportive": [
+                  "Jupiter"
+                ],
+                "challenging": [
+                  "Mercury"
+                ],
+                "mixed": [],
+                "unassessed": []
+              }
+            },
+            "bhavat_bhavam": {
+              "from_house": 2,
+              "bb_house": 3,
+              "bb_house_name": "ZQXMOONBBHOUSENAMEQ7",
+              "bb_lord": "Mercury",
+              "bb_lord_position": {
+                "graha": "Mercury",
+                "house": 6,
+                "sign": "ZQXMOONSIGNQ7",
+                "degree_in_sign": 3.1,
+                "dignity": "Friend",
+                "dignity_label": "ZQXMOONDIGNITYLABELQ7",
+                "retrograde": false,
+                "vargottama": null
+              },
+              "sustaining": "moderate",
+              "corpus_ref": {
+                "corpus": "BHAVAT_DESC",
+                "key": "2",
+                "graha": null,
+                "dignity": null,
+                "resolvable": true,
+                "varga": "D1"
+              }
+            },
+            "bhava_karaka": {
+              "house": 2,
+              "karakas": [
+                "Jupiter"
+              ],
+              "karaka_positions": [
+                {
+                  "graha": "Jupiter",
+                  "house": 4,
+                  "sign": "ZQXMOONSIGNQ7",
+                  "degree_in_sign": 15.7,
+                  "dignity": "Neutral",
+                  "dignity_label": "ZQXMOONDIGNITYLABELQ7",
+                  "retrograde": false,
+                  "vargottama": null
+                }
+              ],
+              "primary_karaka": "Jupiter",
+              "karaka_support": "moderate",
+              "subject_is_karaka_of_own_house": false,
+              "corpus_ref": {
+                "corpus": "BHAVA_KARAKA",
+                "key": "2",
+                "graha": null,
+                "dignity": null,
+                "resolvable": true,
+                "varga": "D1"
+              }
+            },
+            "shadbala": {
+              "computed_server_side": false,
+              "digbala": null,
+              "digbala_band": null,
+              "uchcha_bala": null,
+              "uchcha_band": null,
+              "naisargika_bala": null,
+              "naisargika_band": null,
+              "at_digbala_peak_house": false,
+              "note_key": "shadbala_phase6"
+            },
+            "graha_saar": {
+              "strength_verdict": "well_placed",
+              "natural_nature": "natural_benefic",
+              "natural_nature_basis": "ZQXMOONNATURALNATUREBASISQ7",
+              "has_lordship_doctrine": true,
+              "functional_nature": "mixed",
+              "verse_yoga_status": "none",
+              "ownership_yogakaraka": false,
+              "maraka_status": "none",
+              "functional_basis_verse": "ZQXMOONFUNCTIONALBASISVERSEQ7",
+              "functional_roles_publishable": true,
+              "retrograde": false,
+              "at_digbala_peak_house": false,
+              "is_natural_karaka_of_own_house": false,
+              "house_drishti": {
+                "subject": "ZQXMOONSUBJECTQ7",
+                "sources": [],
+                "net": "unassessed",
+                "applicability": "applicable",
+                "not_applicable_basis": null,
+                "supportive": [],
+                "challenging": [],
+                "mixed": [],
+                "unassessed": []
+              },
+              "bhavesh_drishti": {
+                "subject": "ZQXMOONSUBJECTQ7",
+                "sources": [
+                  {
+                    "source": "Mercury",
+                    "kind": "7th",
+                    "polarity": "challenging",
+                    "basis": "Mercury: malefic — nat=benefic,fn=malefic,yoga=none,yk=False,maraka=qualified (7th dṛṣṭi)"
+                  },
+                  {
+                    "source": "Jupiter",
+                    "kind": "9th",
+                    "polarity": "supportive",
+                    "basis": "Jupiter: benefic — nat=benefic,fn=benefic,yoga=none,yk=False,maraka=none (9th dṛṣṭi)"
+                  }
+                ],
+                "net": "mixed",
+                "applicability": "applicable",
+                "not_applicable_basis": null,
+                "supportive": [
+                  "Jupiter"
+                ],
+                "challenging": [
+                  "Mercury"
+                ],
+                "mixed": [],
+                "unassessed": []
+              },
+              "overall_verdict": "nuanced",
+              "verdict_factors": [
+                {
+                  "factor": "strength",
+                  "direction": "positive",
+                  "detail": "well_placed"
+                },
+                {
+                  "factor": "bhavesh",
+                  "direction": "negative",
+                  "detail": "sign lord weakly placed"
+                }
+              ]
+            },
+            "varga_dignity_shift": {
+              "applicability": "not_applicable",
+              "shift": "unknown",
+              "birth_dignity": "Own Sign",
+              "varga_dignity": "Own Sign",
+              "birth_rank": 4,
+              "varga_rank": 4,
+              "corpus_ref": null,
+              "basis": "ZQXMOONBASISQ7"
+            }
+          },
+          {
+            "synthesis_version": "d1-synthesis-0.1.0",
+            "varga": "D1",
+            "graha": "Mars",
+            "position": {
+              "graha": "Mars",
+              "house": 10,
+              "sign": "ZQXMARSSIGNQ7",
+              "degree_in_sign": 24.4,
+              "dignity": "Great Friend",
+              "dignity_label": "ZQXMARSDIGNITYLABELQ7",
+              "retrograde": false,
+              "vargottama": null
+            },
+            "rashi": {
+              "sign": "ZQXMARSSIGNQ7",
+              "sign_index": 9,
+              "dignity": "Great Friend",
+              "dignity_label": "ZQXMARSDIGNITYLABELQ7",
+              "sign_lord": {
+                "graha": "Saturn",
+                "house": 7,
+                "sign": "ZQXMARSSIGNQ7",
+                "degree_in_sign": 5.9,
+                "dignity": "Great Enemy",
+                "dignity_label": "ZQXMARSDIGNITYLABELQ7",
+                "retrograde": false,
+                "vargottama": null
+              },
+              "corpus_ref": {
+                "corpus": "RASHI_CORPUS",
+                "key": "Great Friend",
+                "graha": "Mars",
+                "dignity": "Great Friend",
+                "resolvable": true,
+                "varga": "D1"
+              }
+            },
+            "house": {
+              "house": 10,
+              "house_name": "ZQXMARSHOUSENAMEQ7",
+              "sign": "ZQXMARSSIGNQ7",
+              "house_lord": "Saturn",
+              "drishti": {
+                "subject": "ZQXMARSSUBJECTQ7",
+                "sources": [
+                  {
+                    "source": "Jupiter",
+                    "kind": "7th",
+                    "polarity": "supportive",
+                    "basis": "Jupiter: benefic — nat=benefic,fn=benefic,yoga=none,yk=False,maraka=none (7th dṛṣṭi)"
+                  }
+                ],
+                "net": "supportive",
+                "applicability": "applicable",
+                "not_applicable_basis": null,
+                "supportive": [
+                  "Jupiter"
+                ],
+                "challenging": [],
+                "mixed": [],
+                "unassessed": []
+              },
+              "corpus_ref": {
+                "corpus": "HOUSE_CORPUS",
+                "key": "10",
+                "graha": "Mars",
+                "dignity": null,
+                "resolvable": true,
+                "varga": "D1"
+              }
+            },
+            "bhavesh": {
+              "bhavesh": "Saturn",
+              "of_sign": "ZQXMARSOFSIGNQ7",
+              "position": {
+                "graha": "Saturn",
+                "house": 7,
+                "sign": "ZQXMARSSIGNQ7",
+                "degree_in_sign": 5.9,
+                "dignity": "Great Enemy",
+                "dignity_label": "ZQXMARSDIGNITYLABELQ7",
+                "retrograde": false,
+                "vargottama": null
+              },
+              "support": "weak",
+              "retrograde_note": false,
+              "drishti": {
+                "subject": "ZQXMARSSUBJECTQ7",
+                "sources": [
+                  {
+                    "source": "Sun",
+                    "kind": "7th",
+                    "polarity": "supportive",
+                    "basis": "Sun: benefic — nat=malefic,fn=benefic,yoga=none,yk=False,maraka=none (7th dṛṣṭi)"
+                  }
+                ],
+                "net": "supportive",
+                "applicability": "applicable",
+                "not_applicable_basis": null,
+                "supportive": [
+                  "Sun"
+                ],
+                "challenging": [],
+                "mixed": [],
+                "unassessed": []
+              }
+            },
+            "bhavat_bhavam": {
+              "from_house": 10,
+              "bb_house": 7,
+              "bb_house_name": "ZQXMARSBBHOUSENAMEQ7",
+              "bb_lord": "Venus",
+              "bb_lord_position": {
+                "graha": "Venus",
+                "house": 12,
+                "sign": "ZQXMARSSIGNQ7",
+                "degree_in_sign": 21.3,
+                "dignity": "Enemy",
+                "dignity_label": "ZQXMARSDIGNITYLABELQ7",
+                "retrograde": true,
+                "vargottama": null
+              },
+              "sustaining": "weak",
+              "corpus_ref": {
+                "corpus": "BHAVAT_DESC",
+                "key": "10",
+                "graha": null,
+                "dignity": null,
+                "resolvable": true,
+                "varga": "D1"
+              }
+            },
+            "bhava_karaka": {
+              "house": 10,
+              "karakas": [
+                "Sun",
+                "Mercury"
+              ],
+              "karaka_positions": [
+                {
+                  "graha": "Sun",
+                  "house": 1,
+                  "sign": "ZQXMARSSIGNQ7",
+                  "degree_in_sign": 12.5,
+                  "dignity": "Moolatrikona",
+                  "dignity_label": "ZQXMARSDIGNITYLABELQ7",
+                  "retrograde": false,
+                  "vargottama": null
+                },
+                {
+                  "graha": "Mercury",
+                  "house": 6,
+                  "sign": "ZQXMARSSIGNQ7",
+                  "degree_in_sign": 3.1,
+                  "dignity": "Friend",
+                  "dignity_label": "ZQXMARSDIGNITYLABELQ7",
+                  "retrograde": false,
+                  "vargottama": null
+                }
+              ],
+              "primary_karaka": "Sun",
+              "karaka_support": "strong",
+              "subject_is_karaka_of_own_house": false,
+              "corpus_ref": {
+                "corpus": "BHAVA_KARAKA",
+                "key": "10",
+                "graha": null,
+                "dignity": null,
+                "resolvable": true,
+                "varga": "D1"
+              }
+            },
+            "shadbala": {
+              "computed_server_side": false,
+              "digbala": null,
+              "digbala_band": null,
+              "uchcha_bala": null,
+              "uchcha_band": null,
+              "naisargika_bala": null,
+              "naisargika_band": null,
+              "at_digbala_peak_house": true,
+              "note_key": "shadbala_phase6"
+            },
+            "graha_saar": {
+              "strength_verdict": "well_placed",
+              "natural_nature": "natural_malefic",
+              "natural_nature_basis": "ZQXMARSNATURALNATUREBASISQ7",
+              "has_lordship_doctrine": true,
+              "functional_nature": "mixed",
+              "verse_yoga_status": "none",
+              "ownership_yogakaraka": false,
+              "maraka_status": "none",
+              "functional_basis_verse": "ZQXMARSFUNCTIONALBASISVERSEQ7",
+              "functional_roles_publishable": true,
+              "retrograde": false,
+              "at_digbala_peak_house": true,
+              "is_natural_karaka_of_own_house": false,
+              "house_drishti": {
+                "subject": "ZQXMARSSUBJECTQ7",
+                "sources": [
+                  {
+                    "source": "Jupiter",
+                    "kind": "7th",
+                    "polarity": "supportive",
+                    "basis": "Jupiter: benefic — nat=benefic,fn=benefic,yoga=none,yk=False,maraka=none (7th dṛṣṭi)"
+                  }
+                ],
+                "net": "supportive",
+                "applicability": "applicable",
+                "not_applicable_basis": null,
+                "supportive": [
+                  "Jupiter"
+                ],
+                "challenging": [],
+                "mixed": [],
+                "unassessed": []
+              },
+              "bhavesh_drishti": {
+                "subject": "ZQXMARSSUBJECTQ7",
+                "sources": [
+                  {
+                    "source": "Sun",
+                    "kind": "7th",
+                    "polarity": "supportive",
+                    "basis": "Sun: benefic — nat=malefic,fn=benefic,yoga=none,yk=False,maraka=none (7th dṛṣṭi)"
+                  }
+                ],
+                "net": "supportive",
+                "applicability": "applicable",
+                "not_applicable_basis": null,
+                "supportive": [
+                  "Sun"
+                ],
+                "challenging": [],
+                "mixed": [],
+                "unassessed": []
+              },
+              "overall_verdict": "nuanced",
+              "verdict_factors": [
+                {
+                  "factor": "strength",
+                  "direction": "positive",
+                  "detail": "well_placed"
+                },
+                {
+                  "factor": "bhavesh",
+                  "direction": "negative",
+                  "detail": "sign lord weakly placed"
+                },
+                {
+                  "factor": "house_drishti",
+                  "direction": "positive",
+                  "detail": "supportive drishti"
+                },
+                {
+                  "factor": "bhava_karaka",
+                  "direction": "positive",
+                  "detail": "natural significator strong"
+                },
+                {
+                  "factor": "digbala_house",
+                  "direction": "positive",
+                  "detail": "house of maximum directional strength"
+                }
+              ]
+            },
+            "varga_dignity_shift": {
+              "applicability": "not_applicable",
+              "shift": "unknown",
+              "birth_dignity": "Great Friend",
+              "varga_dignity": "Great Friend",
+              "birth_rank": 3,
+              "varga_rank": 3,
+              "corpus_ref": null,
+              "basis": "ZQXMARSBASISQ7"
+            }
+          },
+          {
+            "synthesis_version": "d1-synthesis-0.1.0",
+            "varga": "D1",
+            "graha": "Mercury",
+            "position": {
+              "graha": "Mercury",
+              "house": 6,
+              "sign": "ZQXMERCURYSIGNQ7",
+              "degree_in_sign": 3.1,
+              "dignity": "Friend",
+              "dignity_label": "ZQXMERCURYDIGNITYLABELQ7",
+              "retrograde": false,
+              "vargottama": null
+            },
+            "rashi": {
+              "sign": "ZQXMERCURYSIGNQ7",
+              "sign_index": 5,
+              "dignity": "Friend",
+              "dignity_label": "ZQXMERCURYDIGNITYLABELQ7",
+              "sign_lord": {
+                "graha": "Mercury",
+                "house": 6,
+                "sign": "ZQXMERCURYSIGNQ7",
+                "degree_in_sign": 3.1,
+                "dignity": "Friend",
+                "dignity_label": "ZQXMERCURYDIGNITYLABELQ7",
+                "retrograde": false,
+                "vargottama": null
+              },
+              "corpus_ref": {
+                "corpus": "RASHI_CORPUS",
+                "key": "Friend",
+                "graha": "Mercury",
+                "dignity": "Friend",
+                "resolvable": true,
+                "varga": "D1"
+              }
+            },
+            "house": {
+              "house": 6,
+              "house_name": "ZQXMERCURYHOUSENAMEQ7",
+              "sign": "ZQXMERCURYSIGNQ7",
+              "house_lord": "Mercury",
+              "drishti": {
+                "subject": "ZQXMERCURYSUBJECTQ7",
+                "sources": [
+                  {
+                    "source": "Venus",
+                    "kind": "7th",
+                    "polarity": "challenging",
+                    "basis": "Venus: malefic — nat=benefic,fn=malefic,yoga=none,yk=False,maraka=primary_killer (7th dṛṣṭi)"
+                  }
+                ],
+                "net": "challenging",
+                "applicability": "applicable",
+                "not_applicable_basis": null,
+                "supportive": [],
+                "challenging": [
+                  "Venus"
+                ],
+                "mixed": [],
+                "unassessed": []
+              },
+              "corpus_ref": {
+                "corpus": "HOUSE_CORPUS",
+                "key": "6",
+                "graha": "Mercury",
+                "dignity": null,
+                "resolvable": true,
+                "varga": "D1"
+              }
+            },
+            "bhavesh": {
+              "bhavesh": "Mercury",
+              "of_sign": "ZQXMERCURYOFSIGNQ7",
+              "position": {
+                "graha": "Mercury",
+                "house": 6,
+                "sign": "ZQXMERCURYSIGNQ7",
+                "degree_in_sign": 3.1,
+                "dignity": "Friend",
+                "dignity_label": "ZQXMERCURYDIGNITYLABELQ7",
+                "retrograde": false,
+                "vargottama": null
+              },
+              "support": "moderate",
+              "retrograde_note": false,
+              "drishti": {
+                "subject": "ZQXMERCURYSUBJECTQ7",
+                "sources": [
+                  {
+                    "source": "Venus",
+                    "kind": "7th",
+                    "polarity": "challenging",
+                    "basis": "Venus: malefic — nat=benefic,fn=malefic,yoga=none,yk=False,maraka=primary_killer (7th dṛṣṭi)"
+                  }
+                ],
+                "net": "challenging",
+                "applicability": "applicable",
+                "not_applicable_basis": null,
+                "supportive": [],
+                "challenging": [
+                  "Venus"
+                ],
+                "mixed": [],
+                "unassessed": []
+              }
+            },
+            "bhavat_bhavam": {
+              "from_house": 6,
+              "bb_house": 11,
+              "bb_house_name": "ZQXMERCURYBBHOUSENAMEQ7",
+              "bb_lord": "Saturn",
+              "bb_lord_position": {
+                "graha": "Saturn",
+                "house": 7,
+                "sign": "ZQXMERCURYSIGNQ7",
+                "degree_in_sign": 5.9,
+                "dignity": "Great Enemy",
+                "dignity_label": "ZQXMERCURYDIGNITYLABELQ7",
+                "retrograde": false,
+                "vargottama": null
+              },
+              "sustaining": "weak",
+              "corpus_ref": {
+                "corpus": "BHAVAT_DESC",
+                "key": "6",
+                "graha": null,
+                "dignity": null,
+                "resolvable": true,
+                "varga": "D1"
+              }
+            },
+            "bhava_karaka": {
+              "house": 6,
+              "karakas": [
+                "Saturn",
+                "Mars"
+              ],
+              "karaka_positions": [
+                {
+                  "graha": "Saturn",
+                  "house": 7,
+                  "sign": "ZQXMERCURYSIGNQ7",
+                  "degree_in_sign": 5.9,
+                  "dignity": "Great Enemy",
+                  "dignity_label": "ZQXMERCURYDIGNITYLABELQ7",
+                  "retrograde": false,
+                  "vargottama": null
+                },
+                {
+                  "graha": "Mars",
+                  "house": 10,
+                  "sign": "ZQXMERCURYSIGNQ7",
+                  "degree_in_sign": 24.4,
+                  "dignity": "Great Friend",
+                  "dignity_label": "ZQXMERCURYDIGNITYLABELQ7",
+                  "retrograde": false,
+                  "vargottama": null
+                }
+              ],
+              "primary_karaka": "Saturn",
+              "karaka_support": "weak",
+              "subject_is_karaka_of_own_house": false,
+              "corpus_ref": {
+                "corpus": "BHAVA_KARAKA",
+                "key": "6",
+                "graha": null,
+                "dignity": null,
+                "resolvable": true,
+                "varga": "D1"
+              }
+            },
+            "shadbala": {
+              "computed_server_side": false,
+              "digbala": null,
+              "digbala_band": null,
+              "uchcha_bala": null,
+              "uchcha_band": null,
+              "naisargika_bala": null,
+              "naisargika_band": null,
+              "at_digbala_peak_house": false,
+              "note_key": "shadbala_phase6"
+            },
+            "graha_saar": {
+              "strength_verdict": "well_placed",
+              "natural_nature": "natural_benefic",
+              "natural_nature_basis": "ZQXMERCURYNATURALNATUREBASISQ7",
+              "has_lordship_doctrine": true,
+              "functional_nature": "malefic",
+              "verse_yoga_status": "none",
+              "ownership_yogakaraka": false,
+              "maraka_status": "qualified",
+              "functional_basis_verse": "ZQXMERCURYFUNCTIONALBASISVERSEQ7",
+              "functional_roles_publishable": true,
+              "retrograde": false,
+              "at_digbala_peak_house": false,
+              "is_natural_karaka_of_own_house": false,
+              "house_drishti": {
+                "subject": "ZQXMERCURYSUBJECTQ7",
+                "sources": [
+                  {
+                    "source": "Venus",
+                    "kind": "7th",
+                    "polarity": "challenging",
+                    "basis": "Venus: malefic — nat=benefic,fn=malefic,yoga=none,yk=False,maraka=primary_killer (7th dṛṣṭi)"
+                  }
+                ],
+                "net": "challenging",
+                "applicability": "applicable",
+                "not_applicable_basis": null,
+                "supportive": [],
+                "challenging": [
+                  "Venus"
+                ],
+                "mixed": [],
+                "unassessed": []
+              },
+              "bhavesh_drishti": {
+                "subject": "ZQXMERCURYSUBJECTQ7",
+                "sources": [
+                  {
+                    "source": "Venus",
+                    "kind": "7th",
+                    "polarity": "challenging",
+                    "basis": "Venus: malefic — nat=benefic,fn=malefic,yoga=none,yk=False,maraka=primary_killer (7th dṛṣṭi)"
+                  }
+                ],
+                "net": "challenging",
+                "applicability": "applicable",
+                "not_applicable_basis": null,
+                "supportive": [],
+                "challenging": [
+                  "Venus"
+                ],
+                "mixed": [],
+                "unassessed": []
+              },
+              "overall_verdict": "nuanced",
+              "verdict_factors": [
+                {
+                  "factor": "strength",
+                  "direction": "positive",
+                  "detail": "well_placed"
+                },
+                {
+                  "factor": "house_drishti",
+                  "direction": "negative",
+                  "detail": "challenging drishti"
+                },
+                {
+                  "factor": "bhava_karaka",
+                  "direction": "negative",
+                  "detail": "natural significator weak"
+                }
+              ]
+            },
+            "varga_dignity_shift": {
+              "applicability": "not_applicable",
+              "shift": "unknown",
+              "birth_dignity": "Friend",
+              "varga_dignity": "Friend",
+              "birth_rank": 3,
+              "varga_rank": 3,
+              "corpus_ref": null,
+              "basis": "ZQXMERCURYBASISQ7"
+            }
+          },
+          {
+            "synthesis_version": "d1-synthesis-0.1.0",
+            "varga": "D1",
+            "graha": "Jupiter",
+            "position": {
+              "graha": "Jupiter",
+              "house": 4,
+              "sign": "ZQXJUPITERSIGNQ7",
+              "degree_in_sign": 15.7,
+              "dignity": "Neutral",
+              "dignity_label": "ZQXJUPITERDIGNITYLABELQ7",
+              "retrograde": false,
+              "vargottama": null
+            },
+            "rashi": {
+              "sign": "ZQXJUPITERSIGNQ7",
+              "sign_index": 3,
+              "dignity": "Neutral",
+              "dignity_label": "ZQXJUPITERDIGNITYLABELQ7",
+              "sign_lord": {
+                "graha": "Moon",
+                "house": 2,
+                "sign": "ZQXJUPITERSIGNQ7",
+                "degree_in_sign": 8.2,
+                "dignity": "Own Sign",
+                "dignity_label": "ZQXJUPITERDIGNITYLABELQ7",
+                "retrograde": false,
+                "vargottama": null
+              },
+              "corpus_ref": {
+                "corpus": "RASHI_CORPUS",
+                "key": "Neutral",
+                "graha": "Jupiter",
+                "dignity": "Neutral",
+                "resolvable": true,
+                "varga": "D1"
+              }
+            },
+            "house": {
+              "house": 4,
+              "house_name": "ZQXJUPITERHOUSENAMEQ7",
+              "sign": "ZQXJUPITERSIGNQ7",
+              "house_lord": "Moon",
+              "drishti": {
+                "subject": "ZQXJUPITERSUBJECTQ7",
+                "sources": [
+                  {
+                    "source": "Mars",
+                    "kind": "7th",
+                    "polarity": "mixed",
+                    "basis": "Mars: functionally mixed — nat=malefic,fn=mixed,yoga=none,yk=False,maraka=none (7th dṛṣṭi)"
+                  },
+                  {
+                    "source": "Saturn",
+                    "kind": "10th",
+                    "polarity": "challenging",
+                    "basis": "Saturn: malefic — nat=malefic,fn=malefic,yoga=none,yk=False,maraka=qualified (10th dṛṣṭi)"
+                  }
+                ],
+                "net": "mixed",
+                "applicability": "applicable",
+                "not_applicable_basis": null,
+                "supportive": [],
+                "challenging": [
+                  "Saturn"
+                ],
+                "mixed": [
+                  "Mars"
+                ],
+                "unassessed": []
+              },
+              "corpus_ref": {
+                "corpus": "HOUSE_CORPUS",
+                "key": "4",
+                "graha": "Jupiter",
+                "dignity": null,
+                "resolvable": true,
+                "varga": "D1"
+              }
+            },
+            "bhavesh": {
+              "bhavesh": "Moon",
+              "of_sign": "ZQXJUPITEROFSIGNQ7",
+              "position": {
+                "graha": "Moon",
+                "house": 2,
+                "sign": "ZQXJUPITERSIGNQ7",
+                "degree_in_sign": 8.2,
+                "dignity": "Own Sign",
+                "dignity_label": "ZQXJUPITERDIGNITYLABELQ7",
+                "retrograde": false,
+                "vargottama": null
+              },
+              "support": "strong",
+              "retrograde_note": false,
+              "drishti": {
+                "subject": "ZQXJUPITERSUBJECTQ7",
+                "sources": [],
+                "net": "unassessed",
+                "applicability": "applicable",
+                "not_applicable_basis": null,
+                "supportive": [],
+                "challenging": [],
+                "mixed": [],
+                "unassessed": []
+              }
+            },
+            "bhavat_bhavam": {
+              "from_house": 4,
+              "bb_house": 7,
+              "bb_house_name": "ZQXJUPITERBBHOUSENAMEQ7",
+              "bb_lord": "Venus",
+              "bb_lord_position": {
+                "graha": "Venus",
+                "house": 12,
+                "sign": "ZQXJUPITERSIGNQ7",
+                "degree_in_sign": 21.3,
+                "dignity": "Enemy",
+                "dignity_label": "ZQXJUPITERDIGNITYLABELQ7",
+                "retrograde": true,
+                "vargottama": null
+              },
+              "sustaining": "weak",
+              "corpus_ref": {
+                "corpus": "BHAVAT_DESC",
+                "key": "4",
+                "graha": null,
+                "dignity": null,
+                "resolvable": true,
+                "varga": "D1"
+              }
+            },
+            "bhava_karaka": {
+              "house": 4,
+              "karakas": [
+                "Moon"
+              ],
+              "karaka_positions": [
+                {
+                  "graha": "Moon",
+                  "house": 2,
+                  "sign": "ZQXJUPITERSIGNQ7",
+                  "degree_in_sign": 8.2,
+                  "dignity": "Own Sign",
+                  "dignity_label": "ZQXJUPITERDIGNITYLABELQ7",
+                  "retrograde": false,
+                  "vargottama": null
+                }
+              ],
+              "primary_karaka": "Moon",
+              "karaka_support": "moderate",
+              "subject_is_karaka_of_own_house": false,
+              "corpus_ref": {
+                "corpus": "BHAVA_KARAKA",
+                "key": "4",
+                "graha": null,
+                "dignity": null,
+                "resolvable": true,
+                "varga": "D1"
+              }
+            },
+            "shadbala": {
+              "computed_server_side": false,
+              "digbala": null,
+              "digbala_band": null,
+              "uchcha_bala": null,
+              "uchcha_band": null,
+              "naisargika_bala": null,
+              "naisargika_band": null,
+              "at_digbala_peak_house": false,
+              "note_key": "shadbala_phase6"
+            },
+            "graha_saar": {
+              "strength_verdict": "neutral",
+              "natural_nature": "natural_benefic",
+              "natural_nature_basis": "ZQXJUPITERNATURALNATUREBASISQ7",
+              "has_lordship_doctrine": true,
+              "functional_nature": "benefic",
+              "verse_yoga_status": "none",
+              "ownership_yogakaraka": false,
+              "maraka_status": "none",
+              "functional_basis_verse": "ZQXJUPITERFUNCTIONALBASISVERSEQ7",
+              "functional_roles_publishable": true,
+              "retrograde": false,
+              "at_digbala_peak_house": false,
+              "is_natural_karaka_of_own_house": false,
+              "house_drishti": {
+                "subject": "ZQXJUPITERSUBJECTQ7",
+                "sources": [
+                  {
+                    "source": "Mars",
+                    "kind": "7th",
+                    "polarity": "mixed",
+                    "basis": "Mars: functionally mixed — nat=malefic,fn=mixed,yoga=none,yk=False,maraka=none (7th dṛṣṭi)"
+                  },
+                  {
+                    "source": "Saturn",
+                    "kind": "10th",
+                    "polarity": "challenging",
+                    "basis": "Saturn: malefic — nat=malefic,fn=malefic,yoga=none,yk=False,maraka=qualified (10th dṛṣṭi)"
+                  }
+                ],
+                "net": "mixed",
+                "applicability": "applicable",
+                "not_applicable_basis": null,
+                "supportive": [],
+                "challenging": [
+                  "Saturn"
+                ],
+                "mixed": [
+                  "Mars"
+                ],
+                "unassessed": []
+              },
+              "bhavesh_drishti": {
+                "subject": "ZQXJUPITERSUBJECTQ7",
+                "sources": [],
+                "net": "unassessed",
+                "applicability": "applicable",
+                "not_applicable_basis": null,
+                "supportive": [],
+                "challenging": [],
+                "mixed": [],
+                "unassessed": []
+              },
+              "overall_verdict": "nuanced",
+              "verdict_factors": [
+                {
+                  "factor": "bhavesh",
+                  "direction": "positive",
+                  "detail": "sign lord well placed"
+                },
+                {
+                  "factor": "house_drishti",
+                  "direction": "negative",
+                  "detail": "mixed drishti"
+                }
+              ]
+            },
+            "varga_dignity_shift": {
+              "applicability": "not_applicable",
+              "shift": "unknown",
+              "birth_dignity": "Neutral",
+              "varga_dignity": "Neutral",
+              "birth_rank": 2,
+              "varga_rank": 2,
+              "corpus_ref": null,
+              "basis": "ZQXJUPITERBASISQ7"
+            }
+          },
+          {
+            "synthesis_version": "d1-synthesis-0.1.0",
+            "varga": "D1",
+            "graha": "Venus",
+            "position": {
+              "graha": "Venus",
+              "house": 12,
+              "sign": "ZQXVENUSSIGNQ7",
+              "degree_in_sign": 21.3,
+              "dignity": "Enemy",
+              "dignity_label": "ZQXVENUSDIGNITYLABELQ7",
+              "retrograde": true,
+              "vargottama": null
+            },
+            "rashi": {
+              "sign": "ZQXVENUSSIGNQ7",
+              "sign_index": 11,
+              "dignity": "Enemy",
+              "dignity_label": "ZQXVENUSDIGNITYLABELQ7",
+              "sign_lord": {
+                "graha": "Jupiter",
+                "house": 4,
+                "sign": "ZQXVENUSSIGNQ7",
+                "degree_in_sign": 15.7,
+                "dignity": "Neutral",
+                "dignity_label": "ZQXVENUSDIGNITYLABELQ7",
+                "retrograde": false,
+                "vargottama": null
+              },
+              "corpus_ref": {
+                "corpus": "RASHI_CORPUS",
+                "key": "Enemy",
+                "graha": "Venus",
+                "dignity": "Enemy",
+                "resolvable": true,
+                "varga": "D1"
+              }
+            },
+            "house": {
+              "house": 12,
+              "house_name": "ZQXVENUSHOUSENAMEQ7",
+              "sign": "ZQXVENUSSIGNQ7",
+              "house_lord": "Jupiter",
+              "drishti": {
+                "subject": "ZQXVENUSSUBJECTQ7",
+                "sources": [
+                  {
+                    "source": "Mercury",
+                    "kind": "7th",
+                    "polarity": "challenging",
+                    "basis": "Mercury: malefic — nat=benefic,fn=malefic,yoga=none,yk=False,maraka=qualified (7th dṛṣṭi)"
+                  },
+                  {
+                    "source": "Jupiter",
+                    "kind": "9th",
+                    "polarity": "supportive",
+                    "basis": "Jupiter: benefic — nat=benefic,fn=benefic,yoga=none,yk=False,maraka=none (9th dṛṣṭi)"
+                  }
+                ],
+                "net": "mixed",
+                "applicability": "applicable",
+                "not_applicable_basis": null,
+                "supportive": [
+                  "Jupiter"
+                ],
+                "challenging": [
+                  "Mercury"
+                ],
+                "mixed": [],
+                "unassessed": []
+              },
+              "corpus_ref": {
+                "corpus": "HOUSE_CORPUS",
+                "key": "12",
+                "graha": "Venus",
+                "dignity": null,
+                "resolvable": true,
+                "varga": "D1"
+              }
+            },
+            "bhavesh": {
+              "bhavesh": "Jupiter",
+              "of_sign": "ZQXVENUSOFSIGNQ7",
+              "position": {
+                "graha": "Jupiter",
+                "house": 4,
+                "sign": "ZQXVENUSSIGNQ7",
+                "degree_in_sign": 15.7,
+                "dignity": "Neutral",
+                "dignity_label": "ZQXVENUSDIGNITYLABELQ7",
+                "retrograde": false,
+                "vargottama": null
+              },
+              "support": "moderate",
+              "retrograde_note": false,
+              "drishti": {
+                "subject": "ZQXVENUSSUBJECTQ7",
+                "sources": [
+                  {
+                    "source": "Mars",
+                    "kind": "7th",
+                    "polarity": "mixed",
+                    "basis": "Mars: functionally mixed — nat=malefic,fn=mixed,yoga=none,yk=False,maraka=none (7th dṛṣṭi)"
+                  },
+                  {
+                    "source": "Saturn",
+                    "kind": "10th",
+                    "polarity": "challenging",
+                    "basis": "Saturn: malefic — nat=malefic,fn=malefic,yoga=none,yk=False,maraka=qualified (10th dṛṣṭi)"
+                  }
+                ],
+                "net": "mixed",
+                "applicability": "applicable",
+                "not_applicable_basis": null,
+                "supportive": [],
+                "challenging": [
+                  "Saturn"
+                ],
+                "mixed": [
+                  "Mars"
+                ],
+                "unassessed": []
+              }
+            },
+            "bhavat_bhavam": {
+              "from_house": 12,
+              "bb_house": 11,
+              "bb_house_name": "ZQXVENUSBBHOUSENAMEQ7",
+              "bb_lord": "Saturn",
+              "bb_lord_position": {
+                "graha": "Saturn",
+                "house": 7,
+                "sign": "ZQXVENUSSIGNQ7",
+                "degree_in_sign": 5.9,
+                "dignity": "Great Enemy",
+                "dignity_label": "ZQXVENUSDIGNITYLABELQ7",
+                "retrograde": false,
+                "vargottama": null
+              },
+              "sustaining": "weak",
+              "corpus_ref": {
+                "corpus": "BHAVAT_DESC",
+                "key": "12",
+                "graha": null,
+                "dignity": null,
+                "resolvable": true,
+                "varga": "D1"
+              }
+            },
+            "bhava_karaka": {
+              "house": 12,
+              "karakas": [
+                "Saturn"
+              ],
+              "karaka_positions": [
+                {
+                  "graha": "Saturn",
+                  "house": 7,
+                  "sign": "ZQXVENUSSIGNQ7",
+                  "degree_in_sign": 5.9,
+                  "dignity": "Great Enemy",
+                  "dignity_label": "ZQXVENUSDIGNITYLABELQ7",
+                  "retrograde": false,
+                  "vargottama": null
+                }
+              ],
+              "primary_karaka": "Saturn",
+              "karaka_support": "weak",
+              "subject_is_karaka_of_own_house": false,
+              "corpus_ref": {
+                "corpus": "BHAVA_KARAKA",
+                "key": "12",
+                "graha": null,
+                "dignity": null,
+                "resolvable": true,
+                "varga": "D1"
+              }
+            },
+            "shadbala": {
+              "computed_server_side": false,
+              "digbala": null,
+              "digbala_band": null,
+              "uchcha_bala": null,
+              "uchcha_band": null,
+              "naisargika_bala": null,
+              "naisargika_band": null,
+              "at_digbala_peak_house": false,
+              "note_key": "shadbala_phase6"
+            },
+            "graha_saar": {
+              "strength_verdict": "strained",
+              "natural_nature": "natural_benefic",
+              "natural_nature_basis": "ZQXVENUSNATURALNATUREBASISQ7",
+              "has_lordship_doctrine": true,
+              "functional_nature": "malefic",
+              "verse_yoga_status": "none",
+              "ownership_yogakaraka": false,
+              "maraka_status": "primary_killer",
+              "functional_basis_verse": "ZQXVENUSFUNCTIONALBASISVERSEQ7",
+              "functional_roles_publishable": true,
+              "retrograde": true,
+              "at_digbala_peak_house": false,
+              "is_natural_karaka_of_own_house": false,
+              "house_drishti": {
+                "subject": "ZQXVENUSSUBJECTQ7",
+                "sources": [
+                  {
+                    "source": "Mercury",
+                    "kind": "7th",
+                    "polarity": "challenging",
+                    "basis": "Mercury: malefic — nat=benefic,fn=malefic,yoga=none,yk=False,maraka=qualified (7th dṛṣṭi)"
+                  },
+                  {
+                    "source": "Jupiter",
+                    "kind": "9th",
+                    "polarity": "supportive",
+                    "basis": "Jupiter: benefic — nat=benefic,fn=benefic,yoga=none,yk=False,maraka=none (9th dṛṣṭi)"
+                  }
+                ],
+                "net": "mixed",
+                "applicability": "applicable",
+                "not_applicable_basis": null,
+                "supportive": [
+                  "Jupiter"
+                ],
+                "challenging": [
+                  "Mercury"
+                ],
+                "mixed": [],
+                "unassessed": []
+              },
+              "bhavesh_drishti": {
+                "subject": "ZQXVENUSSUBJECTQ7",
+                "sources": [
+                  {
+                    "source": "Mars",
+                    "kind": "7th",
+                    "polarity": "mixed",
+                    "basis": "Mars: functionally mixed — nat=malefic,fn=mixed,yoga=none,yk=False,maraka=none (7th dṛṣṭi)"
+                  },
+                  {
+                    "source": "Saturn",
+                    "kind": "10th",
+                    "polarity": "challenging",
+                    "basis": "Saturn: malefic — nat=malefic,fn=malefic,yoga=none,yk=False,maraka=qualified (10th dṛṣṭi)"
+                  }
+                ],
+                "net": "mixed",
+                "applicability": "applicable",
+                "not_applicable_basis": null,
+                "supportive": [],
+                "challenging": [
+                  "Saturn"
+                ],
+                "mixed": [
+                  "Mars"
+                ],
+                "unassessed": []
+              },
+              "overall_verdict": "nuanced",
+              "verdict_factors": [
+                {
+                  "factor": "strength",
+                  "direction": "negative",
+                  "detail": "strained"
+                },
+                {
+                  "factor": "house_drishti",
+                  "direction": "negative",
+                  "detail": "mixed drishti"
+                },
+                {
+                  "factor": "bhava_karaka",
+                  "direction": "negative",
+                  "detail": "natural significator weak"
+                }
+              ]
+            },
+            "varga_dignity_shift": {
+              "applicability": "not_applicable",
+              "shift": "unknown",
+              "birth_dignity": "Enemy",
+              "varga_dignity": "Enemy",
+              "birth_rank": 1,
+              "varga_rank": 1,
+              "corpus_ref": null,
+              "basis": "ZQXVENUSBASISQ7"
+            }
+          },
+          {
+            "synthesis_version": "d1-synthesis-0.1.0",
+            "varga": "D1",
+            "graha": "Saturn",
+            "position": {
+              "graha": "Saturn",
+              "house": 7,
+              "sign": "ZQXSATURNSIGNQ7",
+              "degree_in_sign": 5.9,
+              "dignity": "Great Enemy",
+              "dignity_label": "ZQXSATURNDIGNITYLABELQ7",
+              "retrograde": false,
+              "vargottama": null
+            },
+            "rashi": {
+              "sign": "ZQXSATURNSIGNQ7",
+              "sign_index": 6,
+              "dignity": "Great Enemy",
+              "dignity_label": "ZQXSATURNDIGNITYLABELQ7",
+              "sign_lord": {
+                "graha": "Venus",
+                "house": 12,
+                "sign": "ZQXSATURNSIGNQ7",
+                "degree_in_sign": 21.3,
+                "dignity": "Enemy",
+                "dignity_label": "ZQXSATURNDIGNITYLABELQ7",
+                "retrograde": true,
+                "vargottama": null
+              },
+              "corpus_ref": {
+                "corpus": "RASHI_CORPUS",
+                "key": "Great Enemy",
+                "graha": "Saturn",
+                "dignity": "Great Enemy",
+                "resolvable": true,
+                "varga": "D1"
+              }
+            },
+            "house": {
+              "house": 7,
+              "house_name": "ZQXSATURNHOUSENAMEQ7",
+              "sign": "ZQXSATURNSIGNQ7",
+              "house_lord": "Venus",
+              "drishti": {
+                "subject": "ZQXSATURNSUBJECTQ7",
+                "sources": [
+                  {
+                    "source": "Sun",
+                    "kind": "7th",
+                    "polarity": "supportive",
+                    "basis": "Sun: benefic — nat=malefic,fn=benefic,yoga=none,yk=False,maraka=none (7th dṛṣṭi)"
+                  }
+                ],
+                "net": "supportive",
+                "applicability": "applicable",
+                "not_applicable_basis": null,
+                "supportive": [
+                  "Sun"
+                ],
+                "challenging": [],
+                "mixed": [],
+                "unassessed": []
+              },
+              "corpus_ref": {
+                "corpus": "HOUSE_CORPUS",
+                "key": "7",
+                "graha": "Saturn",
+                "dignity": null,
+                "resolvable": true,
+                "varga": "D1"
+              }
+            },
+            "bhavesh": {
+              "bhavesh": "Venus",
+              "of_sign": "ZQXSATURNOFSIGNQ7",
+              "position": {
+                "graha": "Venus",
+                "house": 12,
+                "sign": "ZQXSATURNSIGNQ7",
+                "degree_in_sign": 21.3,
+                "dignity": "Enemy",
+                "dignity_label": "ZQXSATURNDIGNITYLABELQ7",
+                "retrograde": true,
+                "vargottama": null
+              },
+              "support": "weak",
+              "retrograde_note": true,
+              "drishti": {
+                "subject": "ZQXSATURNSUBJECTQ7",
+                "sources": [
+                  {
+                    "source": "Mercury",
+                    "kind": "7th",
+                    "polarity": "challenging",
+                    "basis": "Mercury: malefic — nat=benefic,fn=malefic,yoga=none,yk=False,maraka=qualified (7th dṛṣṭi)"
+                  },
+                  {
+                    "source": "Jupiter",
+                    "kind": "9th",
+                    "polarity": "supportive",
+                    "basis": "Jupiter: benefic — nat=benefic,fn=benefic,yoga=none,yk=False,maraka=none (9th dṛṣṭi)"
+                  }
+                ],
+                "net": "mixed",
+                "applicability": "applicable",
+                "not_applicable_basis": null,
+                "supportive": [
+                  "Jupiter"
+                ],
+                "challenging": [
+                  "Mercury"
+                ],
+                "mixed": [],
+                "unassessed": []
+              }
+            },
+            "bhavat_bhavam": {
+              "from_house": 7,
+              "bb_house": 1,
+              "bb_house_name": "ZQXSATURNBBHOUSENAMEQ7",
+              "bb_lord": "Mars",
+              "bb_lord_position": {
+                "graha": "Mars",
+                "house": 10,
+                "sign": "ZQXSATURNSIGNQ7",
+                "degree_in_sign": 24.4,
+                "dignity": "Great Friend",
+                "dignity_label": "ZQXSATURNDIGNITYLABELQ7",
+                "retrograde": false,
+                "vargottama": null
+              },
+              "sustaining": "moderate",
+              "corpus_ref": {
+                "corpus": "BHAVAT_DESC",
+                "key": "7",
+                "graha": null,
+                "dignity": null,
+                "resolvable": true,
+                "varga": "D1"
+              }
+            },
+            "bhava_karaka": {
+              "house": 7,
+              "karakas": [
+                "Venus"
+              ],
+              "karaka_positions": [
+                {
+                  "graha": "Venus",
+                  "house": 12,
+                  "sign": "ZQXSATURNSIGNQ7",
+                  "degree_in_sign": 21.3,
+                  "dignity": "Enemy",
+                  "dignity_label": "ZQXSATURNDIGNITYLABELQ7",
+                  "retrograde": true,
+                  "vargottama": null
+                }
+              ],
+              "primary_karaka": "Venus",
+              "karaka_support": "weak",
+              "subject_is_karaka_of_own_house": false,
+              "corpus_ref": {
+                "corpus": "BHAVA_KARAKA",
+                "key": "7",
+                "graha": null,
+                "dignity": null,
+                "resolvable": true,
+                "varga": "D1"
+              }
+            },
+            "shadbala": {
+              "computed_server_side": false,
+              "digbala": null,
+              "digbala_band": null,
+              "uchcha_bala": null,
+              "uchcha_band": null,
+              "naisargika_bala": null,
+              "naisargika_band": null,
+              "at_digbala_peak_house": true,
+              "note_key": "shadbala_phase6"
+            },
+            "graha_saar": {
+              "strength_verdict": "weakened",
+              "natural_nature": "natural_malefic",
+              "natural_nature_basis": "ZQXSATURNNATURALNATUREBASISQ7",
+              "has_lordship_doctrine": true,
+              "functional_nature": "malefic",
+              "verse_yoga_status": "none",
+              "ownership_yogakaraka": false,
+              "maraka_status": "qualified",
+              "functional_basis_verse": "ZQXSATURNFUNCTIONALBASISVERSEQ7",
+              "functional_roles_publishable": true,
+              "retrograde": false,
+              "at_digbala_peak_house": true,
+              "is_natural_karaka_of_own_house": false,
+              "house_drishti": {
+                "subject": "ZQXSATURNSUBJECTQ7",
+                "sources": [
+                  {
+                    "source": "Sun",
+                    "kind": "7th",
+                    "polarity": "supportive",
+                    "basis": "Sun: benefic — nat=malefic,fn=benefic,yoga=none,yk=False,maraka=none (7th dṛṣṭi)"
+                  }
+                ],
+                "net": "supportive",
+                "applicability": "applicable",
+                "not_applicable_basis": null,
+                "supportive": [
+                  "Sun"
+                ],
+                "challenging": [],
+                "mixed": [],
+                "unassessed": []
+              },
+              "bhavesh_drishti": {
+                "subject": "ZQXSATURNSUBJECTQ7",
+                "sources": [
+                  {
+                    "source": "Mercury",
+                    "kind": "7th",
+                    "polarity": "challenging",
+                    "basis": "Mercury: malefic — nat=benefic,fn=malefic,yoga=none,yk=False,maraka=qualified (7th dṛṣṭi)"
+                  },
+                  {
+                    "source": "Jupiter",
+                    "kind": "9th",
+                    "polarity": "supportive",
+                    "basis": "Jupiter: benefic — nat=benefic,fn=benefic,yoga=none,yk=False,maraka=none (9th dṛṣṭi)"
+                  }
+                ],
+                "net": "mixed",
+                "applicability": "applicable",
+                "not_applicable_basis": null,
+                "supportive": [
+                  "Jupiter"
+                ],
+                "challenging": [
+                  "Mercury"
+                ],
+                "mixed": [],
+                "unassessed": []
+              },
+              "overall_verdict": "nuanced",
+              "verdict_factors": [
+                {
+                  "factor": "strength",
+                  "direction": "negative",
+                  "detail": "weakened"
+                },
+                {
+                  "factor": "bhavesh",
+                  "direction": "negative",
+                  "detail": "sign lord weakly placed"
+                },
+                {
+                  "factor": "house_drishti",
+                  "direction": "positive",
+                  "detail": "supportive drishti"
+                },
+                {
+                  "factor": "bhava_karaka",
+                  "direction": "negative",
+                  "detail": "natural significator weak"
+                },
+                {
+                  "factor": "digbala_house",
+                  "direction": "positive",
+                  "detail": "house of maximum directional strength"
+                }
+              ]
+            },
+            "varga_dignity_shift": {
+              "applicability": "not_applicable",
+              "shift": "unknown",
+              "birth_dignity": "Great Enemy",
+              "varga_dignity": "Great Enemy",
+              "birth_rank": 1,
+              "varga_rank": 1,
+              "corpus_ref": null,
+              "basis": "ZQXSATURNBASISQ7"
+            }
+          },
+          {
+            "synthesis_version": "d1-synthesis-0.1.0",
+            "varga": "D1",
+            "graha": "Rahu",
+            "position": {
+              "graha": "Rahu",
+              "house": 2,
+              "sign": "ZQXRAHUSIGNQ7",
+              "degree_in_sign": 17.0,
+              "dignity": null,
+              "dignity_label": null,
+              "retrograde": true,
+              "vargottama": null
+            },
+            "rashi": {
+              "sign": "ZQXRAHUSIGNQ7",
+              "sign_index": 1,
+              "dignity": null,
+              "dignity_label": null,
+              "sign_lord": {
+                "graha": "Venus",
+                "house": 12,
+                "sign": "ZQXRAHUSIGNQ7",
+                "degree_in_sign": 21.3,
+                "dignity": "Enemy",
+                "dignity_label": "ZQXRAHUDIGNITYLABELQ7",
+                "retrograde": true,
+                "vargottama": null
+              },
+              "corpus_ref": {
+                "corpus": "RASHI_CORPUS",
+                "key": "",
+                "graha": "Rahu",
+                "dignity": null,
+                "resolvable": false,
+                "varga": "D1"
+              }
+            },
+            "house": {
+              "house": 2,
+              "house_name": "ZQXRAHUHOUSENAMEQ7",
+              "sign": "ZQXRAHUSIGNQ7",
+              "house_lord": "Venus",
+              "drishti": {
+                "subject": "ZQXRAHUSUBJECTQ7",
+                "sources": [],
+                "net": "unassessed",
+                "applicability": "applicable",
+                "not_applicable_basis": null,
+                "supportive": [],
+                "challenging": [],
+                "mixed": [],
+                "unassessed": []
+              },
+              "corpus_ref": {
+                "corpus": "HOUSE_CORPUS",
+                "key": "2",
+                "graha": "Rahu",
+                "dignity": null,
+                "resolvable": true,
+                "varga": "D1"
+              }
+            },
+            "bhavesh": {
+              "bhavesh": "Venus",
+              "of_sign": "ZQXRAHUOFSIGNQ7",
+              "position": {
+                "graha": "Venus",
+                "house": 12,
+                "sign": "ZQXRAHUSIGNQ7",
+                "degree_in_sign": 21.3,
+                "dignity": "Enemy",
+                "dignity_label": "ZQXRAHUDIGNITYLABELQ7",
+                "retrograde": true,
+                "vargottama": null
+              },
+              "support": "weak",
+              "retrograde_note": true,
+              "drishti": {
+                "subject": "ZQXRAHUSUBJECTQ7",
+                "sources": [
+                  {
+                    "source": "Mercury",
+                    "kind": "7th",
+                    "polarity": "challenging",
+                    "basis": "Mercury: malefic — nat=benefic,fn=malefic,yoga=none,yk=False,maraka=qualified (7th dṛṣṭi)"
+                  },
+                  {
+                    "source": "Jupiter",
+                    "kind": "9th",
+                    "polarity": "supportive",
+                    "basis": "Jupiter: benefic — nat=benefic,fn=benefic,yoga=none,yk=False,maraka=none (9th dṛṣṭi)"
+                  }
+                ],
+                "net": "mixed",
+                "applicability": "applicable",
+                "not_applicable_basis": null,
+                "supportive": [
+                  "Jupiter"
+                ],
+                "challenging": [
+                  "Mercury"
+                ],
+                "mixed": [],
+                "unassessed": []
+              }
+            },
+            "bhavat_bhavam": {
+              "from_house": 2,
+              "bb_house": 3,
+              "bb_house_name": "ZQXRAHUBBHOUSENAMEQ7",
+              "bb_lord": "Mercury",
+              "bb_lord_position": {
+                "graha": "Mercury",
+                "house": 6,
+                "sign": "ZQXRAHUSIGNQ7",
+                "degree_in_sign": 3.1,
+                "dignity": "Friend",
+                "dignity_label": "ZQXRAHUDIGNITYLABELQ7",
+                "retrograde": false,
+                "vargottama": null
+              },
+              "sustaining": "moderate",
+              "corpus_ref": {
+                "corpus": "BHAVAT_DESC",
+                "key": "2",
+                "graha": null,
+                "dignity": null,
+                "resolvable": true,
+                "varga": "D1"
+              }
+            },
+            "bhava_karaka": {
+              "house": 2,
+              "karakas": [
+                "Jupiter"
+              ],
+              "karaka_positions": [
+                {
+                  "graha": "Jupiter",
+                  "house": 4,
+                  "sign": "ZQXRAHUSIGNQ7",
+                  "degree_in_sign": 15.7,
+                  "dignity": "Neutral",
+                  "dignity_label": "ZQXRAHUDIGNITYLABELQ7",
+                  "retrograde": false,
+                  "vargottama": null
+                }
+              ],
+              "primary_karaka": "Jupiter",
+              "karaka_support": "moderate",
+              "subject_is_karaka_of_own_house": false,
+              "corpus_ref": {
+                "corpus": "BHAVA_KARAKA",
+                "key": "2",
+                "graha": null,
+                "dignity": null,
+                "resolvable": true,
+                "varga": "D1"
+              }
+            },
+            "shadbala": {
+              "computed_server_side": false,
+              "digbala": null,
+              "digbala_band": null,
+              "uchcha_bala": null,
+              "uchcha_band": null,
+              "naisargika_bala": null,
+              "naisargika_band": null,
+              "at_digbala_peak_house": false,
+              "note_key": "shadbala_phase6"
+            },
+            "graha_saar": {
+              "strength_verdict": "unknown",
+              "natural_nature": "natural_malefic",
+              "natural_nature_basis": "ZQXRAHUNATURALNATUREBASISQ7",
+              "has_lordship_doctrine": false,
+              "functional_nature": null,
+              "verse_yoga_status": null,
+              "ownership_yogakaraka": null,
+              "maraka_status": null,
+              "functional_basis_verse": null,
+              "functional_roles_publishable": true,
+              "retrograde": true,
+              "at_digbala_peak_house": false,
+              "is_natural_karaka_of_own_house": false,
+              "house_drishti": {
+                "subject": "ZQXRAHUSUBJECTQ7",
+                "sources": [],
+                "net": "unassessed",
+                "applicability": "applicable",
+                "not_applicable_basis": null,
+                "supportive": [],
+                "challenging": [],
+                "mixed": [],
+                "unassessed": []
+              },
+              "bhavesh_drishti": {
+                "subject": "ZQXRAHUSUBJECTQ7",
+                "sources": [
+                  {
+                    "source": "Mercury",
+                    "kind": "7th",
+                    "polarity": "challenging",
+                    "basis": "Mercury: malefic — nat=benefic,fn=malefic,yoga=none,yk=False,maraka=qualified (7th dṛṣṭi)"
+                  },
+                  {
+                    "source": "Jupiter",
+                    "kind": "9th",
+                    "polarity": "supportive",
+                    "basis": "Jupiter: benefic — nat=benefic,fn=benefic,yoga=none,yk=False,maraka=none (9th dṛṣṭi)"
+                  }
+                ],
+                "net": "mixed",
+                "applicability": "applicable",
+                "not_applicable_basis": null,
+                "supportive": [
+                  "Jupiter"
+                ],
+                "challenging": [
+                  "Mercury"
+                ],
+                "mixed": [],
+                "unassessed": []
+              },
+              "overall_verdict": "nuanced",
+              "verdict_factors": [
+                {
+                  "factor": "bhavesh",
+                  "direction": "negative",
+                  "detail": "sign lord weakly placed"
+                }
+              ]
+            },
+            "varga_dignity_shift": {
+              "applicability": "not_applicable",
+              "shift": "unknown",
+              "birth_dignity": null,
+              "varga_dignity": null,
+              "birth_rank": null,
+              "varga_rank": null,
+              "corpus_ref": null,
+              "basis": "ZQXRAHUBASISQ7"
+            }
+          },
+          {
+            "synthesis_version": "d1-synthesis-0.1.0",
+            "varga": "D1",
+            "graha": "Ketu",
+            "position": {
+              "graha": "Ketu",
+              "house": 8,
+              "sign": "ZQXKETUSIGNQ7",
+              "degree_in_sign": 17.0,
+              "dignity": null,
+              "dignity_label": null,
+              "retrograde": true,
+              "vargottama": null
+            },
+            "rashi": {
+              "sign": "ZQXKETUSIGNQ7",
+              "sign_index": 7,
+              "dignity": null,
+              "dignity_label": null,
+              "sign_lord": {
+                "graha": "Mars",
+                "house": 10,
+                "sign": "ZQXKETUSIGNQ7",
+                "degree_in_sign": 24.4,
+                "dignity": "Great Friend",
+                "dignity_label": "ZQXKETUDIGNITYLABELQ7",
+                "retrograde": false,
+                "vargottama": null
+              },
+              "corpus_ref": {
+                "corpus": "RASHI_CORPUS",
+                "key": "",
+                "graha": "Ketu",
+                "dignity": null,
+                "resolvable": false,
+                "varga": "D1"
+              }
+            },
+            "house": {
+              "house": 8,
+              "house_name": "ZQXKETUHOUSENAMEQ7",
+              "sign": "ZQXKETUSIGNQ7",
+              "house_lord": "Mars",
+              "drishti": {
+                "subject": "ZQXKETUSUBJECTQ7",
+                "sources": [
+                  {
+                    "source": "Moon",
+                    "kind": "7th",
+                    "polarity": "mixed",
+                    "basis": "Moon: functionally mixed — nat=benefic,fn=mixed,yoga=none,yk=False,maraka=none (7th dṛṣṭi)"
+                  },
+                  {
+                    "source": "Jupiter",
+                    "kind": "5th",
+                    "polarity": "supportive",
+                    "basis": "Jupiter: benefic — nat=benefic,fn=benefic,yoga=none,yk=False,maraka=none (5th dṛṣṭi)"
+                  }
+                ],
+                "net": "mixed",
+                "applicability": "applicable",
+                "not_applicable_basis": null,
+                "supportive": [
+                  "Jupiter"
+                ],
+                "challenging": [],
+                "mixed": [
+                  "Moon"
+                ],
+                "unassessed": []
+              },
+              "corpus_ref": {
+                "corpus": "HOUSE_CORPUS",
+                "key": "8",
+                "graha": "Ketu",
+                "dignity": null,
+                "resolvable": true,
+                "varga": "D1"
+              }
+            },
+            "bhavesh": {
+              "bhavesh": "Mars",
+              "of_sign": "ZQXKETUOFSIGNQ7",
+              "position": {
+                "graha": "Mars",
+                "house": 10,
+                "sign": "ZQXKETUSIGNQ7",
+                "degree_in_sign": 24.4,
+                "dignity": "Great Friend",
+                "dignity_label": "ZQXKETUDIGNITYLABELQ7",
+                "retrograde": false,
+                "vargottama": null
+              },
+              "support": "moderate",
+              "retrograde_note": false,
+              "drishti": {
+                "subject": "ZQXKETUSUBJECTQ7",
+                "sources": [
+                  {
+                    "source": "Jupiter",
+                    "kind": "7th",
+                    "polarity": "supportive",
+                    "basis": "Jupiter: benefic — nat=benefic,fn=benefic,yoga=none,yk=False,maraka=none (7th dṛṣṭi)"
+                  }
+                ],
+                "net": "supportive",
+                "applicability": "applicable",
+                "not_applicable_basis": null,
+                "supportive": [
+                  "Jupiter"
+                ],
+                "challenging": [],
+                "mixed": [],
+                "unassessed": []
+              }
+            },
+            "bhavat_bhavam": {
+              "from_house": 8,
+              "bb_house": 3,
+              "bb_house_name": "ZQXKETUBBHOUSENAMEQ7",
+              "bb_lord": "Mercury",
+              "bb_lord_position": {
+                "graha": "Mercury",
+                "house": 6,
+                "sign": "ZQXKETUSIGNQ7",
+                "degree_in_sign": 3.1,
+                "dignity": "Friend",
+                "dignity_label": "ZQXKETUDIGNITYLABELQ7",
+                "retrograde": false,
+                "vargottama": null
+              },
+              "sustaining": "moderate",
+              "corpus_ref": {
+                "corpus": "BHAVAT_DESC",
+                "key": "8",
+                "graha": null,
+                "dignity": null,
+                "resolvable": true,
+                "varga": "D1"
+              }
+            },
+            "bhava_karaka": {
+              "house": 8,
+              "karakas": [
+                "Saturn"
+              ],
+              "karaka_positions": [
+                {
+                  "graha": "Saturn",
+                  "house": 7,
+                  "sign": "ZQXKETUSIGNQ7",
+                  "degree_in_sign": 5.9,
+                  "dignity": "Great Enemy",
+                  "dignity_label": "ZQXKETUDIGNITYLABELQ7",
+                  "retrograde": false,
+                  "vargottama": null
+                }
+              ],
+              "primary_karaka": "Saturn",
+              "karaka_support": "weak",
+              "subject_is_karaka_of_own_house": false,
+              "corpus_ref": {
+                "corpus": "BHAVA_KARAKA",
+                "key": "8",
+                "graha": null,
+                "dignity": null,
+                "resolvable": true,
+                "varga": "D1"
+              }
+            },
+            "shadbala": {
+              "computed_server_side": false,
+              "digbala": null,
+              "digbala_band": null,
+              "uchcha_bala": null,
+              "uchcha_band": null,
+              "naisargika_bala": null,
+              "naisargika_band": null,
+              "at_digbala_peak_house": false,
+              "note_key": "shadbala_phase6"
+            },
+            "graha_saar": {
+              "strength_verdict": "unknown",
+              "natural_nature": "natural_malefic",
+              "natural_nature_basis": "ZQXKETUNATURALNATUREBASISQ7",
+              "has_lordship_doctrine": false,
+              "functional_nature": null,
+              "verse_yoga_status": null,
+              "ownership_yogakaraka": null,
+              "maraka_status": null,
+              "functional_basis_verse": null,
+              "functional_roles_publishable": true,
+              "retrograde": true,
+              "at_digbala_peak_house": false,
+              "is_natural_karaka_of_own_house": false,
+              "house_drishti": {
+                "subject": "ZQXKETUSUBJECTQ7",
+                "sources": [
+                  {
+                    "source": "Moon",
+                    "kind": "7th",
+                    "polarity": "mixed",
+                    "basis": "Moon: functionally mixed — nat=benefic,fn=mixed,yoga=none,yk=False,maraka=none (7th dṛṣṭi)"
+                  },
+                  {
+                    "source": "Jupiter",
+                    "kind": "5th",
+                    "polarity": "supportive",
+                    "basis": "Jupiter: benefic — nat=benefic,fn=benefic,yoga=none,yk=False,maraka=none (5th dṛṣṭi)"
+                  }
+                ],
+                "net": "mixed",
+                "applicability": "applicable",
+                "not_applicable_basis": null,
+                "supportive": [
+                  "Jupiter"
+                ],
+                "challenging": [],
+                "mixed": [
+                  "Moon"
+                ],
+                "unassessed": []
+              },
+              "bhavesh_drishti": {
+                "subject": "ZQXKETUSUBJECTQ7",
+                "sources": [
+                  {
+                    "source": "Jupiter",
+                    "kind": "7th",
+                    "polarity": "supportive",
+                    "basis": "Jupiter: benefic — nat=benefic,fn=benefic,yoga=none,yk=False,maraka=none (7th dṛṣṭi)"
+                  }
+                ],
+                "net": "supportive",
+                "applicability": "applicable",
+                "not_applicable_basis": null,
+                "supportive": [
+                  "Jupiter"
+                ],
+                "challenging": [],
+                "mixed": [],
+                "unassessed": []
+              },
+              "overall_verdict": "nuanced",
+              "verdict_factors": [
+                {
+                  "factor": "house_drishti",
+                  "direction": "negative",
+                  "detail": "mixed drishti"
+                },
+                {
+                  "factor": "bhava_karaka",
+                  "direction": "negative",
+                  "detail": "natural significator weak"
+                }
+              ]
+            },
+            "varga_dignity_shift": {
+              "applicability": "not_applicable",
+              "shift": "unknown",
+              "birth_dignity": null,
+              "varga_dignity": null,
+              "birth_rank": null,
+              "varga_rank": null,
+              "corpus_ref": null,
+              "basis": "ZQXKETUBASISQ7"
+            }
+          }
+        ]
+      }
+    },
+    "unresolvable_rashi_refs": 2
+  }
+}
