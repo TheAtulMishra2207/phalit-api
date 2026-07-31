@@ -52,7 +52,14 @@ ACCEPTED_MODULE_FILES = ["d1_contract.py", "d1_engine.py",
                          # hashed AND imported here so the pin is backed by the
                          # same evidence as its neighbours rather than by a bare
                          # digest.
-                         "d1_chart_adapter.py"]
+                         "d1_chart_adapter.py",
+                         # KAR-093-B04: the ROUTE is the last join the gate
+                         # cannot see, because gate v3 stubs the network
+                         # boundary and never reaches it. Hashed AND imported
+                         # AND identity-checked, same treatment as the adapter.
+                         # NOTE: importing it pulls fastapi into the verifier's
+                         # environment, which previously needed only pydantic.
+                         "d1_routes.py"]
 
 
 def sha256_file(path):
@@ -137,6 +144,7 @@ def main():
         import d1_functional_roles
         import d1_synthesis
         import d1_chart_adapter
+        import d1_routes
         import kar093_p6_generate_fixture as GEN
     except Exception as exc:
         fail("import of the accepted modules failed: %r" % (exc,))
@@ -149,6 +157,7 @@ def main():
         "d1_functional_roles.py": d1_functional_roles,
         "d1_synthesis.py": d1_synthesis,
         "d1_chart_adapter.py": d1_chart_adapter,
+        "d1_routes.py": d1_routes,
     }
     for name, mod in loaded.items():
         imported_from = os.path.realpath(getattr(mod, "__file__", "") or "")
@@ -170,6 +179,7 @@ def main():
             "roles_shares_contract_graha": getattr(d1_functional_roles, "Graha", None) is base,
             "generator_shares_contract_graha": getattr(GEN, "Graha", None) is base,
             "adapter_shares_contract_graha": getattr(d1_chart_adapter, "Graha", None) is base,
+            "routes_share_contract_varga": getattr(d1_routes, "Varga", None) is d1_contract.Varga,
         }
         result["import_chain"]["closed"] = all(result["import_chain"].values())
     except Exception as exc:

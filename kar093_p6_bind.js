@@ -63,7 +63,12 @@ const ACCEPTED_P6 = {
     // D9 port. A NEW KEY, permitted by the amended re-pin constraint 1 where a
     // module joins the set. It is hashed AND imported AND identity-checked by
     // the verifier, so the pin carries the same weight as its four neighbours.
-    'd1_chart_adapter.py':    'be088670c891791cf57d949f1b7fc8e181175e911edcf602ca02b7f7cda07760'
+    'd1_chart_adapter.py':    'be088670c891791cf57d949f1b7fc8e181175e911edcf602ca02b7f7cda07760',
+    // KAR-093-B04. The route is the one join gate v3 structurally cannot reach:
+    // it stubs the network boundary, so a varga dropped in the request model is
+    // invisible to every phase. Pinned with the same import-and-identity
+    // treatment as the adapter.
+    'd1_routes.py':           'bd2f8109cc85c2c32a3d60016564659836824839c7599019d495d40200480ca3'
   },
   productSha256: 'c475284dd5da80daae757e8702b3bf837715ae646ed6e93100c3d3e6335ca252',
   // Whole-file hash of the regenerated artifact. Deterministic on any host:
