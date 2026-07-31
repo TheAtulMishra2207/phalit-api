@@ -52,12 +52,12 @@ import uuid
 from typing import Any, Dict, Optional, Protocol
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, Field, StrictStr
+from pydantic import BaseModel, Extra, Field, StrictStr
 
 from d1_chart_adapter import ChartAdapterError, to_certified_chart
 from d1_engine import D1EngineError, D1Doctrine, compute_d1
 from d1_synthesis import D1DrawerPayload, build_d1_drawers
-from d1_contract import D1PrepareResponse
+from d1_contract import D1PrepareResponse, Varga
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["d1"])
@@ -96,6 +96,18 @@ class D1PrepareRequest(BaseModel):
     # immediate 422. v2 rejected it outright; StrictStr restores that parity in
     # both versions.
     chart_token: StrictStr = Field(min_length=8, max_length=256)
+
+    # KAR-093-B04. The page sends a varga; without this field pydantic v1's
+    # default Extra.ignore DROPPED IT SILENTLY and every D9 request returned a
+    # D1 payload. Typed as the enum rather than a str so an unknown varga is a
+    # 422 at the boundary instead of a D1EngineError three layers down.
+    varga: Varga = Varga.D1
+
+    class Config:
+        # An unknown field is now a 422, not a silent discard. B04 was invisible
+        # precisely because the default swallowed the one field that mattered;
+        # the next such field should fail loudly at the boundary.
+        extra = Extra.forbid
 
 
 class D1PrepareBody(BaseModel):
@@ -139,7 +151,7 @@ async def prepare_d1(req: D1PrepareRequest,
         )
 
     try:
-        certified = to_certified_chart(chart, req.chart_token)
+        certified = to_certified_chart(chart, req.chart_token, varga=req.varga)
     except ChartAdapterError as e:
         # The stored chart cannot be translated. That is a data problem, not a
         # malformed request, and it must never be repaired by guessing.
@@ -151,7 +163,7 @@ async def prepare_d1(req: D1PrepareRequest,
         )
 
     try:
-        d1, doctrine = compute_d1(certified)
+        d1, doctrine = compute_d1(certified, req.varga)
         drawers = build_d1_drawers(d1, doctrine)
     except HTTPException as exc:
         if exc.status_code in (401, 403):
