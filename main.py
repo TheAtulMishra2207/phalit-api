@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 # KAR-093 · D1 server-authored interpretation
 from d1_chart_store import issue_chart_response
 from d1_wiring import ChartCaller, chart_caller, install_d1, snapshot_store
+from pratiphala_routes import router as pratiphala_router
 from pydantic import BaseModel
 import swisseph as swe
 from datetime import datetime, timedelta, timezone
@@ -97,6 +98,17 @@ if not ALLOWED_ORIGINS:
 
 # KAR-093 · POST /d1/prepare, with a caller-scoped snapshot resolver.
 install_d1(app)
+
+# Pratiphala · POST /pratiphala/prepare. Registered WITHOUT a prefix: the path
+# is declared in full on the router, so a prefix here would produce
+# /pratiphala/pratiphala/prepare.
+#
+# NO SECOND RESOLVER BINDING. install_d1 above sets
+# dependency_overrides[get_chart_resolver], and pratiphala_routes depends on
+# THAT SAME function object rather than a copy, so this route inherits the
+# caller-scoped resolver automatically. Binding it again here would be a second
+# door onto one snapshot store.
+app.include_router(pratiphala_router)
 
 # ─────────────────────────────────────────────────────────────────────────────
 # CONSTANTS
