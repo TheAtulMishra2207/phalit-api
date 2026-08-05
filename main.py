@@ -10,6 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from d1_chart_store import issue_chart_response
 from d1_wiring import ChartCaller, chart_caller, install_d1, snapshot_store
 from pratiphala_routes import router as pratiphala_router
+from nakshatra_routes import router as nakshatra_router
 from pydantic import BaseModel
 import swisseph as swe
 from datetime import datetime, timedelta, timezone
@@ -109,6 +110,12 @@ install_d1(app)
 # caller-scoped resolver automatically. Binding it again here would be a second
 # door onto one snapshot store.
 app.include_router(pratiphala_router)
+
+# NAK-001 · POST /nakshatra/prepare. Registered WITHOUT a prefix and WITHOUT a
+# second resolver binding, for the same two reasons recorded above: the path is
+# declared in full on the router, and nakshatra_routes depends on the same
+# get_chart_resolver function object that install_d1 already overrode.
+app.include_router(nakshatra_router)
 
 # ─────────────────────────────────────────────────────────────────────────────
 # CONSTANTS
