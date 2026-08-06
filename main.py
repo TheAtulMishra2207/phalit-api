@@ -770,6 +770,28 @@ def generate_personality_report(req: PersonalityRequest):
     brief = req.chart_brief
     name  = req.name or "the native"
 
+    # PRF-008 / R5. System rule 2 forbids planet names, sign names, house
+    # numbers, dignity labels and nakshatra names in the OUTPUT, yet the payload
+    # supplied every one of them. None is named as source material by rules 7 or
+    # 8, so withholding them at the provider boundary turns rule 2 from a
+    # request the model is asked to honour into a structural guarantee.
+    #
+    # This is a PROJECTION, not a mutation. New dicts are built; req.chart_brief
+    # and its original planet records are left exactly as received, and the
+    # nested corpus object is carried through by reference and never touched.
+    # The result is used ONLY in user_prompt below.
+    #
+    # When the narrative framework is extracted this belongs in the shared
+    # layer: the same six fields cross on every sibling report endpoint.
+    PROVIDER_FORBIDDEN_PLANET_KEYS = frozenset(
+        ("planet", "sign", "house", "dignity", "nakshatra", "d9_sign")
+    )
+    safe_planets = [
+        {k: v for k, v in p.items() if k not in PROVIDER_FORBIDDEN_PLANET_KEYS}
+        if isinstance(p, dict) else p
+        for p in brief.get("planets", [])
+    ]
+
     system_prompt = """You are a prose writer producing a premium consumer personality report for a Vedic astrology platform.
 Your job is ONLY to rewrite the provided classical corpus analysis into flowing, beautiful second-person prose.
 You are NOT the astrologer. The astrology has already been done. Your corpus contains the analysis.
@@ -787,8 +809,8 @@ Absolute rules:
 4. Pure second-person prose. "You are...", "Your..."
 5. Each section minimum 5-7 rich sentences. No bullet points. Flowing paragraphs only.
 6. Synthesise — weave corpus material into coherent narrative. Do not list traits.
-7. classical_positive traits are strengths. classical_caution traits are challenges to manage.
-8. rashi_prose = how this energy expresses through this sign. house_prose = what it does in this life domain.
+7. Per-planet corpus traits. STRENGTHS: sign_traits_pos and house_traits_pos. CHALLENGES to manage: sign_traits_caut and house_traits_caut.
+8. rashi_prose = how this energy expresses through this sign. house_prose = what it does in this life domain. aspects_received and conjunctions = other forces modifying that expression. bhavat_bhavam and natural_significator = the wider context of that life domain.
 9. Write exactly 5 sections with these headings (use ### before each):
    ### Core Identity and Temperament
    ### Mind, Intellect and Communication
@@ -808,14 +830,8 @@ Domain: {brief.get('lagna', {}).get('lagna_lord', {}).get('domain', '')}
 Classical result: {brief.get('lagna', {}).get('lagna_lord', {}).get('lv_classical', '')}
 Retrograde: {brief.get('lagna', {}).get('lagna_lord', {}).get('retrograde', False)}
 
-LAGNA NAKSHATRA (soul signature):
-{brief.get('lagna_nakshatra', {})}
-
-MOON NAKSHATRA (emotional/mind signature):
-{brief.get('moon_nakshatra', {})}
-
-PLANETARY CORPUS (use rashi_prose, house_prose, classical_positive, classical_caution for each planet):
-{brief.get('planets', [])}
+PLANETARY CORPUS (each planet's corpus carries rashi_prose, house_prose, sign_traits_pos, sign_traits_caut, house_traits_pos, house_traits_caut, aspects_received, conjunctions, bhavat_bhavam, natural_significator — read them per rules 7 and 8):
+{safe_planets}
 
 CLASSICAL COMBINATIONS PRESENT:
 Benefic: {brief.get('benefic_yogas', [])}
