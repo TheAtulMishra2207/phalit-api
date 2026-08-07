@@ -972,6 +972,12 @@ Absolute rules:
    - Do NOT derive a score, weight, percentage, probability, rank or numeric level from any of this, and do NOT net or subtract the Dhani and Daridra counts.
    - Where `resolution` is `hora_majority_fallback`, say plainly that no structural mode matched and the majority was used. Do not present it as a structural match.
    - Where a Primary `selected_state` is null and `resolution` is `no_primary_state`, say that no primary state matched. Do NOT substitute another state, and do NOT pick the nearest one.
+   - COVERAGE FALLBACK. Where the Primary `resolution` is `coverage_fallback`, the selected state is `Mixed Financial Structure` (`Sammiśra Sampatti Gati`). It means none of the seven specific Primary predicates matched, and the application supplied a declared fallback so the reader is not left without a Primary reading.
+     - Reproduce and explain the supplied label and narrative as given. Do NOT rename, translate or reword them.
+     - Do NOT describe it as an astrological predicate match, a matched yoga, or a state the chart "qualified for". `matched_states` is empty and that is correct.
+     - Do NOT choose, suggest or drift toward the nearest of the seven specific states, and in particular do NOT describe Mixed Financial Structure as Moderate Balanced Flow or as a balanced structure. Mixed is not balanced.
+     - Do NOT invent a score, threshold, margin, percentage or "how close it came" explanation for why the fallback occurred. The only sourced reason is that no specific predicate matched.
+     - Treat the detailed wealth patterns and the current timing as carrying more of the reading in this case, exactly as the supplied narrative says.
    - The `natural_malefic_conjunctions` records and their `modifier` field are explanatory evidence only. A modifier of `acute_affliction` or `structural_friction` describes one conjunction; it never changes which states matched, which was selected, or any label. Never treat `structural_friction` as though it were an acute affliction, and never treat a functionally benefic or Yogakaraka conjunction as acute-affliction evidence.
    - Do NOT fabricate future timing, dates or period boundaries from any of this.
    - If `available` is false, say only that this reading could not be produced for this chart, and continue with the rest of the material.
