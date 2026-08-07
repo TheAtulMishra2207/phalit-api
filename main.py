@@ -466,10 +466,61 @@ def calc_planet_data(jd: float, planet: str, lagna_sign_index: int) -> dict:
     }
 
 
+# ═════════════════════════════════════════════════════════════════════════════
+# HORA-008-CORR-01 · SERVER-AUTHORITATIVE COMBUSTION
+# ═════════════════════════════════════════════════════════════════════════════
+# Founder-locked orbs, applied once after every natal longitude is available.
+# No astronomy is recalculated: the already-computed sidereal longitudes and
+# retrograde booleans are the only inputs, and nothing about combustion is ever
+# computed in the browser.
+#
+# Mercury and Venus take a tighter orb when retrograde. The Sun cannot be
+# combust by its own light, and Rahu and Ketu are STRICTLY exempt — they are
+# shadow points with no disc to be obscured, and no angular proximity to the
+# Sun may ever classify either as combust.
+COMBUSTION_ORBS = {
+    "Moon":    {"direct": 12.0, "retrograde": 12.0},
+    "Mars":    {"direct": 17.0, "retrograde": 17.0},
+    "Mercury": {"direct": 14.0, "retrograde": 12.0},
+    "Jupiter": {"direct": 11.0, "retrograde": 11.0},
+    "Venus":   {"direct": 10.0, "retrograde":  8.0},
+    "Saturn":  {"direct": 15.0, "retrograde": 15.0},
+}
+COMBUSTION_EXEMPT = ("Sun", "Rahu", "Ketu")
+
+
+def angular_separation(a: float, b: float) -> float:
+    """Shortest circular separation in degrees, so 359 deg and 1 deg are 2 apart."""
+    raw = abs(float(a) - float(b))
+    raw = raw % 360.0
+    return min(raw, 360.0 - raw)
+
+
+def is_combust(planet: str, planet_longitude: float, sun_longitude: float,
+               retrograde: bool = False) -> bool:
+    """Founder-locked combustion. The boundary is INCLUSIVE: distance <= limit."""
+    if planet in COMBUSTION_EXEMPT:
+        return False
+    orbs = COMBUSTION_ORBS.get(planet)
+    if not orbs:
+        return False
+    limit = orbs["retrograde"] if retrograde else orbs["direct"]
+    return angular_separation(planet_longitude, sun_longitude) <= limit
+
+
 def calc_all_planets(jd: float, lagna_sign_index: int) -> dict:
     result = {}
     for planet in PLANETS:
         result[planet] = calc_planet_data(jd, planet, lagna_sign_index)
+    # HORA-008-CORR-01 · one combustion pass, after every longitude exists.
+    sun = result.get("Sun")
+    sun_lon = sun.get("longitude") if sun else None
+    for planet, rec in result.items():
+        rec["combust"] = (
+            False if sun_lon is None
+            else is_combust(planet, rec.get("longitude", 0.0), sun_lon,
+                            bool(rec.get("retrograde")))
+        )
     return result
 
 
@@ -897,21 +948,56 @@ Absolute rules:
 6. Write exactly 2 sections with these headings (use ### before each):
    ### Your Wealth and Financial Prospects
    ### The Nature and Sources of Your Wealth
-7. Both sections must be detailed and thorough. Be specific about wealth patterns, challenges, and the quality of financial life."""
+7. Both sections must be detailed and thorough. Be specific about wealth patterns, challenges, and the quality of financial life.
+   SECTION 1 FOCUS · Your Wealth and Financial Prospects. Build it, in this order of priority, from: the selected Primary Financial State; the capacity-versus-retention pattern its evidence describes; the matched Dhani and matched Daridra evidence; the selected Current Timing Modifier; and the Current Period Activation highlights. Synthesise them into one account rather than listing them. Convert none of it into a monetary magnitude, a probability, or a certainty about what will happen.
+   SECTION 2 FOCUS · The Nature and Sources of Your Wealth. Lead with the selected Wealth Mode and stay inside what the supplied evidence supports. Discuss property and fixed-asset channels only when Asset & Property Oriented Potential is actually selected or present in matched_states; partnership, network or equity channels only when the supplied evidence sources them; self-driven channels only when sourced; grace or support channels only when sourced; and retention or leakage management only when the selected or matched state evidence supports it. Do NOT derive a competing Wealth Mode from the raw Sun and Moon Hora counts — the engine has already selected one, and the counts are placement facts, not a mode.
+   Write exactly these two sections. Do not add a third, and do not restate the deterministic blocks as a list — the reader has already seen them above your text.
+8. WEALTH-LEVEL PROHIBITION. The two figures given below are counts of matched classical rule patterns and are NOT a financial magnitude of any kind.
+   - Dhani and Daridra patterns routinely coexist in the same chart. Both lists may be non-empty at the same time, and that is ordinary rather than contradictory.
+   - Do NOT infer, state or imply any wealth tier for the native. No millionaire, multi-millionaire, billionaire, crorepati, lakhpati, rich, wealthy-class, poor or poverty classification, in any language.
+   - Do NOT produce any deterministic monetary level: no figure, income band, currency amount, net worth or numeric estimate of what the native will hold.
+   - Do NOT net, subtract, cancel or otherwise perform arithmetic between the two counts, and do not describe either as outweighing the other. Where supporting and obstructing patterns conflict, discuss them as distinct patterns whose expression depends on timing and context that this report does not determine.
+9. CURRENT-PERIOD CONTRACT. The current-period timing below has ALREADY been determined by the application from server-supplied Vimshottari Mahadasha and Antardasha data. You are explaining it, not computing it.
+   - Treat the `highlighted` list as the ONLY D2 patterns directly activated by the current period for this report.
+   - Do NOT infer additional active patterns from rule names, house numbers, counts, planet data or anything else. If it is not in `highlighted`, it is not activated for this report.
+   - Do NOT calculate, estimate, adjust or state Dasha dates, durations or period boundaries beyond the values given.
+   - Do NOT claim that a matched pattern which is not highlighted has been cancelled, nullified or removed. It remains present; this filter simply does not link it to the present period.
+   - Do NOT convert activation into monetary magnitude, certainty, probability, percentage, timing guarantee or a wealth tier. Activation means a running period lord participates in a matched pattern, and nothing more.
+   - If `empty` is true, state only that no matched pattern is directly linked by this filter to the present Mahadasha or Antardasha, and continue with the natal material. Do not say that nothing financial can happen.
+   - Do not write a separate section for this. Weave the present-period context into the two sections required above.
+10. FINANCIAL STATE CONTRACT. The `financial_state` block below was produced by a deterministic application engine (HORA_FINANCIAL_STATE_MATRIX_V1) from server-supplied facts. You are explaining it, not deciding it.
+   - Do NOT select, choose, invent or infer a state. The `selected_state` in each of the three dimensions is the answer; `matched_states` records everything that qualified before precedence.
+   - Do NOT rename a Category Label, alter a Sanskrit name, translate a Sanskrit name, or reword a Narrative Framing. Reproduce them exactly if you use them.
+   - Do NOT reorder or reason about precedence. It is fixed and already applied.
+   - Do NOT derive a score, weight, percentage, probability, rank or numeric level from any of this, and do NOT net or subtract the Dhani and Daridra counts.
+   - Where `resolution` is `hora_majority_fallback`, say plainly that no structural mode matched and the majority was used. Do not present it as a structural match.
+   - Where a Primary `selected_state` is null and `resolution` is `no_primary_state`, say that no primary state matched. Do NOT substitute another state, and do NOT pick the nearest one.
+   - The `natural_malefic_conjunctions` records and their `modifier` field are explanatory evidence only. A modifier of `acute_affliction` or `structural_friction` describes one conjunction; it never changes which states matched, which was selected, or any label. Never treat `structural_friction` as though it were an acute affliction, and never treat a functionally benefic or Yogakaraka conjunction as acute-affliction evidence.
+   - Do NOT fabricate future timing, dates or period boundaries from any of this.
+   - If `available` is false, say only that this reading could not be produced for this chart, and continue with the rest of the material.
+11. PARASHARA CONFIGURATION BOUNDARY. The Parashara Hora placement/parity block is configuration evidence only.
+   - Do not infer that wealth must be personally earned, flows passively, comes easily, requires extra effort, or is stronger or weaker because of Sun/Moon Hora dominance or parity configuration.
+   - Sun Hora and Moon Hora counts are placement facts. They are not an effort-versus-ease axis, an active-versus-passive temperament, a wealth level or an outcome.
+   - The HORA-006 parity states describe which of a graha's own parity, its sign and its Hora is the outlier. They are configuration only and carry no strength, weakness, ease, difficulty, earning power or retention meaning.
+   - Where the Financial State block above already names a Wealth Mode, that is the only sourced statement about how wealth tends to arrive. Do not derive a competing one from Hora counts."""
 
     user_prompt = f"""Write a detailed wealth report for {name}.
 
-HORA CHART ANALYSIS (wealth temperament and active/passive orientation):
+HORA PLACEMENT AND PARITY FACTS (configuration facts only; do not infer ease, effort, passivity, wealth level or outcome from them):
 {brief.get('parashara', {})}
 
-DHANA YOGA RESULTS:
-- Wealth category: {brief.get('dhana', {}).get('wealth_verdict', '')}
-- Verdict detail: {brief.get('dhana', {}).get('verdict_detail', '')}
-- Dhani Yogas active: {brief.get('dhana', {}).get('dhani_count', 0)}
-- Daridra Yogas active: {brief.get('dhana', {}).get('daridra_count', 0)}
+MATCHED WEALTH RULE PATTERNS (counts of rule matches, not a financial magnitude):
+- Dhani patterns matched: {brief.get('dhana', {}).get('dhani_count', 0)}
+- Daridra patterns matched: {brief.get('dhana', {}).get('daridra_count', 0)}
 - Strong Dhani: {brief.get('dhana', {}).get('strong_dhani', 0)}
 - Dhani details: {brief.get('dhana', {}).get('dhani_yogas', [])}
 - Daridra details: {brief.get('dhana', {}).get('daridra_yogas', [])}
+
+CURRENT PERIOD ACTIVATION (already determined by the application from server-supplied Vimshottari; do not recompute or extend it):
+{brief.get('current_period_activation', {})}
+
+FINANCIAL STATE (deterministic engine output; explain it, do not classify):
+{brief.get('financial_state', {})}
 
 Write 2 rich, expanded sections on wealth prospects and sources of wealth. Each section must be thorough and specific."""
 
