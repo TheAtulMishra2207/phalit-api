@@ -1065,21 +1065,135 @@ Absolute rules:
    ### Courage, Willpower and Initiative
    ### Communication, Mental Agility and Short Travel
    ### Friends, Allies and Your Social Network
-7. Complete all 4 sections. Be specific."""
+7. Complete all 4 sections. Be specific.
+8. EVIDENCE HIERARCHY. The D3 PRIMARY SIBLING EVIDENCE block is the authoritative
+   layer for sibling analysis. The D1 ROOT CONTEXT block is supporting only: it may
+   qualify or contextualise the D3 evidence but must never replace it. Do not average
+   the two layers and do not pick whichever reads more strongly. Named sibling yogas
+   are D1-root rules and do not override contradictory D3 facts.
+9. Every supplied fact names the chart it came from. Never carry a D1 placement,
+   house or condition across as though it were a D3 fact, or the reverse.
+10. NEVER state or imply: a number of siblings; a number of brothers or sisters;
+   sibling gender; elder or younger certainty; sibling death, survival, profession
+   or wealth; any score, percentage, rating or strength band; a dignity or condition
+   for any D3 placement (none is supplied and none exists); or any yoga that is not
+   listed as having fired.
+11. The Swarupa classification is supplied as evidence, not as a personality system.
+   Do not invent traits, tendencies or outcomes for any classification value.
+12. If the D3 primary evidence is marked unavailable, say the Drekkana-level sibling
+   detail could not be established and work only from what is supplied. Never
+   substitute the D1 root context for it and never invent the missing facts.
+13. KHARESH IS SUPPORTING CONTEXT ONLY. It never outranks the D3 primary sibling
+   evidence and never becomes the subject of a section.
+14. A current Antardasha that matches the Kharesh graha is a COINCIDENCE between two
+   already-determined facts. Never say it is activated, that a period has begun,
+   that an event will follow, or that any outcome is now guaranteed. Never infer an
+   event from the match.
+15. Never infer or state karmic debt, past-life wrongdoing, inherited karma,
+   punishment, or inevitable suffering from Kharesh or from a matching Antardasha.
+16. Never prescribe or require a remedy. Kharesh existing does not oblige the native
+   to do anything.
+17. If the current Antardasha is marked unavailable, do not infer a match and do not
+   infer a mismatch. Say nothing about timing."""
+
+    # ── D3-006 · provider evidence hierarchy ────────────────────────────────
+    # sibling_evidence is the sole sibling authority. core_variables is NOT read
+    # here any more: it is D1-only data that was reaching this prompt under a
+    # "CORE VARIABLES" heading, so the narrative was D1-driven while the page was
+    # D3-first. No fallback to it exists — §15 makes a silent fallback a stop
+    # condition, not an implementation choice.
+    sibling_evidence = brief.get("sibling_evidence") or {}
+    d3_primary = sibling_evidence.get("d3_primary") or {}
+    d1_root    = sibling_evidence.get("d1_root_context") or {}
+
+    def _fmt(label, value):
+        return f"  {label}: {value if value not in (None, '', [], {}) else 'not supplied'}"
+
+    if d3_primary:
+        _th  = d3_primary.get("third_house") or {}
+        _kar = d3_primary.get("karyesha") or {}
+        _mar = d3_primary.get("mars") or {}
+        _occ = d3_primary.get("third_house_occupants")
+        d3_block = "\n".join([
+            _fmt("D3 3rd house sign", _th.get("sign")),
+            _fmt("D3 Karyesha (D3 3rd lord)", _kar.get("graha")),
+            _fmt("D3 Karyesha placement", f"D3 house {_kar.get('d3_house')} in {_kar.get('d3_sign')}"
+                 if _kar.get("graha") else None),
+            _fmt("D3 3rd-house occupants", ", ".join(_occ) if _occ else ("none" if _occ == [] else None)),
+            _fmt("Mars in D3", f"D3 house {_mar.get('d3_house')} in {_mar.get('d3_sign')}"
+                 if _mar else None),
+            "  No dignity or condition is supplied for any D3 placement, and none exists.",
+        ])
+    else:
+        d3_block = "  D3 primary sibling evidence unavailable for this chart."
+
+    if d1_root:
+        _d1k = d1_root.get("karyesha") or {}
+        _d1m = d1_root.get("mars") or {}
+        d1_block = "\n".join([
+            _fmt("D1 3rd house sign", d1_root.get("third_house_sign")),
+            _fmt("D1 3rd lord", _d1k.get("graha")),
+            _fmt("D1 3rd lord placement", f"D1 house {_d1k.get('d1_house')} in {_d1k.get('d1_sign')}, "
+                 f"D1 dignity {_d1k.get('d1_dignity')}" if _d1k.get("graha") else None),
+            _fmt("Mars in D1", f"D1 house {_d1m.get('d1_house')} in {_d1m.get('d1_sign')}, "
+                 f"D1 dignity {_d1m.get('d1_dignity')}" if _d1m else None),
+        ])
+    else:
+        d1_block = "  D1 root context unavailable for this chart."
+
+    _arch = brief.get("lagna_archetype") or {}
+    _mods = _arch.get("modifiers") or []
+    _attrs = _arch.get("attributes") or {}
+    swarupa_block = "\n".join([
+        _fmt("Primary Swarupa", _arch.get("primary_swarupa")),
+        _fmt("Modifiers", ", ".join(_mods) if _mods else "none"),
+        _fmt("Attributes", ", ".join(f"{k}: {v}" for k, v in _attrs.items()) if _attrs else "none"),
+        _fmt("Expression", _arch.get("expression")),
+    ])
+
+    # ── D3-007 · Kharesh supporting timing context ──────────────────────────
+    # SUPPLEMENTARY ONLY. It sits below D3 primary, D1 root and the named yogas,
+    # and the system rules forbid inferring an event, a karmic debt or a remedy
+    # from it. matches_kharesh is three-state: None means the server supplied no
+    # current Antardasha, and it must never be read as a known mismatch.
+    _kh = brief.get("kharesh") or {}
+    _khp = _kh.get("placement") or {}
+    _khad = _kh.get("current_antardasha") or {}
+    if _kh.get("graha"):
+        _match = _khad.get("matches_kharesh")
+        kharesh_block = "\n".join([
+            _fmt("Graha", _kh.get("graha")),
+            _fmt("D3 placement", f"D3 house {_khp.get('d3_house')} in {_khp.get('d3_sign')}"
+                 if _khp.get("d3_sign") else None),
+            _fmt("D3 8th-house occupants",
+                 ", ".join(_kh.get("eighth_house_occupants") or []) or "none"),
+            _fmt("Current Antardasha", _khad.get("planet") or "unavailable"),
+            _fmt("Current Antardasha matches Kharesh",
+                 "unavailable" if _match is None else ("yes" if _match else "no")),
+            "  No dignity or condition is supplied for this placement, and none exists.",
+        ])
+    else:
+        kharesh_block = "  Kharesh context unavailable for this chart."
 
     user_prompt = f"""Write a focused siblings and courage report for {name}.
 
-LAGNA ARCHETYPE (primal drive quality):
-{brief.get('lagna_archetype', {})}
+CANONICAL SWARUPA CLASSIFICATION (Drekkana lagna form — evidence, not a personality system):
+{swarupa_block}
 
-CORE VARIABLES (3rd house lord position and condition):
-{brief.get('core_variables', {})}
+D3 PRIMARY SIBLING EVIDENCE (Drekkana chart — AUTHORITATIVE for sibling analysis):
+{d3_block}
+
+D1 ROOT CONTEXT (natal chart — SUPPORTING only; may qualify the D3 evidence, never replace it):
+{d1_block}
+
+NAMED SIBLING YOGAS · D1 Root Context (natal rules that fired; they do not override D3 facts):
+{brief.get('tritiya_yogas', [])}
+
+KHARESH · HIGH-FRICTION NODE — SUPPORTING D3 TIMING CONTEXT ONLY (never outranks the D3 primary evidence above):
+{kharesh_block}
 
 KARMIC TIMELINE — use only the present birth section for this report:
 {[t for t in brief.get('tri_janma', []) if t.get('phase') == 'Present Birth']}
-
-SIBLING & COURAGE PATTERNS:
-{brief.get('tritiya_yogas', [])}
 
 SPECIAL COMBINATIONS:
 {brief.get('special_combinations', [])}
