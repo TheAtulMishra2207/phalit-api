@@ -11,6 +11,10 @@ from d1_chart_store import issue_chart_response
 from d1_wiring import ChartCaller, chart_caller, install_d1, snapshot_store
 from pratiphala_routes import router as pratiphala_router
 from nakshatra_routes import router as nakshatra_router
+# D4-002-R1 · POST /d4/prepare. The doctrine is injected further down, after
+# BOTH the tables and get_dignity exist; no second resolver binding is created.
+from d4_core import D4Doctrine
+from d4_routes import configure_d4_doctrine, router as d4_router
 from pydantic import BaseModel
 import swisseph as swe
 from datetime import datetime, timedelta, timezone
@@ -407,6 +411,38 @@ def get_dignity(planet: str, sign_index: int, degree_in_sign: float) -> str:
         return 'Enemy Sign (Shatru)'
 
     return 'Neutral Sign (Sama)'
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# D4-002-R1 · POST /d4/prepare
+#
+# Registered WITHOUT a prefix and WITHOUT a second resolver binding, for the
+# same two reasons recorded above the Pratiphala and Nakshatra includes: the
+# path is declared in full on the router, and d4_routes depends on the SAME
+# d1_routes.get_chart_resolver function object that install_d1 already
+# overrode. Binding it again here would be a second door onto one snapshot
+# store.
+#
+# The doctrine is INJECTED here rather than imported by d4_routes, so d4_core
+# and d4_routes each stay free of any doctrine table of their own and there is
+# exactly one copy of these tables in the process.
+#
+# PLACEMENT IS LOAD-BEARING: this block must sit below BOTH the dignity tables
+# AND get_dignity. Registering it beside the other include_router calls near the
+# top would raise NameError at import, because those lines run before SIGNS and
+# get_dignity exist.
+# ─────────────────────────────────────────────────────────────────────────────
+configure_d4_doctrine(D4Doctrine(
+    signs=SIGNS,
+    sign_lords=SIGN_LORDS,
+    exaltation_sign=EXALTATION_SIGN,
+    debilitation_sign=DEBILITATION_SIGN,
+    own_signs=OWN_SIGNS,
+    natural_friends=NATURAL_FRIENDS,
+    natural_enemies=NATURAL_ENEMIES,
+    node_dignity_fn=get_dignity,
+))
+app.include_router(d4_router)
 
 
 def calc_planet_data(jd: float, planet: str, lagna_sign_index: int) -> dict:
@@ -1217,78 +1253,6 @@ Write 4 focused sections. No fluff. Be specific about siblings, courage, communi
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"D3 report error: {str(e)}")
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# D4 CHATURTHAMSHA REPORT ENDPOINT
-# ─────────────────────────────────────────────────────────────────────────────
-
-class D4ReportRequest(BaseModel):
-    name: str
-    chart_brief: Dict[str, Any]
-
-@app.post("/d4report")
-def generate_d4_report(req: D4ReportRequest):
-    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
-    if not api_key:
-        raise HTTPException(status_code=500, detail="ANTHROPIC_API_KEY not configured on server.")
-
-    brief = req.chart_brief
-    name  = req.name or "the native"
-
-    system_prompt = """You are writing a focused property and domestic life report for a Vedic astrology platform.
-This is NOT a personality report. Stay strictly on topic: house/property, vehicles, domestic comfort, and the mother.
-
-Absolute rules:
-1. Use ONLY the corpus provided. No external knowledge.
-2. ZERO technical terminology — no planet names, sign names, house numbers, Sanskrit terms, yoga names.
-3. Second person throughout. "You will...", "Your home...", "Your mother..."
-4. Each section 4-6 sentences. No bullet points. Direct, factual, specific prose.
-5. NO philosophical meandering. NO personality observations. NO career or relationship references.
-6. Write exactly 4 sections with these headings (use ### before each):
-   ### Your Home and Property
-   ### The Character and Type of Your Properties
-   ### Vehicles and Comfort
-   ### Your Mother
-7. Complete all 4 sections. Be specific about number of properties where indicated."""
-
-    user_prompt = f"""Write a focused property and domestic life report for {name}.
-
-RESIDENTIAL PATTERN: {brief.get('residential_nature', '')}
-
-PROPERTY TYPE INDICATORS:
-{brief.get('property_characteristics', [])}
-
-4TH LORD CLASSICAL RESULT: {brief.get('fourth_lord_classical_result', '')}
-
-PROPERTY COUNT INDICATED: approximately {brief.get('property_count_indicated', '?')} properties over a lifetime
-(Based on {brief.get('property_count_planets', [])} in auspicious positions)
-
-SPECIAL CONDITIONS:
-{brief.get('special_conditions', [])}
-
-HOME & HAPPINESS PATTERNS:
-{brief.get('chaturtha_yogas', [])}
-
-Write 4 focused sections on home/property, property type, vehicles/comfort, and mother. No fluff. Be specific."""
-
-    try:
-        response = requests.post(
-            "https://api.anthropic.com/v1/messages",
-            headers={"x-api-key": api_key, "anthropic-version": "2023-06-01", "content-type": "application/json"},
-            json={"model": "claude-sonnet-4-6", "max_tokens": 2500, "system": system_prompt,
-                  "messages": [{"role": "user", "content": user_prompt}]},
-            timeout=60
-        )
-        if response.status_code != 200:
-            raise HTTPException(status_code=500, detail=f"Anthropic API error {response.status_code}: {response.text[:600]}")
-        data = response.json()
-        text = "".join(b["text"] for b in data.get("content", []) if b.get("type") == "text")
-        return {"report": text}
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"D4 report error: {str(e)}")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
