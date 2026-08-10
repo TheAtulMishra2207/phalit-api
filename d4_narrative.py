@@ -73,7 +73,11 @@ def _require(block: Dict[str, Any], keys, what: str) -> None:
 
 def build_narrative_brief(property_state: Dict[str, Any],
                           vahana_evidence: Dict[str, Any],
-                          dasha_context: Dict[str, Any]) -> Dict[str, Any]:
+                          dasha_context: Dict[str, Any],
+                          semantic_envelope: Optional[Dict[str, Any]] = None,
+                          comfort_profile: Optional[Dict[str, Any]] = None,
+                          architectural_signatures: Optional[Dict[str, Any]] = None
+                          ) -> Dict[str, Any]:
     """The bounded envelope. SELECTION ONLY — nothing is computed here.
 
     Every value is copied from a block the accepted deterministic pipeline
@@ -144,10 +148,12 @@ def build_narrative_brief(property_state: Dict[str, Any],
             "sthana_fourth_lord_dignity": sfl.get("d4_dignity"),
             # Stated as a FACT in the data, not only in the prompt, so the model
             # reads it beside the evidence it might otherwise embellish.
-            "no_vehicle_tier_exists": True,
-            "vehicle_tier_note": ("No vehicle or comfort tier has been defined. Do not "
-                                  "describe vehicles as premium, luxury, moderate or any "
-                                  "other grade, and do not rank them."),
+            # OBSOLETE UNDER THE FOUR-STATE LOCK, REMOVED. These two facts were
+            # written when no comfort taxonomy existed, and they told the model
+            # that no tier had been defined. The classifier now resolves EVERY
+            # valid chart to exactly one of the four tiers, so carrying them
+            # alongside `comfort_profile` put two contradictory instructions in
+            # one prompt. The `comfort_profile` block is the SOLE tier authority.
         },
         "dasha": {
             "current_mahadasha": dasha_context.get("current_mahadasha"),
@@ -160,6 +166,36 @@ def build_narrative_brief(property_state: Dict[str, Any],
                 list(dasha_context.get("selected_state_participant_grahas", [])),
             "policy": "context_only_structural_concurrence_not_activation",
             "boundary": DASHA_BOUNDARY_SENTENCE,
+        },
+        # COURSE CORRECTION · the provider synthesises LAYERS, not a single
+        # verdict. Precedence chose which layer leads; it did not delete the
+        # others, and the brief carries every one of them.
+        "layers": {
+            "primary": (semantic_envelope or {}).get("primary_layer"),
+            "secondary": (semantic_envelope or {}).get("secondary_layers", []),
+            "active_layer_count": (semantic_envelope or {}).get("active_layer_count"),
+            "multi_asset_language_permitted":
+                bool((semantic_envelope or {}).get("multi_asset_language_permitted")),
+            "coverage_baseline": bool((semantic_envelope or {}).get("coverage_baseline")),
+        },
+        "comfort_profile": {
+            "profile": (comfort_profile or {}).get("profile"),
+            "headline": (comfort_profile or {}).get("headline"),
+            "description": (comfort_profile or {}).get("description"),
+            "approved_vocabulary": list((comfort_profile or {}).get("approved_vocabulary") or []),
+            "resolution": (comfort_profile or {}).get("resolution"),
+            "maintenance_attention": (comfort_profile or {}).get("maintenance_attention"),
+            "policy": ("explain ONLY the supplied profile; where none is supplied no "
+                       "tier exists and none may be implied"),
+        },
+        "architectural_vocabulary": sorted({w for x in
+                                            (architectural_signatures or {}).get("signatures", [])
+                                            for w in x.get("vocabulary", [])}),
+        "architectural_signatures": {
+            "signatures": [{"graha": x["graha"],
+                            "vocabulary": list(x.get("vocabulary", []))}
+                           for x in (architectural_signatures or {}).get("signatures", [])],
+            "caveat": (architectural_signatures or {}).get("caveat", ""),
         },
         "d1_root_context": {
             "role": "SUPPORTING ONLY",
@@ -176,33 +212,64 @@ def build_narrative_brief(property_state: Dict[str, Any],
 SYSTEM_PROMPT = """You are writing an interpretive explanation for a Vedic astrology platform.
 
 THE MOST IMPORTANT RULE: THE RESULT IS ALREADY DETERMINED.
-The D4 property state has already been selected by the platform's deterministic
-engine. Your job is to EXPLAIN the supplied result in readable prose. You are not
-performing astrology and you are not being asked to.
+The platform's deterministic engine has already decided what this chart shows.
+Your job is to EXPLAIN the supplied result in warm, readable prose for the person
+whose chart it is. You are not performing astrology and you are not being asked to.
+
+OPEN WITH THE ANSWER. The first sentence of "Property Capacity & Stability" must
+answer the reader's property question directly, in plain terms. Do not open with
+evidence, mechanics, or a description of what the chart "shows". When expansion
+capacity is among the supplied layers, lead with that capacity and then explain
+the primary operational reality and the other active dimensions around it. When
+it is not supplied, do not imply strong or multi-property capacity in any wording.
+
+This should read like a premium, authoritative life reading — strategic prose a
+person would pay for. It must not read like a server response, an engineering
+audit, a compliance report or astrology-debug output.
+
+WRITE FOR A READER, NOT FOR AN AUDIT LOG. Do not narrate the calculation, list
+evidence, or use the platform's internal vocabulary - no bare house numbers as
+labels, no dignity codes, no contact counts, and no internal state codes. Turn
+the supplied facts into plain, grounded sentences a thoughtful person would want
+to read about their own life.
+
+SYNTHESISE THE LAYERS. When more than one layer is supplied they are CONCURRENT
+aspects of one picture, not competing verdicts and not ranked alternatives. The
+primary reality leads; the others are woven in as real, simultaneously active
+features. Never present a secondary layer as weaker, hypothetical, or as
+something that might apply instead.
 
 You may NOT:
-1. choose a different state, or suggest another state might apply;
-2. rank, compare or weigh competing states against each other;
+1. choose a different result, or suggest another might apply;
+2. rank, compare or weigh the layers against each other;
 3. create, name or imply a yoga or combination that is not in the supplied data;
-4. alter, reinterpret or second-guess the selected state or its category;
-5. state or estimate a number of properties, now or over a lifetime;
-6. give a purchase date, timeframe, window or season;
-7. say an acquisition is guaranteed, certain, assured or inevitable;
-8. say litigation, dispute or loss is certain or will occur;
-9. describe vehicles by tier, grade or quality — no premium, luxury, moderate or
-   equivalent, and no ranking of vehicles;
-10. treat a Dasha concurrence as an activation, trigger, fruition, manifestation
+4. use any internal state code, such as P1 through P5;
+5. state or estimate a NUMBER of properties, now or over a lifetime;
+6. claim multi-property or portfolio capacity UNLESS the supplied layers include
+   it - if expansion capacity is not supplied, do not imply it in any wording;
+7. give a purchase date, timeframe, window or season;
+8. say an acquisition is guaranteed, certain, assured or inevitable;
+9. say litigation, dispute or loss is certain or will occur;
+10. invent, rename or re-rank a comfort tier. If a comfort profile IS supplied you
+    may state and explain THAT profile and no other; if none is supplied, describe
+    the placement without grading it and never use premium, executive, luxury or
+    equivalent language of your own;
+11. treat a Dasha concurrence as an activation, trigger, fruition, manifestation
     or imminent event;
-11. make any claim about the mother's health, longevity, survival or character;
-12. introduce Moksha, spiritual liberation, or a material-versus-spiritual
+12. make any claim about the mother's health, longevity, survival or character;
+13. introduce Moksha, spiritual liberation, or a material-versus-spiritual
     orientation of the soul.
 
+ARCHITECTURAL SIGNATURES, where supplied, use only the supplied vocabulary and are
+contextual character only. Write
+them as the flavour the chart carries, never as a prediction that a specific
+future property will have those features.
+
 DASHA BOUNDARY. A concurrence means ONLY that the current Dasha lord is one of
-the grahas structurally participating in the selected state. It asserts no event,
-no timing and no outcome. If a status is "unknown", say the current timing
-information is unavailable. If timing applicability is a coverage fallback, say
-timing concurrence is not applicable because the result is a general baseline
-rather than a matched combination.
+the grahas structurally participating in the result. It asserts no event, no
+timing and no outcome. If a status is "unknown", say the current timing
+information is unavailable. If the result is a coverage baseline, say the reading
+is a general one rather than a specific matched pattern.
 
 D1 is SUPPORTING CONTEXT ONLY. It may add nuance to sections 1 and 2. It may
 never contradict, override or replace the D4 result.
@@ -222,16 +289,51 @@ supplied data; add no external knowledge."""
 def build_user_prompt(brief: Dict[str, Any]) -> str:
     """The brief, rendered as labelled lines. No birth data, no chart, no count."""
     p, v, d, r = brief["property"], brief["vahana"], brief["dasha"], brief["d1_root_context"]
-    fallback = ("This is a COVERAGE FALLBACK: no specific combination matched, so describe "
-                "a general baseline and do not present it as a matched combination."
+    # P-CODE LEAK FOUND AND CLOSED: this line used to append
+    # "Matched combinations: P2, P4" straight into the prompt, which put internal
+    # codes in front of the provider — the exact thing the correction forbids.
+    # The layers above already carry every matched state in semantic form, so the
+    # code listing is simply gone rather than reworded.
+    fallback = ("This is a COVERAGE BASELINE: no specific pattern matched, so describe "
+                "a general reading and do not present it as a matched pattern."
                 if p["is_coverage_fallback"] else
-                "Matched combinations: " + (", ".join(p["matched_states"]) or "none"))
-    return "\n".join([
-        "SELECTED D4 PROPERTY STATE (already determined by the platform; explain it):",
-        "  state: " + str(p["selected_state"]),
-        "  category: " + str(p["category"]),
+                "All layers listed above are active simultaneously.")
+    lay = brief.get("layers") or {}
+    prim = lay.get("primary") or {}
+    sec = lay.get("secondary") or []
+    comfort = brief.get("comfort_profile") or {}
+    arch = brief.get("architectural_signatures") or {}
+
+    layer_lines = ["PRIMARY OPERATIONAL REALITY (already determined; explain it, "
+                   "do not re-decide it):",
+                   "  " + str(prim.get("theme", "")),
+                   "  layer: " + str(prim.get("layer", ""))]
+    if sec:
+        layer_lines.append("")
+        layer_lines.append("ALSO ACTIVE — these are CONCURRENT layers of the same "
+                           "picture, not alternatives and not lesser results. "
+                           "Weave them together with the primary reality:")
+        for x in sec:
+            layer_lines.append("  " + str(x.get("role", "")) + " — " + str(x.get("theme", "")))
+    else:
+        layer_lines.append("")
+        layer_lines.append("No additional layers are active; describe the primary "
+                           "reality alone without implying others were considered.")
+
+    sig_lines = []
+    if arch.get("signatures"):
+        sig_lines.append("ARCHITECTURAL AND ENVIRONMENTAL SIGNATURES "
+                         "(contextual character, never a description of a specific "
+                         "future property):")
+        for x in arch["signatures"]:
+            sig_lines.append("  " + str(x["graha"]) + ": "
+                             + ", ".join(x.get("vocabulary", [])))
+        sig_lines.append("  " + str(arch.get("caveat", "")))
+        sig_lines.append("")
+
+    return "\n".join(layer_lines + ["",
         "  " + fallback,
-        "",
+        "",] + sig_lines + [
         "D4 PRIMARY EVIDENCE:",
         "  4th house sign: " + str(p["d4_fourth_house_sign"]),
         "  4th house occupants: " + (", ".join(p["d4_fourth_house_occupants"]) or "none"),
@@ -253,7 +355,16 @@ def build_user_prompt(brief: Dict[str, Any]) -> str:
         "  direct Venus contact with the 4th house or its lord: " + str(v["direct_venus_contact"]),
         "  Vahana Sthana sign: " + str(v["sthana_sign"]),
         "  Sthana occupants: " + (", ".join(v["sthana_occupants"]) or "none"),
-        "  " + v["vehicle_tier_note"],
+        "  comfort tier determined by the platform: " + str(comfort.get("profile")),
+        "  its meaning: " + str(comfort.get("headline")) + " — "
+        + str(comfort.get("description")),
+        "  you may use ONLY this vocabulary for grading: "
+        + (", ".join(comfort.get("approved_vocabulary") or []) or "none"),
+        "  you may not choose, upgrade or downgrade this tier.",
+        "  maintenance attention: " + ("yes — disciplined upkeep and operational "
+                                       "attention are indicated"
+                                       if comfort.get("maintenance_attention")
+                                       else "not indicated"),
         "",
         "CURRENT DASHA CONTEXT (context only):",
         "  current Mahadasha: " + (str(d["current_mahadasha"]) if d["current_mahadasha"]
@@ -282,8 +393,11 @@ def build_user_prompt(brief: Dict[str, Any]) -> str:
 # (the vocabulary has no legitimate use anywhere in a D4 explanation) or scoped
 # to one section, where a word that is fine elsewhere is prohibited.
 
-_WORD_NUMBERS = (r"one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|"
-                 r"a couple of|several|multiple|numerous")
+#: EXACT quantities. Vague quantifiers were removed from this set by the course
+#: correction — they are qualitative, not counts, and are governed by the
+#: expansion-layer gate instead of by an outright ban.
+_EXACT_WORD_NUMBERS = (r"one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve")
+_WORD_NUMBERS = _EXACT_WORD_NUMBERS + r"|a couple of|several|multiple|numerous"
 # D4-008-CORR-02 · the vocabulary a count can be expressed in is wider than the
 # first pass allowed. "pieces of real estate" and "real-estate holdings" are the
 # same claim as "properties" and must be caught by the same rule.
@@ -300,7 +414,10 @@ _ADJ_GAP = r"(?:[A-Za-z][A-Za-z-]*\s+){0,2}"
 #: boundaries, so an ORDINAL like "4th house" cannot match — that phrase is a
 #: house reference, not a count, and rejecting it would make the guard useless.
 _COUNT_RULES = [
-    (r"\b(?:\d+|" + _WORD_NUMBERS + r")\s+" + _ADJ_GAP + r"(?:" + _ASSET_NOUNS + r")\b",
+    # EXACT quantities only. `_WORD_NUMBERS` no longer carries the vague
+    # quantifiers — "several"/"multiple"/"a couple of" are qualitative, and the
+    # expansion-layer gate below decides whether they are allowed at all.
+    (r"\b(?:\d+|" + _EXACT_WORD_NUMBERS + r")\s+" + _ADJ_GAP + r"(?:" + _ASSET_NOUNS + r")\b",
      "a literal asset count"),
     (r"\bproperty\s+count\b", "an explicit property count"),
     (r"\bnumber\s+of\s+(?:" + _ASSET_NOUNS + r")\b", "a number-of-properties claim"),
@@ -390,6 +507,11 @@ _SPIRITUAL_RULES = [
 #: Base"), so a global ban would reject correct prose.
 _VEHICLE_TIER_RULES = [
     (r"\bpremium\b", "a vehicle tier"),
+    # The missive names "executive" explicitly as an invented luxury claim, and
+    # C2's locked frame is the only place it is permitted.
+    (r"\bexecutive(?:-level)?\b", "a vehicle tier"),
+    (r"\bhigh[-\s]status\b", "a vehicle tier"),
+    (r"\bhigh[-\s]standard\b", "a vehicle tier"),
     (r"\bluxur(?:y|ious)\b", "a vehicle tier"),
     (r"\bmoderate\b", "a vehicle tier"),
     (r"\btier\b", "a vehicle tier"),
@@ -397,8 +519,41 @@ _VEHICLE_TIER_RULES = [
     (r"\bupgrade[sd]?\b", "a vehicle upgrade claim"),
 ]
 
+#: COURSE CORRECTION · qualitative multi-asset language is PERMITTED, but only
+#: when the deterministic expansion layer actually matched. This is not a
+#: loosening of the count rule: an EXACT quantity is still rejected in every
+#: case. What changes is that "a broader real-estate portfolio" stops being
+#: treated as a count — and, crucially, it is rejected when the expansion layer
+#: is ABSENT, so the provider cannot invent capacity the engine did not find.
+_QUALITATIVE_MULTI_ASSET = [
+    r"\bmulti[-\s]?asset\b",
+    r"\bbroader\s+real[-\s]?estate\s+portfolio\b",
+    r"\breal[-\s]?estate\s+portfolio\b",
+    r"\bmultiple[-\s]?asset\s+orientation\b",
+    r"\bproperty\s+portfolio\b",
+    r"\bmultiple\s+holdings?\b",
+    r"\bmultiple\s+propert(?:y|ies)\b",
+    r"\bportfolio\s+of\s+(?:propert(?:y|ies)|real[-\s]?estate|holdings?)\b",
+    # Vague quantifiers over asset nouns. These left the EXACT-count rule when
+    # the correction landed, so they are governed here instead — permitted when
+    # the expansion layer matched, rejected when it did not.
+    r"\b(?:several|multiple|numerous|a\s+couple\s+of|many)\s+" + _ADJ_GAP
+    + r"(?:" + _ASSET_NOUNS + r")\b",
+]
+
+#: The three Founder-approved comfort tiers. Only the SERVER-SELECTED one may
+#: appear in prose; the other two, and any tier at all when none was selected,
+#: are rejected.
+APPROVED_COMFORT_TIERS = ("High Comfort Tier", "Maintenance-Heavy Comfort Tier",
+                          "Constrained Comfort Tier", "Functional Comfort Tier")
+
+#: P-codes are INTERNAL. They may never appear in user-facing prose, whichever
+#: code it is — including the selected one.
+_P_CODE_RULE = (r"\bP[1-5]\b", "an internal P-code")
+
 GLOBAL_RULES = (_COUNT_RULES + _TIMING_RULES + _CERTAINTY_RULES
-                + _ACTIVATION_RULES + _MATERNAL_RULES + _SPIRITUAL_RULES)
+                + _ACTIVATION_RULES + _MATERNAL_RULES + _SPIRITUAL_RULES
+                + [_P_CODE_RULE])
 
 
 def _split_strict(text: str) -> List[Dict[str, str]]:
@@ -447,15 +602,55 @@ def validate_provider_output(text: Any, brief: Dict[str, Any]) -> List[Dict[str,
     vehicles = next(s["body"] for s in sections
                     if s["title"] == "Vehicles & Material Comforts")
     if category:
-        vehicles = vehicles.replace(category, "")
+        # WORD-BOUNDARY STRIP, not a raw replace. `vehicles.replace(category, "")`
+        # deletes the category's characters ANYWHERE they occur, so a short
+        # category silently mangles the section it is meant to protect — a
+        # one-letter category would strip that letter from every word. Found by a
+        # probe, not in production, because the real categories are long phrases.
+        vehicles = re.sub(r"\b" + re.escape(category) + r"\b", "", vehicles, flags=re.I)
+    # REVISED BY THE CONSOLIDATED MISSIVE: the blanket tier ban is replaced by a
+    # CONDITIONAL one. The provider may reproduce the SERVER-SELECTED tier and
+    # nothing else — so the selected tier's own words are removed before the scan,
+    # and every other grading word still rejects. An unmatched (pending) chart has
+    # no tier, so the blanket ban still applies to it in full.
+    comfort = brief.get("comfort_profile") or {}
+    supplied_tier = str(comfort.get("profile") or "")
+    approved_vocab = list(comfort.get("approved_vocabulary") or [])
+    vehicles_scanned = vehicles
+    if supplied_tier:
+        # ONLY THE FULL TIER NAME IS STRIPPED. An earlier version also stripped
+        # each word of the name, which deleted "Tier" from the whole section and
+        # let "a higher tier of vehicle" through — the per-word loop was a
+        # leftover from when the tier names were free phrases, and it defeated
+        # the very rule it sat beside.
+        vehicles_scanned = re.sub(re.escape(supplied_tier), "", vehicles_scanned, flags=re.I)
+    # THE SELECTED TIER'S OWN APPROVED VOCABULARY IS OPENED UP, and only it. C2
+    # may say "executive" and "luxury" because its locked frame does; C4 may not,
+    # which is exactly what stops a functional baseline being written up as a
+    # luxury reading. Everything outside the selected tier's list still rejects.
+    for phrase in approved_vocab:
+        vehicles_scanned = re.sub(r"\b" + re.escape(phrase) + r"\b", "",
+                                  vehicles_scanned, flags=re.I)
+    # The approved tier NAMES are not made of banned words, so the vocabulary
+    # rules alone would let a provider name a tier it was never given — or name
+    # the WRONG one. Only the supplied tier may appear.
+    for approved in APPROVED_COMFORT_TIERS:
+        if approved == supplied_tier:
+            continue
+        if re.search(re.escape(approved), vehicles, re.I):
+            raise D4NarrativeError("the vehicles section names a comfort tier the "
+                                   "engine did not select")
     for pattern, what in _VEHICLE_TIER_RULES:
-        if re.search(pattern, vehicles, re.I):
+        if re.search(pattern, vehicles_scanned, re.I):
             raise D4NarrativeError("the vehicles section carries " + what)
 
-    # A state code other than the one the server selected is an override attempt.
-    selected = str((brief.get("property") or {}).get("selected_state") or "")
-    for code in re.findall(r"\bP[1-5]\b", text):
-        if code != selected:
-            raise D4NarrativeError("provider output names a state other than the "
-                                   "server-selected one")
+    # COURSE CORRECTION · qualitative multi-asset language is gated on the
+    # DETERMINISTIC expansion layer. Permitted when the engine matched it,
+    # rejected when it did not — the provider cannot invent capacity.
+    layers = brief.get("layers") or {}
+    if not layers.get("multi_asset_language_permitted"):
+        for pattern in _QUALITATIVE_MULTI_ASSET:
+            if re.search(pattern, text, re.I):
+                raise D4NarrativeError("provider output claims multi-asset capacity "
+                                       "that the engine did not match")
     return sections
