@@ -274,6 +274,20 @@ is a general one rather than a specific matched pattern.
 D1 is SUPPORTING CONTEXT ONLY. It may add nuance to sections 1 and 2. It may
 never contradict, override or replace the D4 result.
 
+FORMAT IS NOT NEGOTIABLE. Emit the four headings EXACTLY as written below, each
+on its own line, each beginning with three hash marks and one space. Do not use
+two hash marks, do not add a colon, do not add any other heading, and do not
+write a preamble before the first heading or a note after the last section. A
+formatting deviation makes the whole reading unusable.
+
+NEVER QUANTIFY HOLDINGS. Do not attach a number to properties, homes, houses,
+plots or real estate — not "four properties", not "three homes", and not "one
+home". Describe the pattern without counting it.
+
+DO NOT RAISE GUARANTEES OR ACTIVATION AT ALL, in any direction. Do not promise
+them and do not deny them: leave the words guarantee, assured, inevitable,
+activate, trigger, fruition and imminent out of the reading entirely.
+
 Write EXACTLY these four sections, each with '### ' before the heading, in this
 order and with no others:
 ### Property Capacity & Stability
@@ -551,6 +565,29 @@ APPROVED_COMFORT_TIERS = ("High Comfort Tier", "Maintenance-Heavy Comfort Tier",
 #: code it is — including the selected one.
 _P_CODE_RULE = (r"\bP[1-5]\b", "an internal P-code")
 
+#: EVERY FAMILY IS ABSOLUTE. Certainty and activation were briefly
+#: negation-aware; PROD-01-CORR-04 returned them to the same footing as counts,
+#: timing, maternal and spiritual rules.
+
+def _rule_fires(text: str, pattern: str, what: str) -> bool:
+    """A prohibited pattern occurring anywhere fires its rule. No exceptions.
+
+    PROD-01-CORR-04 · THE SEMANTIC NEGATION MACHINERY IS GONE. Four rounds of it
+    — character proximity, clause boundary plus word gap, a target-specific
+    allowlist, then an enumerated filler — each fixed its assigned cases and each
+    left a new construction that meant the opposite of what it was read as:
+    "not difficult AND guaranteed", "no doubt … guaranteed", "nothing BUT
+    acquisition is guaranteed", "nothing is guaranteed EXCEPT acquisition".
+
+    The contract is simplified rather than patched again. The prompt already
+    tells the provider to leave this vocabulary out ENTIRELY, in either
+    direction, so the guard has no need to tell an assertion from a denial, a
+    double negative, an exception or a qualified denial. If the vocabulary
+    appears at all, the narrative is rejected.
+    """
+    return re.search(pattern, text, re.I) is not None
+
+
 GLOBAL_RULES = (_COUNT_RULES + _TIMING_RULES + _CERTAINTY_RULES
                 + _ACTIVATION_RULES + _MATERNAL_RULES + _SPIRITUAL_RULES
                 + [_P_CODE_RULE])
@@ -592,7 +629,7 @@ def validate_provider_output(text: Any, brief: Dict[str, Any]) -> List[Dict[str,
     sections = _split_strict(text)
 
     for pattern, what in GLOBAL_RULES:
-        if re.search(pattern, text, re.I):
+        if _rule_fires(text, pattern, what):
             raise D4NarrativeError("provider output carries " + what)
 
     # Vehicle tiers, scoped to one section. The server's own category name is
