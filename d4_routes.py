@@ -276,6 +276,13 @@ or repair the previous draft. Obey every rule above, and in particular:
 - make NO claim about the mother's health, longevity or survival;
 - introduce NO Moksha or spiritual-versus-material material;
 - use NO internal state code such as P1 through P5;
+- if a comfort profile is NAMED above, reproduce its EXACT full name; otherwise
+  describe it using ONLY the approved vocabulary supplied for it;
+- do NOT use a standalone generic grading term such as "tier", "grade" or
+  "upgrade", and do NOT invent a synonym for any grading word;
+- if the supplied profile's own meaning contains grading vocabulary that is not
+  in its approved-word list, REPRODUCE THAT SUPPLIED MEANING VERBATIM rather
+  than paraphrasing it;
 - state ONLY the comfort tier supplied above, and never invent, rename or
   re-rank one."""
 

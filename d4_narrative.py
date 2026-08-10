@@ -555,6 +555,36 @@ _QUALITATIVE_MULTI_ASSET = [
     + r"(?:" + _ASSET_NOUNS + r")\b",
 ]
 
+def _flexible_phrase(phrase: str) -> str:
+    """An approved phrase with its internal separators interchangeable.
+
+    C1 approves "high-standard" and C2 approves "high status"; a provider using
+    the other separator is reproducing APPROVED vocabulary, not inventing a
+    grade. Every other character is escaped literally, and the caller builds
+    these patterns ONLY from the selected tier's own name and vocabulary, so no
+    other tier's words can be laundered through it.
+    """
+    tokens = [t for t in re.split(r"[-\s]+", phrase.strip()) if t]
+    return r"[-\s]+".join(re.escape(t) for t in tokens)
+
+
+#: The locked frames, read from the FROZEN classifier at import. Used ONLY to
+#: REJECT another tier's exact headline or description — never to decide what is
+#: allowed, which comes solely from the selected profile in the brief.
+def _load_tier_frames():
+    try:
+        from d4_semantic import COMFORT_FRAMES
+        return {t: {"headline": f.get("headline", ""),
+                    "description": f.get("description", "")}
+                for t, f in COMFORT_FRAMES.items()}
+    except Exception:                                  # pragma: no cover
+        # The guard must never fail to load because of this reject-only table.
+        return {}
+
+
+_OTHER_TIER_FRAMES = _load_tier_frames()
+
+
 #: The three Founder-approved comfort tiers. Only the SERVER-SELECTED one may
 #: appear in prose; the other two, and any tier at all when none was selected,
 #: are rejected.
@@ -645,41 +675,86 @@ def validate_provider_output(text: Any, brief: Dict[str, Any]) -> List[Dict[str,
         # one-letter category would strip that letter from every word. Found by a
         # probe, not in production, because the real categories are long phrases.
         vehicles = re.sub(r"\b" + re.escape(category) + r"\b", "", vehicles, flags=re.I)
-    # REVISED BY THE CONSOLIDATED MISSIVE: the blanket tier ban is replaced by a
-    # CONDITIONAL one. The provider may reproduce the SERVER-SELECTED tier and
-    # nothing else — so the selected tier's own words are removed before the scan,
-    # and every other grading word still rejects. An unmatched (pending) chart has
-    # no tier, so the blanket ban still applies to it in full.
+    # PROD-09 · SPAN COVERAGE, NOT STRIP-THEN-SCAN.
+    #
+    # The provider may reproduce the SERVER-SELECTED tier and its approved
+    # vocabulary, and nothing else. The old implementation DELETED those from a
+    # copy and scanned the remains, which had two faults, both found by matrix:
+    #
+    #   1. FALSE POSITIVE, and the one that rejected the live regeneration. C1
+    #      approves "high-standard" and C2 approves "high status", so a provider
+    #      writing the SAME approved phrase with the other separator was
+    #      rejected for reproducing its own tier's vocabulary.
+    #
+    #   2. A REAL LEAK THAT PRE-DATES THIS TICKET. Deleting an approved single
+    #      word can destroy a prohibited COMPOUND: under C4 "standard" is
+    #      approved, so stripping it turned "high-standard" into "high-" and the
+    #      rule could no longer see it. "high-standard vehicles" was ACCEPTED
+    #      under the Functional tier on the accepted f48cc0b6 guard.
+    #
+    # Both disappear once nothing is deleted. Every prohibited match is located
+    # in the ORIGINAL text and allowed only when an approved occurrence covers
+    # the position where that match BEGINS — so "executive-level" passes under
+    # C2 (its approved "executive" starts the match) while "high-standard" is
+    # refused under C4 (the approved "standard" starts inside it, not at it).
     comfort = brief.get("comfort_profile") or {}
     supplied_tier = str(comfort.get("profile") or "")
     approved_vocab = list(comfort.get("approved_vocabulary") or [])
-    vehicles_scanned = vehicles
-    if supplied_tier:
-        # ONLY THE FULL TIER NAME IS STRIPPED. An earlier version also stripped
-        # each word of the name, which deleted "Tier" from the whole section and
-        # let "a higher tier of vehicle" through — the per-word loop was a
-        # leftover from when the tier names were free phrases, and it defeated
-        # the very rule it sat beside.
-        vehicles_scanned = re.sub(re.escape(supplied_tier), "", vehicles_scanned, flags=re.I)
-    # THE SELECTED TIER'S OWN APPROVED VOCABULARY IS OPENED UP, and only it. C2
-    # may say "executive" and "luxury" because its locked frame does; C4 may not,
-    # which is exactly what stops a functional baseline being written up as a
-    # luxury reading. Everything outside the selected tier's list still rejects.
+
+    # PROD-09-CORR-01 · THE SUPPLIED FRAME IS PART OF THE AUTHORITY.
+    #
+    # `build_user_prompt` sends the selected profile's HEADLINE and DESCRIPTION
+    # to the provider as the authoritative meaning of its tier. The guard must
+    # never reject an exact frame it just supplied — and it did: the Functional
+    # tier's own description says "without a pronounced luxury signal", and
+    # `luxury` is not C4 approved vocabulary, so quoting the supplied meaning
+    # verbatim failed.
+    #
+    # The fix needs no denial parser and no broader permission for `luxury`. The
+    # four exact strings the server itself supplied — name, vocabulary, headline,
+    # description — become allowed spans. Any banned word OUTSIDE those exact
+    # spans still rejects, so "Luxury vehicles are indicated" is refused under C4
+    # while the locked description is not.
+    #
+    # Authority comes ONLY from the selected `comfort_profile` in this brief.
+    # Nothing here consults another tier's frame to decide what is ALLOWED.
+    supplied_headline = str(comfort.get("headline") or "")
+    supplied_description = str(comfort.get("description") or "")
+
+    allowed_spans = []
+    for exact in (supplied_tier, supplied_headline, supplied_description):
+        if exact:
+            allowed_spans += [m.span() for m in
+                              re.finditer(_flexible_phrase(exact), vehicles, re.I)]
     for phrase in approved_vocab:
-        vehicles_scanned = re.sub(r"\b" + re.escape(phrase) + r"\b", "",
-                                  vehicles_scanned, flags=re.I)
+        allowed_spans += [m.span() for m in
+                          re.finditer(r"\b" + _flexible_phrase(phrase) + r"\b",
+                                      vehicles, re.I)]
+
     # The approved tier NAMES are not made of banned words, so the vocabulary
     # rules alone would let a provider name a tier it was never given — or name
     # the WRONG one. Only the supplied tier may appear.
     for approved in APPROVED_COMFORT_TIERS:
         if approved == supplied_tier:
             continue
-        if re.search(re.escape(approved), vehicles, re.I):
+        if re.search(_flexible_phrase(approved), vehicles, re.I):
             raise D4NarrativeError("the vehicles section names a comfort tier the "
                                    "engine did not select")
+    # A NON-SELECTED tier's exact frame is a tier claim even when it happens to
+    # carry no banned grading word — C3's headline and description contain none,
+    # so the vocabulary rules alone would let them through. This is an exact-
+    # string check against the locked frames, not an inference about meaning.
+    for other_tier, other_frame in _OTHER_TIER_FRAMES.items():
+        if other_tier == supplied_tier:
+            continue
+        for exact in (other_frame.get("headline", ""), other_frame.get("description", "")):
+            if exact and re.search(_flexible_phrase(exact), vehicles, re.I):
+                raise D4NarrativeError("the vehicles section reproduces the frame of a "
+                                       "comfort tier the engine did not select")
     for pattern, what in _VEHICLE_TIER_RULES:
-        if re.search(pattern, vehicles_scanned, re.I):
-            raise D4NarrativeError("the vehicles section carries " + what)
+        for _m in re.finditer(pattern, vehicles, re.I):
+            if not any(lo <= _m.start() < hi for lo, hi in allowed_spans):
+                raise D4NarrativeError("the vehicles section carries " + what)
 
     # COURSE CORRECTION · qualitative multi-asset language is gated on the
     # DETERMINISTIC expansion layer. Permitted when the engine matched it,
