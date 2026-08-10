@@ -255,6 +255,31 @@ async def _resolve_and_prepare(chart_token: str, chart_payload: Any,
             detail=f"Chart snapshot could not be prepared. Reference: {correlation_id}")
 
 
+#: D4-PROD-05 · appended to the SECOND attempt only. It restates the contract
+#: the first draft broke, WITHOUT naming which rule failed and WITHOUT quoting
+#: the rejected prose — the customer never sees the violation reason, and the
+#: model is asked to rewrite rather than patch.
+REGENERATION_INSTRUCTION = """YOUR PREVIOUS DRAFT VIOLATED THE OUTPUT CONTRACT AND WAS DISCARDED.
+
+Write the complete reading again from scratch. Do not attempt to recall, repeat
+or repair the previous draft. Obey every rule above, and in particular:
+
+- emit EXACTLY the four required headings, once each, in order, each beginning
+  with three hash marks and one space, with no preamble and no closing note;
+- attach NO number to properties, homes, houses, plots, real estate or holdings,
+  in digits or in words — describe the pattern without counting it;
+- give NO purchase date, year, window, season or timeframe;
+- use NO guarantee, assurance, certainty or inevitability vocabulary, in either
+  direction;
+- use NO activation, trigger, fruition or imminence language, in either
+  direction;
+- make NO claim about the mother's health, longevity or survival;
+- introduce NO Moksha or spiritual-versus-material material;
+- use NO internal state code such as P1 through P5;
+- state ONLY the comfort tier supplied above, and never invent, rename or
+  re-rank one."""
+
+
 def _provider_narrative(system_prompt: str, user_prompt: str) -> str:
     """The ONLY provider call in the D4 stack.
 
@@ -313,6 +338,7 @@ async def d4_report(req: D4ReportRequest,
 
     prepared = await _resolve_and_prepare(req.chart_token, chart_payload, doctrine)
 
+    regeneration_attempted = False
     try:
         brief = build_narrative_brief(prepared.property_state.dict(),
                                       prepared.vahana_evidence.dict(),
@@ -320,17 +346,41 @@ async def d4_report(req: D4ReportRequest,
                                       prepared.semantic_envelope.dict(),
                                       prepared.comfort_profile.dict(),
                                       prepared.architectural_signatures.dict())
-        text = _provider_narrative(SYSTEM_PROMPT, build_user_prompt(brief))
+        # The prompt is built ONCE from the deterministic brief and reused for
+        # both attempts, so a regeneration cannot change what the provider is
+        # explaining — only how carefully it obeys the contract.
+        user_prompt = build_user_prompt(brief)
+        text = _provider_narrative(SYSTEM_PROMPT, user_prompt)
         # D4-008-CORR-01 · FAIL CLOSED. A violating narrative is rejected whole
         # and falls into the sanitized 502 below; nothing is scrubbed or
         # partially published, and the deterministic evidence already on the
         # page is unaffected.
-        sections = validate_provider_output(text, brief)
+        #
+        # D4-PROD-05 · ONE-SHOT REGENERATION. The live failure was a provider
+        # that produced a literal asset count. The guard was RIGHT to reject it,
+        # so the guard does not move; the route simply gives the provider one
+        # more attempt against the SAME brief. The rejected draft is DISCARDED
+        # ENTIRELY and never sent back — regenerating from scratch is the point,
+        # and echoing the bad prose would invite the model to edit rather than
+        # rewrite, and would put a violating count back on the wire.
+        #
+        # The retry is scoped to exactly one cause: a response was obtained and
+        # FAILED VALIDATION. `_provider_narrative` sits OUTSIDE this try, so a
+        # missing key, a non-success status or a transport failure still fails
+        # closed on the first attempt with no second call.
+        try:
+            sections = validate_provider_output(text, brief)
+        except D4NarrativeError:
+            regeneration_attempted = True
+            text = _provider_narrative(SYSTEM_PROMPT,
+                                       user_prompt + "\n\n" + REGENERATION_INSTRUCTION)
+            sections = validate_provider_output(text, brief)
     except HTTPException:
         raise
     except Exception:
         correlation_id = uuid.uuid4().hex[:12]
-        logger.exception("d4 narrative generation failed [%s]", correlation_id)
+        logger.exception("d4 narrative generation failed [%s] (regeneration_attempted=%s)",
+                         correlation_id, regeneration_attempted)
         raise HTTPException(
             status_code=502,
             detail=f"Interpretive explanation unavailable. Reference: {correlation_id}")
