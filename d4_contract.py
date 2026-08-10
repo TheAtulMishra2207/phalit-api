@@ -386,6 +386,112 @@ class D4DashaContext(_Strict):
         return values
 
 
+class D4SemanticEnvelope(_Strict):
+    """The layered, P-code-free view. The validators enforce the two rules that
+    matter: no P-code may leak into a user-facing label, and the selected state
+    must not erase the other matched layers."""
+    engine: Dict[str, Any]
+    primary_layer: Dict[str, Any]
+    secondary_layers: List[Dict[str, Any]]
+    active_layer_count: int
+    expansion_capacity_matched: bool
+    multi_asset_language_permitted: bool
+    coverage_baseline: bool
+
+    @validator("primary_layer", "secondary_layers")
+    def _no_p_codes_in_labels(cls, v):
+        import re as _re
+        blob = str(v)
+        if _re.search(r"\bP[1-5]\b", blob):
+            raise ValueError("a P-code may not appear in a user-facing layer label")
+        return v
+
+    @validator("active_layer_count")
+    def _count_matches(cls, v, values):
+        sec = values.get("secondary_layers")
+        if sec is not None and v != 1 + len(sec):
+            raise ValueError("active layer count must be the primary plus every secondary")
+        return v
+
+
+class D4ComfortProfile(_Strict):
+    """The four Founder-locked comfort tiers. The validators enforce the two
+    things easiest to break by accident: every chart resolves to exactly ONE
+    tier, and C4 is published as a coverage fallback rather than dressed up as a
+    matched predicate."""
+    engine: Dict[str, Any]
+    profile: str
+    resolution: str
+    matched_predicate: Optional[str]
+    rationale: str
+    headline: str
+    description: str
+    approved_vocabulary: List[str]
+    maintenance_attention: bool
+    evidence: Dict[str, Any]
+    inputs: Dict[str, Any]
+    note: str
+
+    @validator("engine")
+    def _architecture_locked(cls, v):
+        if v.get("venus_only_classifier") is not False:
+            raise ValueError("a Venus-only comfort classifier is prohibited")
+        if v.get("weighted_score_used") is not False:
+            raise ValueError("no weighted comfort score may be used")
+        if v.get("provider_may_infer_tier") is not False:
+            raise ValueError("the provider may never infer a comfort tier")
+        if v.get("middle_class_promotable_by_contacts") is not False:
+            raise ValueError("Mitra/Sama may never be promoted to Strong by contacts")
+        return v
+
+    @validator("profile")
+    def _only_the_four_tiers(cls, v):
+        if v not in ("High Comfort Tier", "Maintenance-Heavy Comfort Tier",
+                     "Constrained Comfort Tier", "Functional Comfort Tier"):
+            raise ValueError("only the four Founder-locked comfort tiers exist")
+        return v
+
+    @validator("resolution")
+    def _fallback_is_declared(cls, v, values):
+        if v not in ("predicate_match", "coverage_fallback"):
+            raise ValueError("unknown comfort resolution")
+        prof = values.get("profile")
+        if prof is None:
+            return v
+        # C4 is the ONLY fallback, and it must never be published as a match.
+        if (prof == "Functional Comfort Tier") != (v == "coverage_fallback"):
+            raise ValueError("the Functional Comfort Tier is the coverage fallback, "
+                             "and no other tier may claim it")
+        return v
+
+    @validator("matched_predicate")
+    def _predicate_matches_resolution(cls, v, values):
+        res = values.get("resolution")
+        if res == "coverage_fallback" and v is not None:
+            raise ValueError("a coverage fallback has no matched predicate")
+        if res == "predicate_match" and v not in ("C1", "C2", "C3"):
+            raise ValueError("a matched tier must name C1, C2 or C3")
+        return v
+
+
+class D4ArchitecturalSignatures(_Strict):
+    engine: Dict[str, Any]
+    signatures: List[Dict[str, Any]]
+    any_signature_active: bool
+    caveat: str
+    fourth_house_sign: Optional[str]
+
+    @validator("signatures")
+    def _only_the_three_mapped_grahas(cls, v):
+        allowed = {"Mars", "Moon", "Sun"}
+        bad = [s.get("graha") for s in v if s.get("graha") not in allowed]
+        if bad:
+            raise ValueError("only the Founder-supplied Mars, Moon and Sun signatures exist")
+        if len({s.get("graha") for s in v}) != len(v):
+            raise ValueError("a graha may carry only one signature")
+        return v
+
+
 class D4PrepareResponse(_Strict):
     route_version: str
     chart_token: str
@@ -402,6 +508,9 @@ class D4PrepareResponse(_Strict):
     property_state: D4PropertyState
     vahana_evidence: D4VahanaEvidence
     dasha_context: D4DashaContext
+    semantic_envelope: D4SemanticEnvelope
+    comfort_profile: D4ComfortProfile
+    architectural_signatures: D4ArchitecturalSignatures
 
     @validator("houses")
     def _twelve_houses(cls, v):
@@ -469,7 +578,10 @@ def build_response(*, facts: Dict[str, Any], chart_token: str,
                    calculation_meta: Dict[str, Any],
                    property_state: Dict[str, Any],
                    vahana_evidence: Dict[str, Any],
-                   dasha_context: Dict[str, Any]) -> D4PrepareResponse:
+                   dasha_context: Dict[str, Any],
+                   semantic_envelope: Dict[str, Any],
+                   comfort_profile: Dict[str, Any],
+                   architectural_signatures: Dict[str, Any]) -> D4PrepareResponse:
     """Wrap a certified `build_d4_facts()` payload in the strict contract.
 
     `chart_token` is the RESOLVED token, echoed back so a caller can confirm
@@ -496,4 +608,7 @@ def build_response(*, facts: Dict[str, Any], chart_token: str,
         property_state=property_state,
         vahana_evidence=vahana_evidence,
         dasha_context=dasha_context,
+        semantic_envelope=semantic_envelope,
+        comfort_profile=comfort_profile,
+        architectural_signatures=architectural_signatures,
     )

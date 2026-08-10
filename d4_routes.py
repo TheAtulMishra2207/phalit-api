@@ -61,6 +61,8 @@ from d4_core import ALL_GRAHAS, D4DomainError, D4Doctrine, build_d4_facts
 from d4_property_state import D4PropertyStateError, classify_property_state
 from d4_vahana import D4VahanaError, build_vahana_evidence
 from d4_dasha import D4DashaError, build_dasha_context
+from d4_semantic import (D4SemanticError, build_architectural_signatures,
+                         build_comfort_profile, build_semantic_envelope)
 from d4_narrative import (D4NarrativeError, D4_NARRATIVE_VERSION, SYSTEM_PROMPT,
                           build_narrative_brief, build_user_prompt, validate_provider_output)
 
@@ -229,14 +231,22 @@ async def _resolve_and_prepare(chart_token: str, chart_payload: Any,
         # D4-007 · timing CONTEXT derived from the structural evidence just
         # resolved. It re-evaluates no predicate and classifies nothing.
         dasha_context = build_dasha_context(property_state, d1_root.get("dasha"))
+        # COURSE CORRECTION · presentation layers, derived from the already
+        # decided result. None of these re-evaluates a predicate.
+        semantic_envelope = build_semantic_envelope(property_state, vahana_evidence)
+        comfort_profile = build_comfort_profile(vahana_evidence, property_state)
+        architectural_signatures = build_architectural_signatures(facts, property_state)
         # The RESOLVED token is echoed, so a caller can confirm which chart
         # answered.
         return build_response(facts=facts, chart_token=chart_token,
                               calculation_meta=meta, property_state=property_state,
                               vahana_evidence=vahana_evidence,
-                              dasha_context=dasha_context)
+                              dasha_context=dasha_context,
+                              semantic_envelope=semantic_envelope,
+                              comfort_profile=comfort_profile,
+                              architectural_signatures=architectural_signatures)
     except (ChartAdapterError, D4SnapshotError, D4DomainError,
-            D4PropertyStateError, D4VahanaError, D4DashaError,
+            D4PropertyStateError, D4VahanaError, D4DashaError, D4SemanticError,
             KeyError, TypeError, ValueError):
         correlation_id = uuid.uuid4().hex[:12]
         logger.exception("d4 snapshot failed certification [%s]", correlation_id)
@@ -306,7 +316,10 @@ async def d4_report(req: D4ReportRequest,
     try:
         brief = build_narrative_brief(prepared.property_state.dict(),
                                       prepared.vahana_evidence.dict(),
-                                      prepared.dasha_context.dict())
+                                      prepared.dasha_context.dict(),
+                                      prepared.semantic_envelope.dict(),
+                                      prepared.comfort_profile.dict(),
+                                      prepared.architectural_signatures.dict())
         text = _provider_narrative(SYSTEM_PROMPT, build_user_prompt(brief))
         # D4-008-CORR-01 · FAIL CLOSED. A violating narrative is rejected whole
         # and falls into the sanitized 502 below; nothing is scrubbed or
