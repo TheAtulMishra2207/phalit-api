@@ -15,6 +15,10 @@ from nakshatra_routes import router as nakshatra_router
 # BOTH the tables and get_dignity exist; no second resolver binding is created.
 from d4_core import D4Doctrine
 from d4_routes import configure_d4_doctrine, router as d4_router
+from d5_engine import D5Doctrine
+from d5_rules import D5RulesDoctrine
+from d5_operational import configure_transit_provider
+from d5_routes import configure_d5_doctrine, router as d5_router
 from pydantic import BaseModel
 import swisseph as swe
 from datetime import datetime, timedelta, timezone
@@ -444,6 +448,36 @@ configure_d4_doctrine(D4Doctrine(
 ))
 app.include_router(d4_router)
 
+# ─────────────────────────────────────────────────────────────────────────────
+# D5-001 · POST /d5/prepare
+#
+# Registered WITHOUT a prefix and WITHOUT a second resolver binding, for the
+# same two reasons recorded above the Pratiphala, Nakshatra and D4 includes: the
+# path is declared in full on the router, and d5_routes depends on the SAME
+# d1_routes.get_chart_resolver function object that install_d1 already
+# overrode.
+#
+# The shared SIGNS and SIGN_LORDS tables are INJECTED rather than imported by
+# d5_engine, so there is exactly one copy of each in the process. D5-001 needs
+# no dignity, no exaltation table and no node policy function, so none is
+# passed — the doctrine surface is the minimum this module actually reads.
+#
+# PLACEMENT IS LOAD-BEARING: this block must sit below BOTH SIGNS and
+# SIGN_LORDS. Registering it beside the include_router calls near the top would
+# raise NameError at import.
+# ─────────────────────────────────────────────────────────────────────────────
+configure_d5_doctrine(
+    D5Doctrine(signs=SIGNS, sign_lords=SIGN_LORDS),
+    # D5-008 · the accepted exaltation table, injected for the same reason as
+    # the sign tables: exactly one copy of each in the process.
+    D5RulesDoctrine(exaltation_sign=EXALTATION_SIGN),
+)
+
+# D5-008 · the shared current-transit callable is configured BELOW, immediately
+# after `get_current_transits` is defined. Configuring it here raised NameError
+# at import: this block executes ~1970 lines before that function exists.
+app.include_router(d5_router)
+
 
 def calc_planet_data(jd: float, planet: str, lagna_sign_index: int) -> dict:
     """Calculate full data for one planet using manual ayanamsha."""
@@ -514,6 +548,10 @@ def calc_planet_data(jd: float, planet: str, lagna_sign_index: int) -> dict:
 # combust by its own light, and Rahu and Ketu are STRICTLY exempt — they are
 # shadow points with no disc to be obscured, and no angular proximity to the
 # Sun may ever classify either as combust.
+# D5-008-CORR-01C · the shared Graha Yuddha primitive. One implementation in the
+# process; D5 consumes the flag this certifies.
+from graha_yuddha import defeated_map as graha_yuddha_defeated_map  # noqa: E402
+
 COMBUSTION_ORBS = {
     "Moon":    {"direct": 12.0, "retrograde": 12.0},
     "Mars":    {"direct": 17.0, "retrograde": 17.0},
@@ -557,6 +595,17 @@ def calc_all_planets(jd: float, lagna_sign_index: int) -> dict:
             else is_combust(planet, rec.get("longitude", 0.0), sun_lon,
                             bool(rec.get("retrograde")))
         )
+    # D5-008-CORR-02B · GRAHA YUDDHA IS DELIBERATELY NOT CERTIFIED HERE.
+    #
+    # This builder is generic: it serves the natal /chart AND the annual
+    # Varshaphala, monthly Maas and daily Dina charts. The Founder lock scopes
+    # Graha Yuddha to the D-1 NATAL chart, so certifying it here leaked a
+    # natal-only doctrine into three other chart records — records that are
+    # serialized into the Varshaphala and brief narrative surfaces.
+    #
+    # The pass now runs in `_calculate_chart_body()` only. The non-natal charts
+    # do not carry the field AT ALL: writing False into them would assert a
+    # verdict the doctrine never reaches.
     return result
 
 
@@ -795,6 +844,22 @@ def _calculate_chart_body(req: ChartRequest):
         ephemeris.check_supported_jd(jd)
         lagna = calc_lagna(jd, req.lat, req.lon)
         planets = calc_all_planets(jd, lagna["sign_index"])
+
+        # D5-008-CORR-02B · GRAHA YUDDHA · D-1 NATAL ONLY.
+        #
+        # Run here, and only here, because the Founder lock reads "same zodiac
+        # sign in the D-1 Natal Chart". It runs AFTER `calc_all_planets` because
+        # every combatant's certified sign and longitude must already exist —
+        # the same ordering requirement the combustion pass has.
+        #
+        # ONE SHARED PRIMITIVE. D5 consumes this published flag and derives it
+        # through the SAME engine for snapshots minted before the field existed,
+        # so the certified and derived paths cannot diverge. No new ephemeris
+        # call is made: the engine reads the positions computed above.
+        _yuddha = graha_yuddha_defeated_map(planets)
+        for _planet, _rec in planets.items():
+            _rec["graha_yuddha_defeated"] = _yuddha[_planet]
+
         houses = calc_houses(lagna["sign_index"])
         moon_lon = planets["Moon"]["longitude"]
         dasha = calc_vimshottari_dasha(moon_lon, req.date, req.time, req.utc_offset)
@@ -2403,6 +2468,16 @@ Write the 2-section executive report now."""
 
 # ── GOCHAR: CURRENT TRANSITS ENDPOINT ────────────────────────────────────────
 
+# ─────────────────────────────────────────────────────────────────────────────
+# D5-008 · SHARED SERVER PRIMITIVES
+#
+# One Tithi formula in the process. It was previously inline in the transits
+# handler; D5 needs the same calculation over the NATAL longitudes, and a second
+# copy would be two formulas that agree today.
+# ─────────────────────────────────────────────────────────────────────────────
+from d5_operational import tithi_from_longitudes  # noqa: E402
+
+
 @app.get("/transits")
 def get_current_transits():
     """Return current planetary positions (sidereal, Lahiri) for Gochar computation."""
@@ -2446,11 +2521,12 @@ def get_current_transits():
         # Was False here while the natal path said True for the same body.
         'retrograde': True
     }
-    # Moon-Sun difference for Tithi
+    # Moon-Sun difference for Tithi. D5-008 factored this into the shared
+    # primitive `tithi_from_longitudes` so the current-transit Tithi and the
+    # natal Tithi can never be computed two different ways.
     moon_lon = result['Moon']['longitude']
     sun_lon  = result['Sun']['longitude']
-    diff     = (moon_lon - sun_lon) % 360
-    tithi    = int(diff / 12) + 1  # 1–30
+    tithi    = tithi_from_longitudes(moon_lon, sun_lon)  # 1–30
     weekday  = now.isoweekday() % 7 + 1  # Sun=1 … Sat=7
     return {
         'planets':  result,
@@ -2459,6 +2535,20 @@ def get_current_transits():
         'jd':       round(jd, 4),
         'date_utc': now.strftime('%Y-%m-%d %H:%M UTC')
     }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# D5-008-CORR-01A · THE SHARED CURRENT-TRANSIT CALLABLE.
+#
+# Configured HERE, immediately after the function object exists. The earlier
+# placement sat beside the D5 router registration, roughly 1970 lines above this
+# definition, and raised NameError at import — the application could not start.
+#
+# `/transits` and `/d5/prepare` consume the SAME function object. D5 does not
+# import main.py, does not call swisseph, and never makes an HTTP request back
+# to /transits.
+# ─────────────────────────────────────────────────────────────────────────────
+configure_transit_provider(get_current_transits)
 
 
 # ── GOCHAR: REPORT NARRATIVE ENDPOINT ────────────────────────────────────────
