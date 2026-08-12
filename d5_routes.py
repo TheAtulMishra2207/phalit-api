@@ -218,8 +218,12 @@ async def _resolve_and_prepare(chart_token: str, chart_payload: Any,
             facts, doctrine, rules_doctrine, temporal_inputs, rule_inputs)
         score = SCORING.build_score(static_outcomes, timing_outcomes,
                                     triangulation_outcomes)
+        # D5-009-CORR-05 §2 · the certified static outcomes are passed READ-ONLY
+        # so the report can inspect BRANCH evidence for the Atmakaraka metric.
+        # No new evaluation: these are the same outcomes already scored.
         report = REPORT.build_report_payload(facts, score, timing_outcomes,
-                                             triangulation_outcomes)
+                                             triangulation_outcomes,
+                                             static_outcomes)
     except (OPS.D5OperationalError, SCORING.D5ScoringError) as exc:
         # A SERVER-SIDE SOURCE GAP, not a caller error. Misclassifying it as a
         # 4xx would tell the customer their request was wrong when it was not.

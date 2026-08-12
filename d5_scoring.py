@@ -27,6 +27,7 @@ from typing import Any, Dict, FrozenSet, List, Mapping, Optional, Sequence, Tupl
 
 import d5_rules as R
 import d5_temporal_tri as X
+from d5_archetypes import PURVA_PUNYA_UNIVERSE as ARCH_PURVA_UNIVERSE
 from d5_engine import D5DomainError
 from d5_rules import FIRED, NOT_FIRED, UNRESOLVED, RuleOutcome
 
@@ -50,6 +51,19 @@ TRIANGULATION_RULE_IDS: FrozenSet[str] = frozenset(X.TRI_META)
 TIMING_RULE_IDS: FrozenSet[str] = frozenset(X.TIM_META)
 
 IDENTITY = 1.00
+
+#: D5-009-CORR-03 §4 · FOUNDER SCORING LOCK. When TRI_02 fires, these four Raj
+#: Yoga rules contribute nothing, even where they fired on their own terms.
+#:
+#: Expressed as an explicit ZERO MULTIPLIER rather than a post-score overwrite,
+#: so the certified equation still holds:
+#:     Effective Weight = Base Weight x Product(applicable TRI multipliers)
+#: The status stays FIRED, the base weight and participants are untouched, and
+#: the human meaning remains available to the reading as a present but
+#: suppressed signature.
+RAJ_YOGA_RULE_IDS: FrozenSet[str] = frozenset({
+    "D5_PAR_02", "D5_PAR_03", "D5_JAI_02", "D5_JAI_03",
+})
 
 
 def additive_rule_ids() -> List[str]:
@@ -105,20 +119,28 @@ CORE_AUTHORITY_BUCKETS: Dict[str, Tuple[str, ...]] = {
 
 CORE_AUTHORITY_OVERRIDE = "Unmanifested Potential"
 
-#: Founder-locked Purva Punya rule set.
-PURVA_PUNYA_RULE_IDS: Tuple[str, ...] = (
-    "D5_PAR_07", "D5_PAR_08", "D5_PAR_09", "D5_PAR_10", "D5_JAI_06",
-    "D5_JAI_07", "D5_JAI_08", "D5_CLA_02", "D5_AFF_02", "D5_AFF_04",
-)
+#: D5-009-CORR-04 §1 · ONE UNIVERSE. The Founder Purva Punya set is defined by
+#: the archetype clusters and IMPORTED here rather than restated, so the two
+#: cannot drift. The superseded 10-rule list omitted JAI_09, CLA_01 and AFF_01,
+#: which meant the Quick Snapshot Index and the archetype disagreed about which
+#: rules even count.
+PURVA_PUNYA_RULE_IDS: Tuple[str, ...] = ARCH_PURVA_UNIVERSE
 
 PURVA_PUNYA_NO_SIGNAL = "Earned Progression"
 
 
 def purva_punya_classification(score: float) -> str:
-    """    >= +2.5   High Credit
-       0 .. < +2.5   Balanced
-    -1.5 .. < 0      Karmic Debt
-         < -1.5      Blocked
+    """The Quick Snapshot Purva Punya INDEX. Exactly four values.
+
+    D5-009-CORR-04 §1 · `Earned Progression` is NOT an Index value. It is State
+    C of the `Purva Punya & Divine Grace` archetype, which is a different
+    question — the Index says how much credit there is, the archetype says what
+    kind of relationship the native has with it.
+
+        >= +2.5          High Credit
+        0 .. < +2.5      Balanced
+        -1.5 .. < 0      Karmic Debt
+        < -1.5           Blocked
     """
     if score >= 2.5:
         return "High Credit"
@@ -280,7 +302,8 @@ def _participants_of(rule_id: str, outcome: RuleOutcome) -> Tuple[List[str], boo
 
 
 def effective_weight(rule_id: str, outcome: RuleOutcome,
-                     bindings: Mapping[str, Any]) -> Dict[str, Any]:
+                     bindings: Mapping[str, Any],
+                     tri_02_fired: bool = False) -> Dict[str, Any]:
     """One additive rule's scoring entry.
 
         Effective_Weight = Base_Weight x Π(participant TRI multipliers)
@@ -301,7 +324,7 @@ def effective_weight(rule_id: str, outcome: RuleOutcome,
         "base_weight": base_weight, "participants": [],
         "participant_multipliers": {}, "rule_multiplier": IDENTITY,
         "effective_weight": 0.0, "triangulated": False,
-        "non_planetary_branch": False,
+        "non_planetary_branch": False, "raj_yoga_suppressed": False,
         "power_vector_hits": sorted(power_vector_hits(rule_id, outcome)),
     }
     if status == NOT_FIRED:
@@ -333,6 +356,13 @@ def effective_weight(rule_id: str, outcome: RuleOutcome,
         multipliers[graha] = binding["multiplier"]
     for factor in multipliers.values():
         rule_multiplier *= factor
+
+    if tri_02_fired and rule_id in RAJ_YOGA_RULE_IDS:
+        # The global Raj Yoga gate. Recorded in `rule_multiplier`, which is the
+        # audit field the equation already multiplies through, so the zero is
+        # visible in the evidence rather than applied invisibly afterwards.
+        rule_multiplier = 0.0
+        entry["raj_yoga_suppressed"] = True
 
     entry["participants"] = participants
     entry["participant_multipliers"] = multipliers
@@ -399,21 +429,13 @@ def purva_punya(entries: Mapping[str, Dict[str, Any]],
     fired = sorted(r for r in members if entries[r]["status"] == FIRED)
     no_signal = not fired
 
-    # D5-007-CORR-01B · THE OVERRIDE OUTRANKS THE NO-SIGNAL FALLBACK.
-    # `Blocked` wins over High Credit, Balanced, Karmic Debt AND Earned
-    # Progression alike. The earlier order tested no-signal first, so a chart
-    # with TRI_02 fired and no Purva Punya rule fired was reported as Earned
-    # Progression — a hopeful label on a suppressed chart.
-    #
-    # `no_signal` stays an independent FACTUAL flag, so the valid combination
-    # no_signal=True with classification=Blocked is representable.
+    # D5-009-CORR-04 §1 · `no_signal` is retained as an INTERNAL boolean and no
+    # longer selects a classification. A chart with no fired Purva rule scores
+    # 0, which is Balanced — the absence of signal is a separate fact from the
+    # amount of credit, and the archetype (State C) is where it is expressed.
     override = "D5_TRI_02 FIRED" if tri_02_fired else None
-    if tri_02_fired:
-        classification = PURVA_PUNYA_OVERRIDE
-    elif no_signal:
-        classification = PURVA_PUNYA_NO_SIGNAL
-    else:
-        classification = purva_punya_classification(score)
+    classification = (PURVA_PUNYA_OVERRIDE if tri_02_fired
+                      else purva_punya_classification(score))
 
     return {"score": score, "classification": classification,
             "no_signal": no_signal, "override": override,
@@ -487,13 +509,17 @@ def build_score(static_outcomes: Mapping[str, RuleOutcome],
         if not binding["multiplier_exact"]:
             raise D5ScoringError(f"{planet} has an inexact TRI binding")
 
+    tri_02_outcome = triangulation_outcomes.get("D5_TRI_02")
+    tri_02_active = tri_02_outcome is not None and tri_02_outcome.status == FIRED
+
     entries: Dict[str, Dict[str, Any]] = {}
     for rule_id in additive_rule_ids():
         outcome = (static_outcomes.get(rule_id)
                    or timing_outcomes.get(rule_id))
         if outcome is None:
             raise D5ScoringError(f"{rule_id} has no outcome to score")
-        entries[rule_id] = effective_weight(rule_id, outcome, bindings)
+        entries[rule_id] = effective_weight(rule_id, outcome, bindings,
+                                            tri_02_active)
 
     # THE TRI RULES ARE NOT SUMMED. Only the 70 additive entries contribute.
     final_score = sum(entry["effective_weight"] for entry in entries.values())

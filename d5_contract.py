@@ -259,10 +259,40 @@ class TimingEntry(BaseModel):
     evidence: Dict[str, Any]
 
 
+class ClientSection(BaseModel):
+    key: str
+    title: str
+    body: str
+    state: str
+    planets: List[str]
+
+
+class ClientSignature(BaseModel):
+    """One fired rule's MEANING. No rule_id, no weight, no status code."""
+    key: str
+    chapter: str
+    title: str
+    body: str
+    state: str
+    planets: List[str]
+
+
+class ClientReading(BaseModel):
+    """The Founder report structure, in the Founder's order."""
+    quick_snapshot: Dict[str, str]
+    foundational_metrics: List[Dict[str, str]]
+    archetypes: Dict[str, Dict[str, Any]]
+    temporal_activation: Dict[str, Any]
+    karmic_friction: Dict[str, Any]
+    detailed_analysis: Dict[str, Any]   # chapters carry narrative + supporting
+    detailed_signatures: List[ClientSignature]
+
+
 class ReportBlock(BaseModel):
     title: str
     subtitle: str
     quick_snapshot: QuickSnapshot
+    client_reading: ClientReading
     foundational: Dict[str, Any]
     authority: CoreAuthorityBlock
     purva_punya: PurvaPunyaBlock
