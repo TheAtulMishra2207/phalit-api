@@ -536,29 +536,35 @@ def karmic_friction(signatures) -> Dict[str, Any]:
                 if any(m.lower() in s["title"].lower() for m in markers)]
 
     def describe(items, empty):
+        """The certified MEANING, not a list of titles.
+
+        Naming the signature without saying what it means was the same defect
+        as the badge ledger: the reader learns a label and nothing more.
+        """
         if not items:
             return empty
-        titles = ", ".join(s["title"] for s in items)
-        restricted = any(s["state"] == "suppressed" for s in items)
-        return (titles + ". " + ("These are present but their pressure is "
-                                 "currently held in check."
-                                 if restricted else
-                                 "These are actively in play."))
+        return " ".join(s["body"] for s in items)
+
+    structural, nodal, shrapit = pick(_STRUCTURAL), pick(_NODAL), pick(_SHRAPIT)
+    claimed = {id(x) for group in (structural, nodal, shrapit) for x in group}
+    # Anything the three concept markers miss is folded into Structural Blocks
+    # rather than dropped — the Founder lock covers every fired meaning.
+    structural = structural + [s for s in friction if id(s) not in claimed]
 
     return {
         "title": "Karmic Friction & Potential Ceilings",
         "subsections": [
             {"title": "Structural Blocks",
-             "body": describe(pick(_STRUCTURAL),
+             "body": describe(structural,
                               "No structural leakage through the sixth, eighth "
                               "or twelfth axis is indicated. Public credit is "
                               "not being drained at the structural level.")},
             {"title": "Nodal Interrupts",
-             "body": describe(pick(_NODAL),
+             "body": describe(nodal,
                               "The nodal axis does not create a dominant "
                               "obsession or refusal in this division.")},
             {"title": "Shrapit / Cursed Alignments",
-             "body": describe(pick(_SHRAPIT),
+             "body": describe(shrapit,
                               "No ancestral or planetary curse signature "
                               "delays the executive rise here.")},
         ],
@@ -571,47 +577,37 @@ def karmic_friction(signatures) -> Dict[str, Any]:
 
 def karmic_triangulation(tri_01_fired: bool, tri_02_fired: bool,
                          tri_03_fired: bool, authority) -> Dict[str, Any]:
-    """The D-1 -> D-9 -> D-5 reality check, in words.
+    """The D-1 -> D-9 -> D-5 reality check, in continuous prose.
 
-    D5-009-CORR-04 §3 · TRI_03 is read, so an **Amplified** verdict is now
-    reachable. It was previously impossible: the function never saw the third
-    outcome, so a chart whose triangulation actively reinforced the promise was
-    reported as merely free.
-
-    PRECEDENCE, exactly as locked:
-        1 TRI_02        -> Blocked
-        2 TRI_01        -> Partially Suppressed
-        3 authority override -> Partially Suppressed
-        4 TRI_03, no blocker -> Amplified
-        5 otherwise     -> Freely Manifesting
-
-    TRI_01 + TRI_03 therefore reads Partially Suppressed, which matches the
-    accepted combined multiplier of 0.75: amplification does not cancel a
-    physical weakening, it is scaled by it.
+    D5-009-CORR-06 · the verdict now connects back to Chapter I explicitly, so
+    a reader can see WHY strong authority potential and an Unmanifested
+    Potential tier are the same finding rather than a contradiction.
 
     No TRI rule is named to the customer.
     """
     vessel = ("The birth chart shows a planet carrying this division's promise "
               "under physical strain — combustion, debilitation or planetary "
               "war — which limits how much of the promise the body of the "
-              "chart can actually carry."
+              "chart can carry."
               if tri_01_fired else
               "The birth chart has the physical capacity to carry what this "
-              "division promises. No major weakening blocks it at the natal "
-              "level.")
+              "division promises. Nothing at the natal level blocks it.")
     fuel = ("The Navamsha does not supply the deep dignity needed to sustain "
-            "this promise over a lifetime; support here is intermittent rather "
+            "this promise over a lifetime; the support is intermittent rather "
             "than structural."
             if tri_02_fired else
             "The Navamsha supplies the soul-strength and dignity needed to "
             "sustain this promise long term.")
 
     if tri_02_fired:
-        verdict = ("Blocked. The Panchamsha carries genuine authority and merit "
-                   "signatures, but the deeper chart withholds the support "
-                   "those signatures need to express. The promise is real and "
-                   "its expression is conditional on working the obstruction "
-                   "through.")
+        verdict = ("Blocked. The Panchamsha contains substantial authority "
+                   "signatures, and the birth chart provides the physical "
+                   "capacity to carry them. The limiting factor lies in the "
+                   "Navamsha, where the deeper sustaining dignity is "
+                   "insufficient. This is why the chart can simultaneously "
+                   "show strong authority potential and an unmanifested "
+                   "verdict: the promise is present, and its full outward "
+                   "expression is what is constrained.")
     elif tri_01_fired:
         verdict = ("Partially Suppressed. The promise of this division is "
                    "sound and the inner support is present, but a physical "
@@ -622,18 +618,16 @@ def karmic_triangulation(tri_01_fired: bool, tri_02_fired: bool,
                    "restricting configuration governs how much of the promise "
                    "reaches open expression.")
     elif tri_03_fired:
-        verdict = ("Amplified. All three charts reinforce one another: the "
-                   "soul-significators of this division are well placed and "
-                   "connected to its power centres, so what the Panchamsha "
-                   "promises is carried forward with additional force rather "
-                   "than merely permitted.")
+        verdict = ("Amplified. All three charts reinforce one another, so what "
+                   "the Panchamsha promises is carried forward with additional "
+                   "force rather than merely permitted.")
     else:
         verdict = ("Freely Manifesting. Birth chart, Navamsha and Panchamsha "
                    "agree: what this division promises has both the physical "
                    "capacity and the inner fuel to express itself.")
     return {
         "title": "III. Karmic Triangulation",
-        "subsections": [
+        "sections": [
             {"title": "Physical Vessel Check · D-1", "body": vessel},
             {"title": "Internal Fuel Check · D-9", "body": fuel},
             {"title": "Triangulated Verdict", "body": verdict},
@@ -866,56 +860,209 @@ def _group_signatures(chapter_key: str, items):
     return buckets
 
 
-def compose_chapter(chapter_key: str, title: str, signatures,
-                    authority=None, archetypes=None) -> Dict[str, Any]:
-    """One Founder chapter: a narrative first, its signatures underneath.
+# ─────────────────────────────────────────────────────────────────────────────
+# D5-009-CORR-06 · CONTINUOUS NARRATIVE, NOT A SECOND EVIDENCE LEDGER
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# The chapters now return `sections`, each a titled paragraph. The previous
+# shape returned one short narrative plus a `supporting_signatures` list, and
+# the page rendered that list as a ledger of RESTRICTED badges — which asked the
+# customer to decode an internal state machine and told them nothing about
+# whether they actually hold the yoga.
+#
+# Fired meanings are ABSORBED into the prose. Represented does not mean listed.
 
-    The narrative is PRIMARY and covers the WHOLE relevant picture, grouped by
-    Founder concept. The individual fired meanings remain available in the
-    subordinate `supporting_signatures` surface, which preserves the lock that
-    every fired rule stays visible in meaning.
+def _meanings(bucket_names, by_title):
+    """The certified interpretations for a concept bucket, joined as prose.
+
+    `by_title` maps a title to a LIST of bodies: two distinct rules can share a
+    title (5L Interlink is published by both ANAL_07 and ANAL_08) with different
+    interpretations, and a plain dict silently kept only the last.
     """
-    theme = CHAPTER_THEME[chapter_key]
-    items = [s for s in signatures if s["chapter"] == chapter_key]
-    # NEUTRAL signatures are present and unrestricted, so they belong with the
-    # spoken material — not with the restriction sentence.
+    bodies = []
+    for title in bucket_names:
+        for body in by_title.get(title, []):
+            if body not in bodies:
+                bodies.append(body)
+    return " ".join(bodies)
+
+
+def _manifestation_paragraph(tri_01: bool, tri_02: bool, tri_03: bool,
+                             authority, has_signatures: bool) -> str:
+    """§4 · what RESTRICTED actually means, in words.
+
+    The badge could have meant absent, weak, cancelled, dormant or delayed, and
+    the customer had no way to tell which. The cross-chart result is stated
+    instead: the promise is present, and what is constrained is its expression.
+    """
+    if not has_signatures:
+        return ("No dominant authority signature stands out in this division, "
+                "so there is no cross-chart restriction to resolve. Standing "
+                "here is built steadily rather than conferred.")
+    if tri_02:
+        return ("These authority combinations are present in the Panchamsha "
+                "and therefore represent genuine potential — they are not "
+                "absent and they are not cancelled. However, the Navamsha does "
+                "not provide the sustaining dignity their full manifestation "
+                "requires. Their promise is conditional or latent rather than "
+                "denied, which is precisely why the chart can read as "
+                "substantial potential and restricted expression at the same "
+                "time.")
+    if tri_01:
+        return ("The promise exists and is real. What limits it is a weakness "
+                "in the birth chart itself, which narrows how completely these "
+                "signatures can be carried into lived circumstances rather "
+                "than whether they exist at all.")
+    if authority and authority.get("override"):
+        return ("The signatures are present and intact. A wider restricting "
+                "configuration governs how much of the promise reaches open "
+                "expression, so the potential is real and its expression is "
+                "conditional.")
+    if tri_03:
+        return ("The same promise receives reinforcement across the deeper "
+                "chart layers and is therefore more likely to express strongly "
+                "and consistently, rather than merely being permitted.")
+    return ("The D1, D9 and D5 are sufficiently aligned for this promise to "
+            "express without a major cross-chart restriction.")
+
+
+def compose_foundation(signatures, facts, power_vector, authority,
+                       tri_01, tri_02, tri_03) -> Dict[str, Any]:
+    """Chapter I · four Founder subsections of continuous prose."""
+    items = [s for s in signatures
+             if s["chapter"] == "foundation_public_footprint"]
     speakable = [s for s in items if s["state"] in ("active", "neutral")]
-    suppressed = [s for s in items if s["state"] == "suppressed"]
+    by_title: Dict[str, List[str]] = {}
+    for signature in items:
+        by_title.setdefault(signature["title"], []).append(signature["body"])
+    buckets = _group_signatures("foundation_public_footprint", items)
 
-    if not items:
-        return {"title": title, "narrative": _OPEN_NONE.format(theme=theme),
-                "supporting_signatures": []}
+    lagna = facts["lagna"]
+    ak = facts["chara_karakas"]["assignments"].get("AK", {}).get("planet", "")
+    ak_place = facts["grahas"].get(ak, {})
+    planets = sorted({p for s in speakable for p in s["planets"]})
 
-    narrative = (_OPEN_MANY if len(items) >= 3 else _OPEN_FEW).format(theme=theme)
+    identity = (f"The Panchamsha rises in {lagna['d5_sign']}, ruled by "
+                f"{facts['lagna_lord']['planet']}, under the {lagna['tattva']} "
+                f"elemental current. The Atmakaraka is {ak}, seated in "
+                f"{ak_place.get('d5_sign', '')} in house "
+                f"{ak_place.get('d5_house', '')} of this division. "
+                + (_meanings(buckets["lagna"], by_title) or
+                   "The foundation itself carries no distinguishing signature "
+                   "beyond its placement."))
 
-    buckets = _group_signatures(chapter_key, speakable)
-    order = [key for key, _l, _t in _CONCEPT_GROUPS[chapter_key]] + ["other"]
-    for key in order:
-        names = buckets.get(key) or []
-        if not names:
-            continue
-        narrative += _GROUP_CLAUSE.format(lead=_GROUP_LEADS[key],
-                                          names=_join(names))
+    command_bodies = _meanings(buckets["command"] + buckets["karaka"]
+                               + buckets["dignity"], by_title)
+    command = (("The division contains genuine executive signatures. "
+                + command_bodies)
+               if command_bodies else
+               "No dominant signature of administrative command stands out in "
+               "this division.")
+    if planets:
+        command += (" The significators carrying this material are "
+                    + _join(planets) + ".")
 
-    if archetypes and chapter_key == "intellectual_legacy":
-        narrative += _ARCH_CLAUSE.format(
-            romantic=archetypes["romantic_signature"]["name"],
-            progeny=archetypes["progeny_dynamics"]["name"])
+    reach = (f"Power here expresses first through {power_vector['title']}. "
+             + power_vector["body"])
+    if buckets.get("other"):
+        reach += " " + _meanings(buckets["other"], by_title)
 
-    if suppressed:
-        if not speakable:
-            narrative += _RESTRICTION_ALL
-        else:
-            names = [s["title"] for s in suppressed]
-            narrative += _RESTRICTION_SOME.format(
-                names=_join(names), verb="is" if len(names) == 1 else "are")
-    elif authority is not None and authority.get("override"):
-        narrative += ("No signature in this area is individually restricted, "
-                      "though a wider configuration governs how much of the "
-                      "chart's promise reaches open expression. ")
+    return {
+        "title": "I. Foundation & Public Footprint",
+        "sections": [
+            {"title": "D5 Foundation & Public Identity", "body": identity},
+            {"title": "Authority & Administrative Command", "body": command},
+            {"title": "Public Reach & Leadership Style", "body": reach},
+            {"title": "Manifestation Gate",
+             # Keyed on FIRED, not on speakable. When every authority
+             # signature is suppressed, `speakable` is empty — and saying "no
+             # dominant signature" there would tell the reader the opposite of
+             # the truth, which is the exact confusion this section exists to
+             # remove.
+             "body": _manifestation_paragraph(tri_01, tri_02, tri_03,
+                                              authority, bool(items))},
+        ],
+    }
 
-    return {"title": title, "narrative": narrative.strip(),
-            "supporting_signatures": items}
+
+def compose_legacy(signatures, facts, archetypes, punya_index,
+                   tri_02) -> Dict[str, Any]:
+    """Chapter II · five Founder subsections of continuous prose."""
+    items = [s for s in signatures if s["chapter"] == "intellectual_legacy"]
+    by_title: Dict[str, List[str]] = {}
+    for signature in items:
+        by_title.setdefault(signature["title"], []).append(signature["body"])
+    buckets = _group_signatures("intellectual_legacy", items)
+    kshamsha = facts["karakamsha"]
+
+    # Every creative-group title, so nothing in the bucket is left unspoken.
+    creative_bodies = _meanings(buckets["creative"] + buckets["pratibha"],
+                                by_title)
+    creative = (creative_bodies or
+                "No dominant creative or intellectual signature is emphasised "
+                "here; originality in this chart is developed through practice "
+                "rather than conferred at birth.")
+
+    punya_bodies = _meanings(buckets["punya"], by_title)
+    punya = (f"The Karakamsha, drawn from {kshamsha['atmakaraka']}, aligns to "
+             f"{kshamsha['d5_karakamsha_sign']} in house "
+             f"{kshamsha['d5_karakamsha_house']} of this division — the seat of "
+             f"the soul's declared direction. Past-life merit reads as "
+             f"{punya_index}. ")
+    punya += (punya_bodies or "No further merit signature reinforces it.")
+
+    romantic = archetypes["romantic_signature"]
+    if romantic["has_dominant_signature"]:
+        romance = (f"The relational current reads as {romantic['name']}. "
+                   + romantic["body"])
+    else:
+        romance = ("Relationships do not emerge as a dominant driver of "
+                   "creative or professional output in this Panchamsha. "
+                   "Romantic experience may still matter personally, but it is "
+                   "not the principal engine behind the legacy pattern.")
+
+    progeny_state = archetypes["progeny_dynamics"]
+    legacy_bodies = _meanings(buckets["putrakaraka"], by_title)
+    if progeny_state["has_dominant_signature"]:
+        progeny = (f"Continuity through progeny reads as "
+                   f"{progeny_state['name']}. " + progeny_state["body"])
+    else:
+        progeny = ("No dominant pattern governs progeny and continuity here; "
+                   "what is inherited passes through work and example rather "
+                   "than through a single marked signature.")
+    if legacy_bodies:
+        progeny += " " + legacy_bodies
+    # Anything the Founder concept groups do not name is still consumed here
+    # rather than silently dropped.
+    other_bodies = _meanings(buckets.get("other", []), by_title)
+    if other_bodies:
+        progeny += " " + other_bodies
+
+    survives = ("creative and intellectual work"
+                if buckets["creative"] or buckets["pratibha"]
+                else "example and conduct")
+    verdict = (f"What is most likely to outlive the native here is "
+               f"{survives}, carried forward through "
+               f"{progeny_state['name'].lower() if progeny_state['has_dominant_signature'] else 'ordinary continuity'}. ")
+    verdict += ("Merit accumulated earlier supports it. "
+                if punya_index in ("High Credit", "Balanced")
+                else "Merit accumulated earlier does not presently support it. ")
+    verdict += ("The limiting factor is the sustaining dignity of the deeper "
+                "chart, so the legacy is real but its scale depends on how far "
+                "the constraint is worked through."
+                if tri_02 else
+                "No major cross-chart constraint limits it.")
+
+    return {
+        "title": "II. Intellectual Legacy & Creative Output",
+        "sections": [
+            {"title": "Creative Intelligence & Pratibha", "body": creative},
+            {"title": "Purva Punya & Karakamsha", "body": punya},
+            {"title": "Romantic Signature & Creative Drive", "body": romance},
+            {"title": "Progeny & Legacy Continuity", "body": progeny},
+            {"title": "Legacy Verdict", "body": verdict},
+        ],
+    }
 
 
 def _join(names) -> str:
@@ -925,3 +1072,8 @@ def _join(names) -> str:
     if len(names) == 2:
         return names[0] + " and " + names[1]
     return ", ".join(names[:-1]) + " and " + names[-1]
+
+
+#: Title -> certified body, for the coverage assertion.
+RULE_PUBLICATION_BY_TITLE: Dict[str, str] = {
+    v["title"]: v["body"] for v in RULE_PUBLICATION.values()}

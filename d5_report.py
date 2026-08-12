@@ -206,12 +206,6 @@ def _signatures(rules: Mapping[str, Any]) -> List[Dict[str, Any]]:
     return out
 
 
-def _chapter(signatures, chapter, heading, authority=None, archetypes=None):
-    """§2 · narrative first, supporting signatures underneath."""
-    return CR.compose_chapter(chapter, heading, signatures, authority,
-                              archetypes)
-
-
 def _client_reading(facts: Mapping[str, Any], score: Mapping[str, Any],
                     timing_outcomes: Mapping[str, RuleOutcome],
                     triangulation_outcomes: Mapping[str, RuleOutcome],
@@ -304,13 +298,12 @@ def _client_reading(facts: Mapping[str, Any], score: Mapping[str, Any],
         "karmic_friction": CR.karmic_friction(signatures),
         # ── Detailed Analysis, three Founder chapters ──
         "detailed_analysis": {
-            "foundation_public_footprint": _chapter(
-                signatures, "foundation_public_footprint",
-                "I. Foundation & Public Footprint", authority),
-            "intellectual_legacy": _chapter(
-                signatures, "intellectual_legacy",
-                "II. Intellectual Legacy & Creative Output", authority,
-                archetypes),
+            "foundation_public_footprint": CR.compose_foundation(
+                signatures, facts, vector, authority,
+                tri_01_fired, tri_02_fired, tri_03_fired),
+            "intellectual_legacy": CR.compose_legacy(
+                signatures, facts, archetypes,
+                score["purva_punya"]["classification"], tri_02_fired),
             "karmic_triangulation": CR.karmic_triangulation(
                 tri_01_fired, tri_02_fired, tri_03_fired, authority),
         },
