@@ -152,10 +152,29 @@ def _walk_strings(node: Any, path: str = "$"):
             yield from _walk_strings(v, f"{path}[{i}]")
 
 
-def scan_publication(payload: Any) -> List[Dict[str, str]]:
-    """Every prohibited hit in `payload`. Empty list means clean."""
+def scan_publication(payload: Any, allowed_spans: tuple = ()) -> List[Dict[str, str]]:
+    """Every prohibited hit in `payload`. Empty list means clean.
+
+    `allowed_spans` are EXACT approved values. The allowance applies only when
+    BOTH hold:
+
+      · the WHOLE scanned string equals an approved value, and
+      · it sits at an approved publication path — `.badge` or `.state_name`
+        beneath `archetypes[...]`.
+
+    Substring coverage was tried first and is too loose: it would let narrative
+    prose QUOTE the approved badge inside a sentence and pass. Whole-string
+    equality alone is still looser than needed, because the same string in any
+    other field would pass; the path condition closes that.
+
+    The allowance is passed per payload, so a caller that does not pass it —
+    the provider narrative — gets no allowance at all.
+    """
     hits: List[Dict[str, str]] = []
+    approved = frozenset(allowed_spans)
     for path, text in _walk_strings(payload):
+        if text in approved and _is_approved_publication_path(path):
+            continue
         for family, rx in _COMPILED:
             m = rx.search(text)
             if m:
@@ -168,9 +187,9 @@ def scan_publication(payload: Any) -> List[Dict[str, str]]:
     return hits
 
 
-def assert_publication_safe(payload: Any) -> None:
+def assert_publication_safe(payload: Any, allowed_spans: tuple = ()) -> None:
     """Fail closed. Never scrub, never partially retain."""
-    hits = scan_publication(payload)
+    hits = scan_publication(payload, allowed_spans)
     if hits:
         first = hits[0]
         raise PublicationViolation(first["family"], first["pattern"],
@@ -186,6 +205,42 @@ SEQUENCE_PREAMBLE = (
 
 
 from d7_rules import INTERNAL_ONLY_STATE_NAMES
+
+# D7-004-LIVE-CORR-01 §3 · EXPLICIT publication names.
+#
+# An internal engine state name is never exposed wholesale. A state publishes
+# only if it appears here, and only with the wording written here. Conception
+# State D gets an approved customer badge; State E stays withheld.
+PUBLICATION_STATE_NAMES = {
+    ("conception_path", "D"): "Assisted Conception & Deliberate Preparation",
+}
+
+# The approved Conception badge, and the ONLY values the FD-S3 scanner will
+# accept containing a prohibited-family phrase.
+#
+# THE ALLOWANCE IS DOUBLY NARROW:
+#   1. WHOLE-STRING equality. A field that IS the badge is approved; a sentence
+#      quoting it is not.
+#   2. PATH-SCOPED. Only the archetype publication fields — `.badge` and
+#      `.state_name` beneath `archetypes[...]` — may carry it. The same exact
+#      string anywhere else in the payload is still rejected.
+#
+# It is also granted per PAYLOAD. `build_client_reading` and
+# `build_provider_payload` pass it; `build_narrative` does not, so provider
+# prose gets no allowance under any circumstances.
+APPROVED_BADGE_SPANS = (
+    "Assisted Conception & Deliberate Preparation",
+    "State D: Assisted Conception & Deliberate Preparation",
+)
+
+# The only paths at which an approved value may appear.
+_APPROVED_FIELD_SUFFIXES = (".badge", ".state_name")
+_APPROVED_PATH_ROOT = "archetypes["
+
+
+def _is_approved_publication_path(path: str) -> bool:
+    return (_APPROVED_PATH_ROOT in path
+            and path.endswith(_APPROVED_FIELD_SUFFIXES))
 
 
 def _archetype_public(sel: Dict[str, Any]) -> Dict[str, Any]:
@@ -210,15 +265,22 @@ def _archetype_public(sel: Dict[str, Any]) -> Dict[str, Any]:
     # states carry labels that must never reach a reader; they are withheld
     # here BEFORE the scanner ever sees them, so the customer gets a neutral
     # unavailable rather than a diagnosis.
+    approved = PUBLICATION_STATE_NAMES.get((sel.get("archetype"), letter))
+    if approved:
+        base.update({"available": True, "state_name": approved,
+                     "name_withheld": False,
+                     "badge": f"State {letter}: {approved}"})
+        return base
     if name in INTERNAL_ONLY_STATE_NAMES:
-        # The letter still publishes; the label never does.
+        # The letter still publishes; the internal label never does.
         base.update({"available": True, "state_name": None,
-                     "name_withheld": True})
+                     "name_withheld": True, "badge": f"State {letter}"})
         return base
     available = bool(name) and letter is not None
     base.update({"available": available,
                  "state_name": name if available else None,
-                 "name_withheld": False})
+                 "name_withheld": False,
+                 "badge": f"State {letter}: {name}" if available else None})
     return base
 
 
@@ -313,6 +375,10 @@ def parental_lens_seed(sign_index: int) -> str:
             f"no approved Parental Lens reading for sign index {sign_index!r}")
 
 
+# The locked public wording for a valid no-dominant result.
+NO_DOMINANT_PUBLIC = "No Single Dominant Pattern"
+
+
 LESSON_TITLES = {
     6: "6th House · Karmic Discipline & Health Routines",
     12: "12th House · Independence & Letting Go",
@@ -390,11 +456,21 @@ def build_client_reading(facts: Dict[str, Any],
         ocean = placements.get(lead, {}).get("ocean") if lead else None
         slots.append(_slot_public(slot, ocean))
 
+    # D7-004-LIVE-CORR-02 §3 · a valid neutral astrological result is NOT the
+    # same thing as an absence of data, and the customer must be able to tell
+    # them apart.
+    #
+    #   NO_DOMINANT  → "No Single Dominant Pattern"   (computed, valid, neutral)
+    #   anything else unresolved → available: False   → "Not available"
+    #
+    # `Not available` is reserved strictly for missing server data, a malformed
+    # state, a genuinely uncomputed result or a failed preparation.
     def _snap(field: Dict[str, Any]) -> Dict[str, Any]:
-        return {
-            "available": bool(field.get("resolved")),
-            "value": field.get("value") if field.get("resolved") else None,
-        }
+        if field.get("resolved"):
+            return {"available": True, "value": field.get("value")}
+        if field.get("status") == "NO_DOMINANT":
+            return {"available": True, "value": NO_DOMINANT_PUBLIC}
+        return {"available": False, "value": None}
 
     joins = joins or {}
     period = timing["current_period"]
@@ -438,16 +514,17 @@ def build_client_reading(facts: Dict[str, Any],
             # D7-003 §7 · both windows are named. They describe ACTIVATION
             # CONDITIONS, never guarantees, and carry no calendar date: the
             # server model supplies the condition, not the next occurrence.
+            # D7-004-LIVE-CORR-01 §2 · the raw trigger predicate is INTERNAL
+            # implementation evidence, not customer data. It stays on the engine
+            # surface for calculation and tests and leaves the public contract.
             "windows": [w for w in (
-                {"title": "Jupiter Fifth-Axis Window",
-                 "trigger": jupiter.get("trigger")} if jupiter.get("resolved") else None,
-                {"title": "Saturn Stabilisation Window",
-                 "trigger": saturn.get("trigger")} if saturn.get("resolved") else None,
+                {"title": "Jupiter Fifth-Axis Window"} if jupiter.get("resolved") else None,
+                {"title": "Saturn Stabilisation Window"} if saturn.get("resolved") else None,
             ) if w],
         },
     }
 
-    assert_publication_safe(reading)
+    assert_publication_safe(reading, APPROVED_BADGE_SPANS)
     return reading
 
 
@@ -460,5 +537,7 @@ def build_provider_payload(client_reading: Dict[str, Any]) -> Dict[str, Any]:
     inputs for.
     """
     payload = {"client_reading": client_reading}
-    assert_publication_safe(payload)
+    # The Founder-approved badge is publication data and travels with the safe
+    # reading. The scan still runs, and still rejects everything else.
+    assert_publication_safe(payload, APPROVED_BADGE_SPANS)
     return payload
