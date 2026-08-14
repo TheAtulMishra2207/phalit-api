@@ -19,6 +19,26 @@ from d5_engine import D5Doctrine
 from d5_rules import D5RulesDoctrine
 from d5_operational import configure_transit_provider
 from d5_routes import configure_d5_doctrine, router as d5_router
+from d7_engine import D7Doctrine
+from d7_predicates import D7PredicateDoctrine
+from d7_routes import (
+    configure_d7_doctrine,
+    prepare_or_raise as d7_prepare_or_raise,
+    resolve_token as d7_resolve_token,
+    router as d7_router,
+)
+from d7_narrative import (
+    NarrativeContractError as D7NarrativeContractError,
+    build_narrative as d7_build_narrative,
+    build_provider_instruction as d7_build_provider_instruction,
+    build_provider_user_prompt as d7_build_provider_user_prompt,
+)
+from d7_client_reading import (
+    PublicationViolation as D7PublicationViolation,
+    assert_publication_safe as d7_assert_publication_safe,
+    build_provider_payload as d7_build_provider_payload,
+)
+from d1_routes import get_chart_resolver
 from pydantic import BaseModel
 import swisseph as swe
 from datetime import datetime, timedelta, timezone
@@ -477,6 +497,37 @@ configure_d5_doctrine(
 # after `get_current_transits` is defined. Configuring it here raised NameError
 # at import: this block executes ~1970 lines before that function exists.
 app.include_router(d5_router)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# D7-002 · POST /d7/prepare
+#
+# Same pattern as D4 and D5: no prefix, no second resolver binding, and the
+# doctrine tables are INJECTED rather than imported by d7_engine, so there is
+# exactly one copy of each in the process. d7_routes depends on the SAME
+# d1_routes.get_chart_resolver function object that install_d1 already overrode.
+#
+# D7 needs more of the doctrine surface than D5 did, because it computes D7
+# dignity from D7 sign placement. It needs no node-dignity function: the D7
+# predicate layer resolves both nodes to Neutral and refuses them as aspect
+# source outright.
+#
+# PLACEMENT IS LOAD-BEARING: this block must sit below SIGNS, SIGN_LORDS and
+# the dignity tables. Registering it beside the include_router calls near the
+# top would raise NameError at import — the failure that shipped once already,
+# with every route test still passing because they mount the router directly.
+# ─────────────────────────────────────────────────────────────────────────────
+configure_d7_doctrine(
+    D7Doctrine(signs=SIGNS, sign_lords=SIGN_LORDS),
+    D7PredicateDoctrine(
+        exaltation_sign=EXALTATION_SIGN,
+        debilitation_sign=DEBILITATION_SIGN,
+        own_signs=OWN_SIGNS,
+        natural_friends=NATURAL_FRIENDS,
+        natural_enemies=NATURAL_ENEMIES,
+        moolatrikona=MOOLATRIKONA,
+    ),
+)
+app.include_router(d7_router)
 
 
 def calc_planet_data(jd: float, planet: str, lagna_sign_index: int) -> dict:
@@ -1322,94 +1373,109 @@ Write 4 focused sections. No fluff. Be specific about siblings, courage, communi
 
 # ─────────────────────────────────────────────────────────────────────────────
 # D7 SAPTAMSHA REPORT ENDPOINT
+#
+# CORR-02 · the legacy chart_brief request model that stood here is DELETED. It
+# was shadowed by the token-only model below, so it was already dead — but a
+# dead model naming `chart_brief` is a live invitation for a later edit to bind
+# to it. One definition, token-only.
+# ─────────────────────────────────────────────────────────────────────────────
+
+# ─────────────────────────────────────────────────────────────────────────────
+# D7-002-CORR-05 · POST /d7report — the provider boundary, closed.
+#
+# WHAT CHANGED AND WHY
+# --------------------
+# The handler that stood here accepted `chart_brief`: twelve keys of astrology
+# computed in the BROWSER, trusted verbatim, interpolated into a provider prompt
+# that then asked for specific numbers of children. Anyone could post any brief.
+#
+# It now takes `{chart_token, gender}` ONLY, resolves the token through the same
+# resolver every other module uses, runs the SAME `resolve_and_prepare` pipeline
+# that `/d7/prepare` runs, and hands the provider the whitelisted, scanned
+# `client_reading` and nothing else. The provider cannot re-derive a verdict it
+# was never given the inputs for.
+#
+# Provider OUTPUT is then run through the fail-closed publication scanner before
+# it is returned. A violating narrative is rejected WHOLE into a sanitized 502 —
+# never scrubbed, never partially retained.
+#
+# The obsolete bio_flag / terminator_at / eldest_health_flag / adoption_flag
+# prompt interface is gone entirely, along with every browser-supplied fact.
 # ─────────────────────────────────────────────────────────────────────────────
 
 class D7ReportRequest(BaseModel):
-    name: str
-    gender: str = 'male'
-    chart_brief: Dict[str, Any]
+    chart_token: str
+    gender: str
+
+
+
 
 @app.post("/d7report")
-def generate_d7_report(req: D7ReportRequest):
+async def generate_d7_report(req: D7ReportRequest,
+                             resolver=Depends(get_chart_resolver)):
+    """D7-003 · the STRUCTURED narrative contract.
+
+    Token in, thirteen typed sections out. The provider receives the safe client
+    reading and nothing else, and its output is parsed, validated for exact
+    section cardinality, safety-scanned fail-closed and checked for selection
+    tampering before any of it is returned.
+    """
     api_key = os.environ.get("ANTHROPIC_API_KEY", "")
     if not api_key:
         raise HTTPException(status_code=500, detail="ANTHROPIC_API_KEY not configured on server.")
 
-    brief = req.chart_brief
-    name  = req.name or "the native"
-    gender = req.gender or brief.get('gender', 'male')
-    pronoun = 'his' if gender == 'male' else 'her'
-    pronoun_subj = 'he' if gender == 'male' else 'she'
-    parent_role = 'father' if gender == 'male' else 'mother'
+    gender = (req.gender or "male").strip().lower()
+    if gender not in ("male", "female"):
+        raise HTTPException(status_code=422, detail="gender must be 'male' or 'female'.")
 
-    system_prompt = f"""You are writing a focused lineage and progeny report for a Vedic astrology platform.
-The native is a {gender} — use correct pronouns: {"he/his/him" if gender=="male" else "she/her/her"}.
-Their parental role is {parent_role}. Always use "{parent_role}" — NEVER the opposite gender role.
-Stay strictly on topic. Cover only: children, progeny potential, lineage quality, and the karmic nature of parent-child bonds.
+    snapshot = await d7_resolve_token(resolver, req.chart_token)
+    prepared = d7_prepare_or_raise(snapshot, req.chart_token, gender)
+    client_reading = prepared["client_reading"]
 
-Absolute rules:
-1. Use ONLY the corpus provided. No external knowledge.
-2. ZERO technical terminology — no planet names, house numbers, sign names, Sanskrit terms, ocean/deity names.
-3. Second person throughout. "You will...", "Your children...", "Your lineage..."
-4. CRITICAL: This native is a {parent_role}. Do NOT call them {"mother" if gender=="male" else "father"}.
-5. Each section 5-7 sentences. No bullet points. Direct, specific prose.
-6. NO personality analysis. NO career references. NO wealth commentary.
-7. Write exactly 4 sections with these headings (use ### before each):
-   ### Your Capacity for Children and Lineage
-   ### The Nature and Character of Your Children
-   ### Karmic Patterns and Challenges in Progeny
-   ### Your Legacy and the Fruit of Your Lineage
-8. Complete all 4 sections. Be specific about number of children where the data indicates."""
-
-    stree_header = "STREE JATAK FEMALE PROGENY INDICATORS (additional classical rules for female nativity):"
-    stree_data   = brief.get('stree_jatak_progeny', [])
-    stree_section = (stree_header + "\n" + str(stree_data)) if gender == 'female' and stree_data else ''
-
-    user_prompt = f"""Write a focused lineage and progeny report for {name} ({gender}).
-
-LAGNA OCEAN (sets the parental archetype tone):
-{brief.get('lagna_ocean', {})}
-
-BIOLOGICAL VITALITY:
-Self sphuta: {brief.get('self_sphuta', {})}
-Biological flag: {brief.get('bio_flag', False)}
-
-PROGENY SEQUENCE (Manduka Gati):
-Sequence: {brief.get('progeny_sequence', [])}
-Terminates after child: {brief.get('terminator_at', 'none detected')}
-Eldest child health flag: {brief.get('eldest_health_flag', False)}
-Adoption indicator: {brief.get('adoption_flag', False)}
-
-SEVEN OCEANS — CHILD TEMPERAMENT PROFILE:
-{brief.get('ocean_profile', [])}
-
-KARMIC OBSTACLES (D7 6th/8th/12th):
-{brief.get('dushtana', {})}
-
-QUALITATIVE OVERRIDES:
-{brief.get('overrides', [])}
-
-{stree_section}
-
-Write 4 focused sections on children, their nature, karmic challenges, and legacy. For female natives, integrate the Stree Jatak indicators. Be specific about numbers where data supports it."""
+    # The provider input is the whitelisted, already-scanned reading.
+    payload = d7_build_provider_payload(client_reading)
+    system_prompt = d7_build_provider_instruction(payload["client_reading"])
+    user_prompt = d7_build_provider_user_prompt(payload["client_reading"])
 
     try:
         response = requests.post(
             "https://api.anthropic.com/v1/messages",
-            headers={"x-api-key": api_key, "anthropic-version": "2023-06-01", "content-type": "application/json"},
-            json={"model": "claude-sonnet-4-6", "max_tokens": 2500, "system": system_prompt,
+            headers={"x-api-key": api_key, "anthropic-version": "2023-06-01",
+                     "content-type": "application/json"},
+            json={"model": "claude-sonnet-4-6", "max_tokens": 3000,
+                  "system": system_prompt,
                   "messages": [{"role": "user", "content": user_prompt}]},
             timeout=60
         )
         if response.status_code != 200:
-            raise HTTPException(status_code=500, detail=f"Anthropic API error {response.status_code}: {response.text[:600]}")
+            cid = uuid.uuid4().hex[:12]
+            logging.getLogger(__name__).error(
+                "d7report provider %s correlation_id=%s body=%s",
+                response.status_code, cid, response.text[:600])
+            raise HTTPException(status_code=502,
+                                detail=f"Report service unavailable. Correlation id {cid}.")
         data = response.json()
         text = "".join(b["text"] for b in data.get("content", []) if b.get("type") == "text")
-        return {"report": text}
     except HTTPException:
         raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"D7 report error: {str(e)}")
+    except Exception:
+        cid = uuid.uuid4().hex[:12]
+        logging.getLogger(__name__).exception("d7report failed correlation_id=%s", cid)
+        raise HTTPException(status_code=502,
+                            detail=f"Report service unavailable. Correlation id {cid}.")
+
+    # Parse, validate cardinality, safety-scan, selection-check. Fail closed.
+    try:
+        sections = d7_build_narrative(text, client_reading)
+    except (D7NarrativeContractError, D7PublicationViolation):
+        cid = uuid.uuid4().hex[:12]
+        logging.getLogger(__name__).error(
+            "d7report narrative REJECTED correlation_id=%s", cid, exc_info=True)
+        raise HTTPException(status_code=502,
+                            detail=f"Report service unavailable. Correlation id {cid}.")
+
+    return {"chart_token": req.chart_token, "gender": gender,
+            "narrative_version": "d7-003", "sections": sections}
 
 
 # ─────────────────────────────────────────────────────────────────────────────
