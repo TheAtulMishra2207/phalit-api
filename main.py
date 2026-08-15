@@ -21,6 +21,10 @@ from d5_operational import configure_transit_provider
 from d5_routes import configure_d5_doctrine, router as d5_router
 from d7_engine import D7Doctrine
 from d7_predicates import D7PredicateDoctrine
+# D9-002 · server-authoritative D9 report. Doctrine is injected below, after the
+# tables it reads, exactly as D4, D5 and D7 are.
+from d9_engine import D9Doctrine
+from d9_routes import configure_d9_doctrine, router as d9_router
 from d7_routes import (
     configure_d7_doctrine,
     prepare_or_raise as d7_prepare_or_raise,
@@ -528,6 +532,26 @@ configure_d7_doctrine(
     ),
 )
 app.include_router(d7_router)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# D9-002 · POST /d9/prepare and POST /d9report
+# ─────────────────────────────────────────────────────────────────────────────
+# NO SECOND RESOLVER BINDING. d9_routes depends on the same get_chart_resolver
+# function object install_d1() already overrode.
+#
+# The Pratiphala corroboration argument is left unset. D9-001-C bound the career
+# and partnership families to accepted Karakamsha H10 and H7, with Pratiphala as
+# a SEPARATE corroborating reading rather than a merged one. Wiring that reading
+# means calling the accepted Pratiphala preparation for houses 7, 8 and 10 and
+# mapping its verdicts into safe corroboration blocks; that is a small, bounded
+# piece of work and it is deliberately NOT invented here. Until it is supplied
+# the corroboration blocks report unavailable, which is a declared reduced state
+# and not a failure: no D9 reading depends on it.
+configure_d9_doctrine(
+    D9Doctrine(signs=SIGNS, sign_lords=SIGN_LORDS),
+    pratiphala_provider=None,
+)
+app.include_router(d9_router)
 
 
 def calc_planet_data(jd: float, planet: str, lagna_sign_index: int) -> dict:
@@ -1482,100 +1506,24 @@ async def generate_d7_report(req: D7ReportRequest,
 # D9 NAVAMSHA SOUL REPORT ENDPOINT
 # ─────────────────────────────────────────────────────────────────────────────
 
-class D9ReportRequest(BaseModel):
-    name: str
-    chart_brief: Dict[str, Any]
-
-@app.post("/d9report")
-def generate_d9_report(req: D9ReportRequest):
-    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
-    if not api_key:
-        raise HTTPException(status_code=500, detail="ANTHROPIC_API_KEY not configured on server.")
-
-    brief = req.chart_brief
-    name  = req.name or "the native"
-
-    system_prompt = """You are writing a focused Navamsha (D9) soul and dharma report for a Vedic astrology platform.
-Cover only: soul nature, dharmic purpose, spiritual gifts, karmic patterns, and inner life.
-
-Absolute rules:
-1. Use ONLY the corpus provided. No external knowledge.
-2. ZERO technical terminology — no planet names, sign names, house numbers, Sanskrit terms, yoga names.
-3. Second person throughout. "You are...", "Your soul..."
-4. Each section 5-7 sentences. No bullet points. Flowing, specific prose.
-5. This is NOT a personality report. Focus on the soul, dharma, inner life, and spiritual destiny.
-6. Write exactly 5 sections with these headings (use ### before each):
-   ### Your Soul's Signature and Dharmic Purpose
-   ### Your Innate Gifts and Spiritual Talents
-   ### Karmic Patterns and Shadow Work
-   ### Your Spiritual Path and Divine Alignment
-   ### Your Spouse and the Marital Bond
-7. The spouse section covers: nature, personality, appearance, profession, marital quality. Be specific.
-8. Complete all 5 sections. Do not truncate."""
-
-    user_prompt = f"""Write a focused D9 Navamsha soul report for {name}.
-
-SOUL DASHBOARD:
-- Atmakaraka (King of Chart): {brief.get('ak', '—')}
-- Swamsa (Soul Sign): {brief.get('swamsa_sign', '—')}
-- Navamsha Lagna: {brief.get('d9_lagna', '—')}
-- Ishta Devata (Guiding Deity): {brief.get('ishta_devata', '—')}
-- Vargottama (Integrated) Planets: {brief.get('vargottama_planets', [])}
-- Karmic Friction Score: {brief.get('karmic_friction', '—')}
-
-SOUL NATURE (Swamsa Analysis):
-{brief.get('swamsa_soul', [])}
-
-INNATE TALENTS:
-{brief.get('swamsa_talents', [])}
-
-SPIRITUAL HOME ENVIRONMENT:
-{brief.get('swamsa_residence', '')}
-
-DHARMIC ORIENTATION:
-{brief.get('swamsa_dharma', '')}
-
-PLANETARY VITALS (nature and house):
-{brief.get('vitals', [])}
-
-KARMIC WARNINGS:
-{brief.get('warnings', [])}
-
-LIFE AREA NOTES:
-Marriage: {brief.get('marriage_note', '')}
-Career/Soul Work: {brief.get('career_note', '')}
-Shadow Work: {brief.get('shadow_note', '')}
-
-NOURISHED PLANETS (Pushkara): {brief.get('pushkara_planets', [])}
-PLANETS REQUIRING PURIFICATION (Dusthana D9): {brief.get('dusthana_planets', [])}
-ISHTA DEVATA for spiritual alignment: {brief.get('ishta_devata', '—')}
-
-SPOUSE ANALYSIS:
-Nature & Personality: {brief.get('spouse', {}).get('nature_list', [])}
-Likely Profession: {brief.get('spouse', {}).get('profession', [])}
-Marital Grace Factors: {brief.get('spouse', {}).get('marital_grace', [])}
-Marital Friction Factors: {brief.get('spouse', {}).get('marital_friction', [])}
-Stability Score: {brief.get('spouse', {}).get('stability', '—')}
-
-Write 5 focused sections on soul nature, gifts, karmic patterns, and spiritual path. Deep, specific, no fluff."""
-
-    try:
-        response = requests.post(
-            "https://api.anthropic.com/v1/messages",
-            headers={"x-api-key": api_key, "anthropic-version": "2023-06-01", "content-type": "application/json"},
-            json={"model": "claude-sonnet-4-6", "max_tokens": 2500, "system": system_prompt,
-                  "messages": [{"role": "user", "content": user_prompt}]},
-            timeout=60
-        )
-        if response.status_code != 200:
-            raise HTTPException(status_code=500, detail=f"Anthropic API error {response.status_code}: {response.text[:600]}")
-        data = response.json()
-        text = "".join(b["text"] for b in data.get("content", []) if b.get("type") == "text")
-        return {"report": text}
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"D9 report error: {str(e)}")
+# ─────────────────────────────────────────────────────────────────────────────
+# D9-002 · THE LEGACY /d9report IS REMOVED, NOT DEPRECATED
+# ─────────────────────────────────────────────────────────────────────────────
+# What stood here took {name, chart_brief: Dict[str, Any]} and passed nineteen
+# keys of BROWSER-COMPUTED astrology straight into a provider prompt. It was a
+# synchronous def, carried no chart_token, had no resolver, no response_model
+# and no output guard, so the server could not certify a single value it
+# published and any caller could post an arbitrary brief.
+#
+# The route now lives in d9_routes with the same path. It takes a chart_token,
+# rebuilds the approved reading server-side through the same pipeline
+# /d9/prepare uses, and forbids extra fields — so a client still sending
+# chart_brief gets a 422 naming the field rather than having its astrology
+# honoured. The old handler is DELETED rather than left behind a flag, because a
+# second live path to the provider is the defect, not the shape of the payload.
+#
+# D9ReportRequest is likewise removed from this file; the model lives in
+# d9_contract with extra = "forbid".
 
 
 # ─────────────────────────────────────────────────────────────────────────────
