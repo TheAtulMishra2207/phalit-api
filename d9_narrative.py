@@ -223,7 +223,17 @@ def build_provider_instruction(pool: Dict[str, Any]) -> str:
     schema = json.dumps(
         {COMPOSITION_KEY: [{"atom": "<atom id>", "connector": "<connector id or null>"}]},
         indent=2)
-    return f"""You are composing the closing synthesis of a navamsha reading.
+    domains = pool.get("substantive_domains") or []
+    n = len(domains)
+    if n <= MIN_SUBSTANTIVE_DOMAINS:
+        spread = (f"Exactly {n} substantive domains are available, so your "
+                  f"composition must contain AT LEAST ONE ATOM FROM EACH OF "
+                  f"THEM. Missing any one is a discarded response.")
+    else:
+        spread = (f"{n} substantive domains are available. Your composition must "
+                  f"draw on AT LEAST {MIN_SUBSTANTIVE_DOMAINS} DISTINCT ones.")
+
+    return f"""You are composing the closing synthesis of a reading.
 
 You do NOT write sentences. Every sentence has already been written. Your job is
 to choose which of the supplied statements belong in the closing synthesis, in
@@ -237,22 +247,39 @@ Rules:
 1. `atom` must be an id from the supplied atom list. Nothing else is accepted.
 2. `connector` must be an id from the supplied connector list, or null.
 3. Select between {MIN_ATOMS} and {MAX_ATOMS} atoms. No atom twice.
-4. Order them so the synthesis reads as one thought rather than a list. Put what
+4. DOMAIN SPREAD IS REQUIRED, AND IT IS THE RULE MOST RESPONSES GET WRONG.
+   Every atom carries a `domain` and a `substantive` flag.
+   {spread}
+   Atoms with `substantive: false` DO NOT COUNT toward that minimum. They are
+   optional disclosures and may only be added to a composition that already
+   satisfies the requirement on its own. A composition of three atoms drawn
+   from two substantive domains plus one disclosure is discarded.
+5. Order them so the synthesis reads as one thought rather than a list. Put what
    frames the person first and what they can act on last.
-5. There is no field for your own words. Do not add one. A response containing
+6. There is no field for your own words. Do not add one. A response containing
    any other key is discarded.
-6. Some findings are deliberately absent from the atom list. Do not refer to
+7. Some findings are deliberately absent from the atom list. Do not refer to
    anything that is not there.
-7. Return raw JSON. No markdown fence, no preamble, no commentary."""
+8. Return raw JSON. No markdown fence, no preamble, no commentary."""
 
 
 def build_provider_user_prompt(pool: Dict[str, Any],
                                name: Optional[str] = None) -> str:
     who = f" for {name}" if name else ""
+    domains = pool.get("substantive_domains") or []
     return (
         f"ATOMS{who} — the complete set of statements available. Nothing else exists:\n"
         + json.dumps(pool["atoms"], indent=1)
         + "\n\nCONNECTOR IDS:\n"
         + json.dumps(sorted(CONNECTORS), indent=1)
-        + f"\n\nReturn the JSON object with the single {COMPOSITION_KEY!r} key."
+        # D9-004-LIVE-CORR-01 · state the requirement in the payload as well as
+        # the instruction. The validator enforced a three-domain spread that the
+        # prompt never mentioned, so a perfectly reasonable composition was
+        # rejected and the reader got "the closing reflection is not available".
+        # The validator was right and the prompt was incomplete.
+        + f"\n\nREQUIRED SUBSTANTIVE DOMAINS: {json.dumps(domains)}\n"
+        + (f"All {len(domains)} are required — one atom from each, minimum.\n"
+           if len(domains) <= MIN_SUBSTANTIVE_DOMAINS
+           else f"At least {MIN_SUBSTANTIVE_DOMAINS} distinct ones are required.\n")
+        + f"\nReturn the JSON object with the single {COMPOSITION_KEY!r} key."
     )

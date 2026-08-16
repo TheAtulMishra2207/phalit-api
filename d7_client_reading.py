@@ -27,6 +27,7 @@ sufficient alone, which is why both are here.
 """
 
 import re
+from copy import deepcopy
 from typing import Any, Dict, List, Optional
 
 from d7_engine import D7InputError
@@ -528,16 +529,82 @@ def build_client_reading(facts: Dict[str, Any],
     return reading
 
 
+# ─── the provider projection · D9-004-LIVE-CORR-02B ─────────────────────────
+#
+# CUSTOMER-SAFE-AT-AN-EXACT-PATH IS NOT PROVIDER-SAFE-FOR-FREE-PROSE.
+#
+# `APPROVED_BADGE_SPANS` grants "Assisted Conception & Deliberate Preparation"
+# at `archetypes[...].badge` and `.state_name` and nowhere else. That rule is
+# correct and is unchanged. But `build_provider_payload` forwarded the customer
+# reading essentially intact, so the provider was HANDED the phrase and then
+# rejected for repeating it — the output wall grants no allowance, by design.
+#
+# The provider was being actively prompted with the thing it is forbidden to
+# say. That is a deterministic input defect, not a compliance failure, and no
+# instruction can reliably fix it: a model given a phrase in its context will
+# sometimes use it.
+#
+# So the projection REMOVES the wording before the provider sees it, and the
+# boundary is then asserted WITH NO ALLOWANCE. The property becomes structural
+# rather than dependent on the model behaving.
+#
+# The selection survives. `state`, `selected_state_label` and `available` all
+# travel, so the provider still knows exactly which deterministic state was
+# chosen — which is what it needs to explain it. It never needed the badge.
+
+_PROVIDER_WITHHELD_ARCHETYPE_FIELDS = ("state_name", "badge")
+
+
+def _archetype_provider_projection(arc: Dict[str, Any]) -> Dict[str, Any]:
+    """One archetype, with any publication-protected wording removed.
+
+    SCAN-DRIVEN, NOT PHRASE-LIST-DRIVEN. A field is withheld when scanning its
+    value WITHOUT an allowance produces a hit, rather than when it matches a
+    hard-coded string. So a future addition to `APPROVED_BADGE_SPANS`, or any
+    other protected wording that reaches a badge, is covered the day it is
+    added and nobody has to remember to extend a second list here.
+    """
+    out = dict(arc)
+    withheld = []
+    for field in _PROVIDER_WITHHELD_ARCHETYPE_FIELDS:
+        value = out.get(field)
+        if isinstance(value, str) and value and scan_publication({field: value}):
+            out[field] = None
+            withheld.append(field)
+    if withheld:
+        # Structural metadata only. NOT a replacement phrase, and deliberately
+        # not an invented substitute: the ticket forbids putting new astrology
+        # where the badge was, and a paraphrase would be exactly that.
+        out["state_name_withheld_from_provider"] = True
+    return out
+
+
 def build_provider_payload(client_reading: Dict[str, Any]) -> Dict[str, Any]:
     """What a narrative provider may receive.
 
-    THE PROVIDER RECEIVES THE SAFE CLIENT-READING MODEL AND NOTHING ELSE. It
+    THE PROVIDER RECEIVES A PROJECTION OF THE SAFE CLIENT-READING MODEL. It
     never sees the fact set, the manifest, the predicate surface or any withheld
-    classical evidence. It cannot re-derive a verdict it was never given the
-    inputs for.
+    classical evidence, and since CORR-02B it never sees publication-protected
+    wording either. It cannot re-derive a verdict it was never given the inputs
+    for, and it cannot echo a phrase it was never shown.
+
+    NON-MUTATING. `client_reading` is deep-copied first, so the customer payload
+    still carries its approved State-D badge after this runs. Sanitising the
+    provider's input must never erase the deterministic card.
     """
-    payload = {"client_reading": client_reading}
-    # The Founder-approved badge is publication data and travels with the safe
-    # reading. The scan still runs, and still rejects everything else.
-    assert_publication_safe(payload, APPROVED_BADGE_SPANS)
+    projected = deepcopy(client_reading)
+    archetypes = projected.get("archetypes")
+    if isinstance(archetypes, list):
+        projected["archetypes"] = [
+            _archetype_provider_projection(a) if isinstance(a, dict) else a
+            for a in archetypes
+        ]
+
+    payload = {"client_reading": projected}
+    # NO ALLOWANCE. This is the heart of the fix and the difference from the
+    # customer scan two functions above: the customer reading may carry the
+    # approved badge at its approved path, and the provider payload must be
+    # INTRINSICALLY clean. If any protected phrase survives projection this
+    # raises here, before the provider is ever called.
+    assert_publication_safe(payload)
     return payload
