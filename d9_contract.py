@@ -36,7 +36,9 @@ class D9PrepareRequest(BaseModel):
 
 
 class D9PrepareResponse(BaseModel):
-    """The PUBLIC contract. `engine` is deliberately absent.
+    """The PUBLIC R2 contract. `engine` is deliberately absent.
+
+    ONE REPORT AUTHORITY: the R1 publication model is not carried alongside R2.
 
     The browser receives the safe reading and nothing else. Engine evidence —
     fired rule ids, selection scores, certified dignity in its raw vocabulary —
@@ -44,7 +46,8 @@ class D9PrepareResponse(BaseModel):
     never over the wire.
     """
     chart_token: str
-    module_version: str
+    route_version: str
+    report_version: str
     report: Dict[str, Any]
 
     class Config:
@@ -52,21 +55,17 @@ class D9PrepareResponse(BaseModel):
 
 
 class D9ReportRequest(BaseModel):
-    """The narrative route. Token in, and nothing astrological in.
+    """GENUINELY TOKEN-ONLY. Nothing astrological, and no identity either.
 
-    `name` is optional and is the ONLY non-astrological identity accepted. It is
-    length-bounded and stripped; it never reaches a selector and is used solely
-    to address the reader.
+    Flight 11 accepted an optional `name` and forwarded it to the provider. The
+    provider selects identifiers and writes no prose, so the name changed nothing
+    in the output — it was an unnecessary PII transfer. `extra = "forbid"` now
+    rejects it at the boundary with a 422 naming the field, so the drift cannot
+    recur silently.
+
+    The reader's name belongs in the local page header, never in a prompt.
     """
     chart_token: StrictStr = Field(..., min_length=8, max_length=256)
-    name: Optional[StrictStr] = Field(None, max_length=120)
-
-    @validator("name")
-    def _clean_name(cls, v: Optional[str]) -> Optional[str]:
-        if v is None:
-            return None
-        cleaned = v.strip()
-        return cleaned or None
 
     class Config:
         extra = "forbid"
@@ -81,10 +80,9 @@ class D9ReportResponse(BaseModel):
     `narrative` would force the whole response to fail with it.
     """
     chart_token: str
-    module_version: str
-    report: Dict[str, Any]
-    narrative: Optional[Dict[str, Any]] = None
-    narrative_status: str
+    route_version: str
+    final_synthesis: Optional[str] = None
+    synthesis_source: str = "deterministic"
 
     class Config:
         extra = "forbid"

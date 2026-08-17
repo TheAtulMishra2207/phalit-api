@@ -41,26 +41,24 @@ from d1_routes import ChartNotFound, ChartResolver, get_chart_resolver
 from d1_chart_adapter import ChartAdapterError, to_certified_chart
 
 import d9_engine
-from d9_client_reading import (
-    PublicationViolation,
-    build_atom_pool,
-    build_client_reading,
-)
+from d9_client_reading import PublicationViolation, publish_dignity
+
+import d9_r2_contribution as r2_con
+import d9_r2_doctrine as r2_doc
+import d9_r2_narrative as r2_nar
+import d9_r2_publication as r2_pub
+import d9_r2_selectors as r2_sel
 from d9_contract import (
     D9PrepareRequest,
     D9PrepareResponse,
     D9ReportRequest,
     D9ReportResponse,
 )
-from d9_engine import D9Doctrine, D9InputError
-from d9_narrative import (
-    MIN_ATOMS,
-    MIN_SUBSTANTIVE_DOMAINS,
-    NarrativeContractError,
-    build_narrative,
-    build_provider_instruction,
-    build_provider_user_prompt,
-)
+from d9_engine import (D9Doctrine, D9InputError, build_d9_facts,
+                        configure_engine_doctrine, karakamsha_house_occupants)
+# `d9_narrative` (R1) is deliberately NOT imported. R2 owns the Final Synthesis
+# through `d9_r2_narrative`, and leaving the R1 import in place would keep a
+# second narrative authority one call site away from the route.
 
 log = logging.getLogger(__name__)
 router = APIRouter(tags=["d9"])
@@ -76,13 +74,18 @@ _CONFIGURED = False
 # When it is not wired the corroboration blocks report unavailable, which is a
 # reduced state and not a failure: no D9 reading depends on it.
 _PRATIPHALA_PROVIDER: Optional[Callable[[Dict[str, Any], str], Dict[int, Dict[str, Any]]]] = None
+# The injected doctrine, retained so R2 can read signs and lords without a
+# second source. `_require_doctrine()` returns None — it is a gate, not a getter,
+# and reconfiguring the engine with its return value silently wiped the doctrine.
+_DOCTRINE: Optional[D9Doctrine] = None
 
 
 def configure_d9_doctrine(engine_doctrine: D9Doctrine,
                           pratiphala_provider: Optional[Callable] = None) -> None:
     """Inject doctrine. Called from main.py BELOW the tables it reads."""
-    global _CONFIGURED, _PRATIPHALA_PROVIDER
+    global _CONFIGURED, _PRATIPHALA_PROVIDER, _DOCTRINE
     d9_engine.configure_engine_doctrine(engine_doctrine)
+    _DOCTRINE = engine_doctrine
     _PRATIPHALA_PROVIDER = pratiphala_provider
     _CONFIGURED = True
 
@@ -111,47 +114,127 @@ def _pratiphala_corroboration(snapshot: Dict[str, Any],
         return None
 
 
-def resolve_and_prepare(snapshot: Dict[str, Any],
-                        chart_token: str) -> Dict[str, Any]:
-    """THE ONE PIPELINE. Each layer runs exactly once.
+# ═════════════════════════════════════════════════════════════════════════════
+# R2 · the live wiring
+# ═════════════════════════════════════════════════════════════════════════════
+#
+# ONE REPORT AUTHORITY. The R1 publication model is not returned alongside R2
+# "for compatibility" — two authorities on one surface is how the old report
+# survived its own replacement.
 
-    Shared by `/d9/prepare` and by the `/d9report` narrative path, so the
-    provider can never be handed a preparation the prepare route would not have
-    produced.
+R2_ROUTE_VERSION = "d9-r2-003"
+
+
+def _karakamsha_domain_facts(facts: Dict[str, Any],
+                             planets: Dict[str, Any]) -> Dict[int, Dict[str, Any]]:
+    """H5 / H9 / H10 in the accepted `KARAKAMSHA_Hx_D1_FRAME`.
+
+    NO CHANGE TO `karak_house_data.py` WAS NEEDED. Its `HOUSE_DATA` covers
+    houses 5, 7, 8 and 10 because those are the houses with accepted RULES —
+    but R2's Contribution needs OCCUPANCY, not rules, and
+    `d9_engine.karakamsha_house_occupants` is already generic over any house.
+    So H9 comes from the shared mechanical authority unchanged, and no parallel
+    Karakāṁśa implementation exists.
     """
     _require_doctrine()
+    doc_ = _DOCTRINE
+    kl = facts.get("karakamsha") or {}
+    if kl.get("status") != "RESOLVED":
+        return {}
+    kl_index = kl["sign_index"]
+    out: Dict[int, Dict[str, Any]] = {}
+    for house in (5, 9, 10):
+        sign_index = (kl_index + house - 1) % 12
+        out[house] = {
+            "occupants": karakamsha_house_occupants(house, kl_index, planets),
+            "sign": doc_.signs[sign_index],
+            "lord": doc_.sign_lords[sign_index],
+        }
+    return out
 
-    # ── the certification GATE, and nothing more ─────────────────────────────
-    #
-    # `to_certified_chart` is used STRICTLY as a gate. Its return value is
-    # discarded: D9 does not read `.chart`, `.body`, `.snapshot`, `.lagna` or
-    # `.planets` off it, because the production CertifiedChart exposes none of
-    # them. Once the gate passes, D9 reads the ALREADY-RESOLVED snapshot the
-    # resolver returned. That is the persisted /chart body and it is the only
-    # source.
-    to_certified_chart(snapshot, chart_token)
 
-    lagna = snapshot["lagna"]
-    planets = snapshot["planets"]
+def build_r2_report(facts: Dict[str, Any], snapshot: Dict[str, Any],
+                    chart_token: str) -> Dict[str, Any]:
+    """Certified facts -> R2 selectors -> R2 publication model."""
+    planets = snapshot.get("planets") or {}
+    d1_lagna = (snapshot.get("lagna") or {}).get("sign")
+    d9_lagna = (facts.get("d9_lagna") or {}).get("sign")
+    if not d1_lagna or not d9_lagna:
+        raise D9InputError("chart lacks a resolved D1 or D9 lagna")
 
-    facts = d9_engine.build_d9_facts(lagna, planets)
-    prati = _pratiphala_corroboration(snapshot, chart_token)
-    report = build_client_reading(facts, prati)
+    published = {g: p["published_dignity"]
+                 for g, p in _published_dignities(facts).items()}
+    d1_sign_of = {g: rec.get("sign") for g, rec in planets.items() if rec.get("sign")}
+    d9_sign_of = {g: p.get("d9_sign") for g, p in (facts.get("placements") or {}).items()
+                  if p.get("d9_sign")}
 
+    strength = r2_sel.select_strength(published, d1_sign_of, d9_sign_of, d9_lagna)
+    theme = r2_sel.select_central_theme(d1_lagna, d9_lagna)
+    growth = r2_sel.select_growth_edge(d9_lagna)
+    instructions = r2_sel.select_instructions(d9_lagna)
+
+    h7 = ((facts.get("karakamsha_houses") or {}).get(7) or {}).get("fired") or []
+    partnership = r2_sel.select_partnership(h7)
+
+    domains = _karakamsha_domain_facts(facts, planets)
+    contribution = None
+    if domains:
+        grid = r2_con.ContributionGrid(r2_doc.GRAHA_ARCHETYPES, r2_doc.SIGN_ARCHETYPES)
+        signals = []
+        for house in (5, 9, 10):
+            d = domains[house]
+            signals.append(r2_con.resolve_domain(
+                house, d["occupants"], d["lord"], d["sign"], grid)["signal"])
+        contribution = r2_sel.select_contribution(
+            r2_con.converge(*signals), d9_lagna)
+
+    # THE SAFE BUILDER PATH. No arbitrary dictionary is injected into the
+    # technical appendix — it is constructed and validated, and it raises rather
+    # than publishing telemetry.
+    basis = r2_pub.build_astrological_basis(
+        d1_lagna=d1_lagna, d9_lagna=d9_lagna,
+        d9_lagna_lord=(facts.get("d9_lagna") or {}).get("lord"),
+        atmakaraka=((facts.get("atmakaraka") or {}).get("graha")
+                    if (facts.get("atmakaraka") or {}).get("status") == "RESOLVED"
+                    else None),
+        swamsa=(facts.get("karakamsha") or {}).get("sign"),
+        strength_grahas=strength.get("grahas") or [],
+        published_dignity=published,
+        vargottama={g: True for g in
+                    (facts.get("integration") or {}).get("integrated_grahas") or []},
+        karakamsha_evidence={h: list(d["occupants"]) for h, d in domains.items()},
+        relationship_evidence=([r["plain"] for r in h7
+                                if r.get("confidence") == "direct"] or None),
+    )
+
+    return r2_pub.build_report(
+        chart_token=chart_token, central_theme=theme, strength=strength,
+        growth_edge=growth, instructions=instructions,
+        partnership=partnership, contribution=contribution,
+        astrological_basis=basis)
+
+
+def _published_dignities(facts: Dict[str, Any]) -> Dict[str, Dict[str, str]]:
+    """Published band per graha. The certified band never leaves the engine."""
+    out = {}
+    for graha, p in (facts.get("placements") or {}).items():
+        if p.get("status") != "RESOLVED":
+            continue
+        out[graha] = {"published_dignity":
+                      publish_dignity(p["certified_dignity"], graha)}
+    return out
+
+
+def resolve_and_prepare(snapshot: Dict[str, Any], chart_token: str) -> Dict[str, Any]:
+    """Certified snapshot -> the R2 report. One authority, no R1 model."""
+    certified = to_certified_chart(snapshot, chart_token)      # gate, value unused
+    _require_doctrine()
+    facts = build_d9_facts(snapshot["lagna"], snapshot["planets"])
     return {
-        "report": report,
-        "engine": {
-            "d9_lagna": facts["d9_lagna"],
-            "placements": facts["placements"],
-            "atmakaraka": facts["atmakaraka"],
-            "karakamsha": facts["karakamsha"],
-            "ishta_devata": facts["ishta_devata"],
-            "karakamsha_houses": facts["karakamsha_houses"],
-            "integration": facts["integration"],
-            "dusthana": facts["dusthana"],
-            "pratiphala_corroboration": prati,
-            "module_version": MODULE_VERSION,
-        },
+        "route_version": R2_ROUTE_VERSION,
+        "chart_token": chart_token,
+        "report_version": r2_pub.REPORT_VERSION,
+        "report": build_r2_report(facts, snapshot, chart_token),
     }
 
 
@@ -213,7 +296,8 @@ async def d9_prepare(
     # and can never reconstruct interpretation from internals.
     return {
         "chart_token": req.chart_token,
-        "module_version": MODULE_VERSION,
+        "route_version": prepared["route_version"],
+        "report_version": prepared["report_version"],
         "report": prepared["report"],
     }
 
@@ -244,43 +328,26 @@ def _call_provider(system_prompt: str, user_prompt: str) -> str:
                    if b.get("type") == "text")
 
 
-def build_narrative_or_neutral(report: Dict[str, Any],
-                               name: Optional[str],
-                               provider: Callable[[str, str], str]
-                               ) -> Dict[str, Any]:
-    """Narrative failure preserves certified facts. Only the prose goes neutral.
+def build_final_synthesis(report: Dict[str, Any],
+                          provider: Optional[Callable[[str, str], str]]
+                          ) -> Dict[str, Any]:
+    """One provider call, then a deterministic canonical plan.
 
-    Every failure class lands in the same place — a null narrative and a status
-    string — because the reader's experience of "the provider returned invalid
-    JSON" and "the provider named a deity we did not select" is identical and
-    neither is their business.
+    THE READER ALWAYS GETS A FINAL SYNTHESIS. Timeout, malformed JSON, unknown
+    atom, unknown connector, bad cardinality — every failure lands on the same
+    server-owned atoms in the server's own editorial order. The old
+    "Interpretive explanation unavailable" is not reproduced.
+
+    No diagnostic reaches the response: no provider body, no billing text, no
+    correlation id, no exception detail. Those are logged.
+
+    THE PROVIDER RECEIVES NO USER NAME. It selects identifiers and writes no
+    prose, so a name changes nothing in the output — Flight 11 sent it anyway,
+    which was an unnecessary PII transfer and a drift from the token-only
+    contract.
     """
-    # CORR-03 · the provider receives an ATOM POOL and returns a composition
-    # plan. It is never handed a blank page.
-    pool = build_atom_pool(report)
-    # CORR-04 · eligibility is DOMAIN SPREAD, not atom count. A pool that cannot
-    # span three substantive domains cannot produce an integrative synthesis, so
-    # the closing is withheld rather than faked. The structured report is
-    # unaffected and remains fully visible.
-    if (len(pool["atoms"]) < MIN_ATOMS
-            or len(pool["substantive_domains"]) < MIN_SUBSTANTIVE_DOMAINS):
-        return {"narrative": None, "narrative_status": "insufficient_material"}
-    try:
-        raw = provider(build_provider_instruction(pool),
-                       build_provider_user_prompt(pool, name))
-    except Exception:
-        cid = uuid.uuid4().hex[:12]
-        log.warning("d9 provider call failed correlation_id=%s", cid, exc_info=True)
-        return {"narrative": None, "narrative_status": "unavailable"}
-
-    try:
-        sections = build_narrative(raw, pool)
-    except (NarrativeContractError, PublicationViolation):
-        cid = uuid.uuid4().hex[:12]
-        log.warning("d9 narrative rejected correlation_id=%s", cid, exc_info=True)
-        return {"narrative": None, "narrative_status": "unavailable"}
-
-    return {"narrative": sections, "narrative_status": "ok"}
+    return r2_nar.build_final_synthesis(
+        report.get("synthesis_material") or {}, provider)
 
 
 @router.post("/d9report", response_model=D9ReportResponse)
@@ -296,14 +363,15 @@ async def d9_report(
     _require_doctrine()
     snapshot = await resolve_token(resolver, req.chart_token)
     prepared = prepare_or_raise(snapshot, req.chart_token)
+    # THE SERVER REBUILDS FROM THE CERTIFIED CHART. The browser's report is
+    # never narrative authority.
     report = prepared["report"]
 
-    narrative = build_narrative_or_neutral(report, req.name, _call_provider)
+    synthesis = build_final_synthesis(report, _call_provider)
 
     return {
         "chart_token": req.chart_token,
-        "module_version": MODULE_VERSION,
-        "report": report,
-        "narrative": narrative["narrative"],
-        "narrative_status": narrative["narrative_status"],
+        "route_version": R2_ROUTE_VERSION,
+        "final_synthesis": synthesis["final_synthesis"],
+        "synthesis_source": synthesis["synthesis_source"],
     }
