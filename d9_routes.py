@@ -44,6 +44,7 @@ import d9_engine
 from d9_client_reading import PublicationViolation, publish_dignity
 
 import d9_r2_contribution as r2_con
+import d9_r2_partnership as r2_partner
 import d9_r2_doctrine as r2_doc
 import d9_r2_narrative as r2_nar
 import d9_r2_publication as r2_pub
@@ -153,6 +154,18 @@ def _karakamsha_domain_facts(facts: Dict[str, Any],
     return out
 
 
+# NO CONFIDENCE NORMALIZATION EXISTS HERE, DELIBERATELY.
+#
+# Flight 15 added `_normalise_h7_confidence()` to recover KL_H7_JUP / KL_H7_BEN.
+# It was unnecessary — `karak_house_data.eval_house()` already defaults a fired
+# rule's confidence to "direct" — and it was unsafe: its accepted-ID set was
+# drawn from EVERY house, so a record carrying a non-H7 id such as KL_H5_BEN
+# could be upgraded through the H7 path and acquire partnership publication
+# authority it never had.
+#
+# Removing a false claim downstream is not removing it. The mechanism is gone,
+# not narrowed, and an adversarial regression proves a non-H7 id cannot reach
+# H7 authority.
 def build_r2_report(facts: Dict[str, Any], snapshot: Dict[str, Any],
                     chart_token: str) -> Dict[str, Any]:
     """Certified facts -> R2 selectors -> R2 publication model."""
@@ -173,8 +186,16 @@ def build_r2_report(facts: Dict[str, Any], snapshot: Dict[str, Any],
     growth = r2_sel.select_growth_edge(d9_lagna)
     instructions = r2_sel.select_instructions(d9_lagna)
 
-    h7 = ((facts.get("karakamsha_houses") or {}).get(7) or {}).get("fired") or []
-    partnership = r2_sel.select_partnership(h7)
+    # PARTNERSHIP DYNAMICS · universal. Tiers 1 and 2 always resolve or the
+    # preparation fails closed; Karakāṁśa H7 is an optional modifier and no
+    # longer the gate that decides whether Section 3 exists.
+    kl7 = (facts.get("karakamsha_houses") or {}).get(7) or {}
+    kl7_occupants = list(kl7.get("occupants") or [])
+    partnership = r2_partner.build_partnership(
+        d9_lagna_sign_index=(facts.get("d9_lagna") or {}).get("sign_index"),
+        published_dignity=published,
+        karakamsha_h7_occupants=kl7_occupants,
+        karakamsha_h7_sign=kl7.get("sign"))
 
     domains = _karakamsha_domain_facts(facts, planets)
     contribution = None
@@ -203,15 +224,39 @@ def build_r2_report(facts: Dict[str, Any], snapshot: Dict[str, Any],
         vargottama={g: True for g in
                     (facts.get("integration") or {}).get("integrated_grahas") or []},
         karakamsha_evidence={h: list(d["occupants"]) for h, d in domains.items()},
-        relationship_evidence=([r["plain"] for r in h7
-                                if r.get("confidence") == "direct"] or None),
+        d9_seventh_sign=partnership["relational_field"]["sign"],
+        d9_seventh_lord=partnership["governing_function"]["graha"],
+        d9_seventh_lord_dignity=partnership["governing_function"]["dignity"],
+        karakamsha_h7_sign=kl7.get("sign"),
+        karakamsha_h7_occupants=kl7_occupants,
+        growth_edge_source=f"{d9_lagna} Navāṁśa Lagna · shadow_expression",
+        contribution_convergence=(contribution or {}).get("convergence"),
+        contribution_roles=[r2_pub.CONTRIBUTION_ROLE_TECHNICAL[k]
+                            for k in r2_pub.CONTRIBUTION_ROLE_TECHNICAL
+                            if (contribution or {}).get(k)] or None,
+        instructions_source=f"{d9_lagna} Navāṁśa Lagna maturity pattern",
     )
+
+    # DISPLAY-ONLY D9 chart, built from already-certified placements. The
+    # browser receives finished houses/signs/occupants and performs no
+    # divisional arithmetic of its own.
+    d9_lagna_index = (facts.get("d9_lagna") or {}).get("sign_index")
+    d9_chart = r2_pub.build_d9_chart_projection(
+        d9_lagna_index, facts.get("placements") or {}, _DOCTRINE.signs)
+
+    reading_basis = r2_pub.build_reading_basis(
+        d1_lagna, d9_lagna, strength, contribution, True)
+    reading_basis["partnership"] = r2_partner.build_partnership_basis(
+        partnership, kl7.get("sign"), kl7_occupants)
+    key_anchors = r2_pub.build_key_anchors(
+        d1_lagna, d9_lagna, strength, contribution)
 
     return r2_pub.build_report(
         chart_token=chart_token, central_theme=theme, strength=strength,
         growth_edge=growth, instructions=instructions,
         partnership=partnership, contribution=contribution,
-        astrological_basis=basis)
+        astrological_basis=basis, d9_chart=d9_chart,
+        reading_basis=reading_basis, key_anchors=key_anchors)
 
 
 def _published_dignities(facts: Dict[str, Any]) -> Dict[str, Dict[str, str]]:

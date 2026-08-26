@@ -29,6 +29,75 @@ import d9_r2_doctrine as doc
 
 REPORT_VERSION = "d9-r2"
 
+PUBLIC_TITLE = "Navāṁśa · Marriage, Maturity & Dharma"
+PUBLIC_SUBTITLE = ("How your inner nature, partnership and deeper life pattern "
+                   "develop")
+
+# SERVER-OWNED COPY. The provider never writes any of this.
+#
+# Every claim below is structural — what the Navāṁśa IS and how this report uses
+# it. No timing folklore: no age-32 or age-36 activation, no Saturn-return
+# switch, no automatic early/late destiny rule from D1/D9 strength, and no
+# categorical "four minutes changes the D9 Lagna".
+NAVAMSHA_EXPLAINER = {
+    "heading": "What the Navāṁśa Reveals",
+    "paragraphs": [
+        "The Navāṁśa is the ninth divisional chart. It is not a second horoscope "
+        "and not a prediction of different events — it is your own birth data "
+        "read at finer resolution, with each sign divided into nine parts and "
+        "every planet and the ascendant mapped into that finer framework.",
+        "It is read together with your natal chart rather than instead of it. "
+        "Where the natal chart shows how you meet the world, the Navāṁśa shows "
+        "what those same tendencies mature into when they are developed "
+        "deliberately.",
+        "This reading covers four things: how your natal tendencies mature, what "
+        "partnership asks of you where the chart directly supports a statement, "
+        "the kind of contribution your effort is suited to, and the capacities "
+        "you can depend on. It is not an event-timing report.",
+    ],
+}
+
+SCOPE_NOTE = {
+    "heading": "How to use this reading",
+    "points": [
+        "The Navāṁśa deepens and qualifies your natal chart. It does not replace "
+        "it, and it is not a separate fate.",
+        "Contribution describes the kind of value your work tends to create. It "
+        "is not a profession prediction — career mechanics belong to the "
+        "Dashamsha reading.",
+        "This reading does not tell you when things happen. Timing belongs to "
+        "Dashā analysis.",
+        "Nothing here prescribes a remedy. Remedial guidance belongs to the "
+        "Remedial Dossier.",
+    ],
+}
+
+CONTRIBUTION_NOTE = ("Contribution describes how the chart tends to create value "
+                     "or serve a larger purpose. It is not a profession "
+                     "prediction; detailed career mechanics belong to the "
+                     "Dashamsha reading.")
+
+# Plain-language public labels for the Founder-locked role names. The engine
+# name survives in the Astrological Basis for an auditing reader.
+CONTRIBUTION_ROLE_LABELS = {
+    "primary_mode": "Primary Contribution Mode",
+    "primary_contribution_mode": "Primary Contribution Mode",
+    "functional_vector": "How this contribution reaches the world",
+    "ethical_functional_vector": "How this contribution should be carried",
+    "aptitude_modifier": "The aptitude underneath it",
+    "primary_impact_vector": "Where the visible impact lands",
+    "ethical_driver": "What drives it",
+    "innate_aptitude": "The aptitude underneath it",
+}
+CONTRIBUTION_ROLE_TECHNICAL = {
+    "functional_vector": "Functional / Impact Vector",
+    "ethical_functional_vector": "Ethical Functional Vector",
+    "aptitude_modifier": "Innate / Aptitude Modifier",
+    "primary_impact_vector": "Primary Impact Vector",
+    "ethical_driver": "Ethical Driver",
+    "innate_aptitude": "Innate Aptitude",
+}
+
 # Vocabulary that must never appear anywhere in a built model.
 ARCHETYPE_ENUM_IDS = tuple(a.value for a in doc.ARCHETYPES)
 
@@ -190,12 +259,128 @@ def growth_edge_public(selection: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def partnership_public(selection: Dict[str, Any]) -> Dict[str, Any]:
-    """Heading and statements. The exact H7 frame is real technical evidence and
-    its home is View the Astrological Basis, not a human paragraph."""
+    """Customer projection for Partnership Dynamics.
+
+    Handles the Flight 16 three-tier shape and strips provenance — `frame`,
+    `basis` and `confidence` are technical evidence and live in the
+    Astrological Basis, never in the human section.
+
+    The legacy `sections` shape is still projected so earlier suites and any
+    caller that has not moved yet keep working.
+    """
+    if not selection:
+        return {}
+
+    if selection.get("relational_field"):
+        out: Dict[str, Any] = {"heading": selection.get("heading",
+                                                        "Partnership Dynamics")}
+        rf = selection["relational_field"]
+        out["relational_field"] = {"sign": rf["sign"], "statement": rf["statement"]}
+        gf = selection["governing_function"]
+        out["governing_function"] = {"graha": gf["graha"],
+                                     "dignity": gf["dignity"],
+                                     "statement": gf["statement"]}
+        ko = selection.get("karmic_orientation") or []
+        if ko:
+            out["karmic_orientation"] = [{"graha": o["graha"],
+                                          "statement": o["statement"]}
+                                         for o in ko]
+        return out
+
     sections = [{"heading": sec["heading"], "statements": list(sec["statements"])}
                 for sec in (selection.get("sections") or [])
                 if sec.get("statements")]
     return {"sections": sections} if sections else {"sections": []}
+
+
+def build_d9_chart_projection(d9_lagna_sign_index: int,
+                              placements: Dict[str, Any],
+                              signs: Sequence[str]) -> Dict[str, Any]:
+    """DISPLAY-ONLY projection of already-certified D9 placements.
+
+    The browser gets houses, signs and occupants as finished values. There is no
+    arithmetic left for it to do and therefore no second D9 engine — the frontend
+    becomes a pure renderer of this structure.
+    """
+    if not isinstance(d9_lagna_sign_index, int) or not signs:
+        return {}
+    houses = []
+    for h in range(1, 13):
+        idx = (d9_lagna_sign_index + h - 1) % 12
+        houses.append({"house": h, "sign": signs[idx],
+                       "sign_number": idx + 1, "grahas": []})
+    for graha, rec in (placements or {}).items():
+        si = rec.get("d9_sign_index")
+        if not isinstance(si, int) or isinstance(si, bool):
+            continue
+        house = ((si - d9_lagna_sign_index) % 12) + 1
+        houses[house - 1]["grahas"].append(graha)
+    for h in houses:
+        h["grahas"].sort(key=lambda g: list(placements).index(g)
+                         if g in placements else 99)
+    return {"style": "north_indian", "lagna_house": 1,
+            "lagna_sign": signs[d9_lagna_sign_index % 12], "houses": houses}
+
+
+def build_reading_basis(d1_lagna: str, d9_lagna: str,
+                        strength: Dict[str, Any],
+                        contribution: Optional[Dict[str, Any]],
+                        partnership_published: bool) -> Dict[str, str]:
+    """One short evidence line per major interpretation.
+
+    THE STRENGTH / GROWTH EDGE DISTINCTION IS THE POINT. The elected graha is
+    named against the Strength only; the Growth Edge names the D9 Lagna sign and
+    never a graha, so a reader cannot infer "Jupiter good, Mars bad" from a
+    section that never elected Mars.
+    """
+    out: Dict[str, str] = {}
+    if d1_lagna and d9_lagna:
+        out["central_theme"] = (f"{d1_lagna} natal orientation → "
+                                f"{d9_lagna} Navāṁśa maturity")
+    grahas = strength.get("grahas") or []
+    if grahas:
+        dignity = strength.get("published_dignity")
+        who = " · ".join(grahas)
+        out["strength"] = f"{who} · {dignity} in the Navāṁśa" if dignity else who
+    elif strength.get("mode") == "FOUNDATIONAL_RESILIENCE":
+        out["strength"] = f"{d9_lagna} Navāṁśa Lagna · no single elected placement"
+    if d9_lagna:
+        out["growth_edge"] = f"{d9_lagna} Navāṁśa Lagna maturity pattern"
+        out["instructions"] = f"{d9_lagna} Navāṁśa Lagna maturity pattern"
+    if contribution:
+        out["dharma_contribution"] = ("Karakāṁśa 5th, 9th and 10th domains")
+    if partnership_published:
+        out["partnership"] = "Karakāṁśa 7th domain · directly supported evidence"
+    return out
+
+
+def build_key_anchors(d1_lagna: str, d9_lagna: str,
+                      strength: Dict[str, Any],
+                      contribution: Optional[Dict[str, Any]]) -> List[Dict[str, str]]:
+    """The compact orientation row. Deterministic payload values, no enums."""
+    rows = []
+    if d1_lagna:
+        rows.append({"label": "Outer tendency", "value": d1_lagna})
+    if d9_lagna:
+        rows.append({"label": "Navāṁśa Lagna", "value": d9_lagna})
+    grahas = strength.get("grahas") or []
+    if grahas:
+        rows.append({"label": "Reliable strength", "value": " · ".join(grahas)})
+    elif strength.get("mode") == "FOUNDATIONAL_RESILIENCE":
+        rows.append({"label": "Reliable strength", "value": "Foundational Resilience"})
+    if contribution:
+        titles = []
+        for key in ("primary_mode", "primary_contribution_mode",
+                    "primary_impact_vector"):
+            titles = [e["title"] for e in (contribution.get(key) or [])]
+            if titles:
+                break
+        if titles:
+            rows.append({"label": "Contribution", "value": " · ".join(titles)})
+        elif contribution.get("mode") == "MATURITY_FALLBACK":
+            rows.append({"label": "Contribution",
+                         "value": "Read from Navāṁśa Lagna maturity"})
+    return rows
 
 
 def build_report(chart_token: str,
@@ -205,7 +390,10 @@ def build_report(chart_token: str,
                  instructions: Dict[str, Any],
                  partnership: Optional[Dict[str, Any]] = None,
                  contribution: Optional[Dict[str, Any]] = None,
-                 astrological_basis: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+                 astrological_basis: Optional[Dict[str, Any]] = None,
+                 d9_chart: Optional[Dict[str, Any]] = None,
+                 reading_basis: Optional[Dict[str, str]] = None,
+                 key_anchors: Optional[List[Dict[str, str]]] = None) -> Dict[str, Any]:
     """Assemble the model. Optional blocks are OMITTED, never emptied."""
     signatures: Dict[str, Any] = {"strength": strength_public(strength),
                                   "growth_edge": growth_edge_public(growth_edge)}
@@ -220,17 +408,32 @@ def build_report(chart_token: str,
     report: Dict[str, Any] = {
         "report_version": REPORT_VERSION,
         "chart_token": chart_token,
+        "title": PUBLIC_TITLE,
+        "subtitle": PUBLIC_SUBTITLE,
+        "explainer": NAVAMSHA_EXPLAINER,
+        "scope_note": SCOPE_NOTE,
+        "contribution_note": CONTRIBUTION_NOTE,
         "central_theme": central_theme,
         "defining_signatures": signatures,
         "instructions": instructions,
     }
 
     # Partnership is evidence-responsive: present only when a section survived.
+    # Section 3 is UNIVERSAL now: tiers 1 and 2 always resolve, so the block is
+    # always present. It carries no `basis` or `confidence` provenance.
     if partnership:
         pp = partnership_public(partnership)
-        if pp["sections"]:
+        # Section 3 is universal under the Flight 16 architecture, but the
+        # legacy shape can still yield nothing — omit rather than publish empty.
+        if pp.get("relational_field") or pp.get("sections"):
             report["partnership"] = pp
 
+    if d9_chart:
+        report["d9_chart"] = d9_chart
+    if key_anchors:
+        report["key_anchors"] = key_anchors
+    if reading_basis:
+        report["reading_basis"] = reading_basis
     if astrological_basis:
         # THE FLIGHT 10 SEAM, CLOSED AT THE WIRING PHASE.
         #
@@ -337,6 +540,10 @@ BASIS_PERMITTED_KEYS = (
     "d1_lagna", "d9_lagna", "d9_lagna_lord", "atmakaraka", "swamsa",
     "strength_grahas", "published_dignity", "vargottama",
     "karakamsha_evidence", "relationship_evidence",
+    "d9_seventh_sign", "d9_seventh_lord", "d9_seventh_lord_dignity",
+    "karakamsha_h7_sign", "karakamsha_h7_occupants",
+    "growth_edge_source", "contribution_convergence", "contribution_roles",
+    "instructions_source",
 )
 
 BASIS_TELEMETRY_BANNED = ("rule_id", "rule_ids", "weight", "weights", "score",
@@ -352,7 +559,16 @@ def build_astrological_basis(d1_lagna: str, d9_lagna: str,
                              published_dignity: Optional[Dict[str, str]] = None,
                              vargottama: Optional[Dict[str, bool]] = None,
                              karakamsha_evidence: Optional[Dict[str, Any]] = None,
-                             relationship_evidence: Optional[Sequence[str]] = None
+                             relationship_evidence: Optional[Sequence[str]] = None,
+                             d9_seventh_sign: Optional[str] = None,
+                             d9_seventh_lord: Optional[str] = None,
+                             d9_seventh_lord_dignity: Optional[str] = None,
+                             karakamsha_h7_sign: Optional[str] = None,
+                             karakamsha_h7_occupants: Optional[Sequence[str]] = None,
+                             growth_edge_source: Optional[str] = None,
+                             contribution_convergence: Optional[str] = None,
+                             contribution_roles: Optional[Sequence[str]] = None,
+                             instructions_source: Optional[str] = None
                              ) -> Dict[str, Any]:
     """Only what R2 actually consumed. No rule ids, weights or telemetry."""
     basis: Dict[str, Any] = {"d1_lagna": d1_lagna, "d9_lagna": d9_lagna}
@@ -379,6 +595,29 @@ def build_astrological_basis(d1_lagna: str, d9_lagna: str,
             for h, ev in karakamsha_evidence.items()}
     if relationship_evidence:
         basis["relationship_evidence"] = list(relationship_evidence)
+    # Section 3 evidence. `karakamsha_h7_occupants` reports "none" in the
+    # technical drawer when empty — the MAIN reading simply omits the Karmic
+    # Orientation card rather than publishing an empty one.
+    if d9_seventh_sign:
+        basis["d9_seventh_sign"] = d9_seventh_sign
+    if d9_seventh_lord:
+        basis["d9_seventh_lord"] = d9_seventh_lord
+    if d9_seventh_lord_dignity:
+        basis["d9_seventh_lord_dignity"] = d9_seventh_lord_dignity
+    if karakamsha_h7_sign:
+        basis["karakamsha_h7_sign"] = karakamsha_h7_sign
+    if d9_seventh_sign:
+        basis["karakamsha_h7_occupants"] = (list(karakamsha_h7_occupants)
+                                            if karakamsha_h7_occupants else "none")
+    # Enough for an informed reader to audit the report without raw JSON.
+    if growth_edge_source:
+        basis["growth_edge_source"] = growth_edge_source
+    if contribution_convergence:
+        basis["contribution_convergence"] = contribution_convergence
+    if contribution_roles:
+        basis["contribution_roles"] = list(contribution_roles)
+    if instructions_source:
+        basis["instructions_source"] = instructions_source
 
     # FAIL CLOSED, and never scrub. `scan_basis_telemetry` existed since Flight 6
     # and nothing called it — a detector that is never enforced is not a wall.
@@ -485,12 +724,22 @@ def _contribution_synthesis(dc: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         # The role is derived from WHICH FIELD published, not from a topology
         # field, so the customer block needs no `dissenting_role` for the
         # substrate to stay complete.
-        for key, role in (("functional_vector", "Functional/Impact Vector"),
-                          ("ethical_functional_vector", "Ethical Functional Vector"),
-                          ("aptitude_modifier", "Innate/Aptitude Modifier")):
+        # PUBLIC LABELS. The engine ontology — "Ethical Functional Vector" and
+        # the rest — belongs in the collapsed Astrological Basis, never in the
+        # customer synthesis.
+        for key in ("functional_vector", "ethical_functional_vector",
+                    "aptitude_modifier"):
             vec = _propositions(dc.get(key))
             if vec:
-                out["contextual_vector"] = {"role": role, "propositions": vec}
+                # THE ROLE KEY IS THE SEMANTICS; THE LABEL IS DISPLAY.
+                # Flight 16 carried only the label, so the narrative had to
+                # compose one generic sentence for all three roles — which both
+                # inserted a heading as a noun phrase and described the Ethical
+                # Functional Vector as "how it reaches the world".
+                out["contextual_vector"] = {
+                    "role_key": key,
+                    "role": CONTRIBUTION_ROLE_LABELS[key],
+                    "propositions": vec}
                 break
         return out
 
@@ -535,10 +784,27 @@ def build_synthesis_material(report: Dict[str, Any]) -> Dict[str, Any]:
         if contribution:
             material["contribution"] = contribution
 
+    # PARTNERSHIP AS A FIRST-CLASS SYNTHESIS STRAND (Flight 16 · Job 9).
+    # Relational field, governing function and — when present — karmic
+    # orientation all reach the Integrated Reading.
     pt = report.get("partnership") or {}
-    stmts = [s for sec in (pt.get("sections") or []) for s in sec.get("statements", [])]
-    if stmts:
-        material["partnership"] = stmts
+    if pt.get("relational_field"):
+        material["partnership"] = {
+            "field_sign": pt["relational_field"]["sign"],
+            "field": pt["relational_field"]["statement"],
+            "lord": pt["governing_function"]["graha"],
+            "dignity": pt["governing_function"]["dignity"],
+            "capacity": pt["governing_function"]["statement"],
+            "orientation": [o["statement"] for o in
+                            (pt.get("karmic_orientation") or [])],
+            "orientation_grahas": [o["graha"] for o in
+                                   (pt.get("karmic_orientation") or [])],
+        }
+    else:
+        stmts = [s for sec in (pt.get("sections") or [])
+                 for s in sec.get("statements", [])]
+        if stmts:
+            material["partnership"] = stmts
 
     ins = report.get("instructions") or {}
     if ins:
@@ -588,8 +854,11 @@ def synthesis_strings(material: Dict[str, Any]) -> List[str]:
     def walk(v: Any) -> None:
         if isinstance(v, dict):
             for k, val in v.items():
-                if k in ("mode", "role", "conviction"):
-                    continue          # structural labels, not propositions
+                # Structural labels and the internal role key are not
+                # propositions — `role_key` names WHICH deterministic role
+                # published, and never reaches a customer surface.
+                if k in ("mode", "role", "role_key", "conviction"):
+                    continue
                 walk(val)
         elif isinstance(v, list):
             for val in v:
@@ -620,9 +889,21 @@ def scan_internal_identifiers(material: Dict[str, Any]) -> List[str]:
             if any(i in s for i in ids)]
 
 
+# Server-owned copy that legitimately NAMES a banned concept in order to deny
+# it — "not an event-timing report", "Timing belongs to Dashā analysis". The
+# scan checks for a timing SECTION, not for the word.
+_VOCAB_EXEMPT_PATHS = ("explainer", "scope_note", "contribution_note")
+
+
 def scan_forbidden_vocabulary(report: Dict[str, Any]) -> List[str]:
-    """Absence states and R1 concepts must not appear anywhere."""
-    blob = repr(report)
+    """Absence states and R1 concepts must not appear anywhere.
+
+    The exemption is by KEY PATH, not by phrase: the three server-owned copy
+    blocks may say "not an event-timing report" while nothing else may carry a
+    timing concept at all.
+    """
+    scanned = {k: v for k, v in report.items() if k not in _VOCAB_EXEMPT_PATHS}
+    blob = repr(scanned)
     return [t for t in FORBIDDEN_PUBLICATION_VOCABULARY if t in blob]
 
 
