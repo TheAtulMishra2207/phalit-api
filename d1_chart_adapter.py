@@ -43,8 +43,13 @@ class ChartAdapterError(ValueError):
 # certified build. Without this, a stale or Moshier-backed chart would flow
 # through an engine whose output claims the accepted Lahiri / whole-sign /
 # Swiss policy. Values are the FIXTURE-FREEZE CERTIFICATE of 2026-07-25.
+# D10-002 §35 · 1.1.0 -> 1.2.0, ATOMIC WITH main.CHART_ENGINE_VERSION. The
+# /chart graha contract gained the additive `karaka_arcsecond` field. This
+# certificate pins the engine version by exact equality, so leaving it at 1.1.0
+# would make every certified chart fail provenance the moment the engine ships.
+# The two are one change and must land in one commit.
 REQUIRED_CALCULATION_META: Dict[str, str] = {
-    "chart_engine_version": "1.1.0",
+    "chart_engine_version": "1.2.0",
     "ayanamsha_model": "lahiri-linear-fit-2026-07",
     "house_system": "whole-sign",
     "node_type": "mean",

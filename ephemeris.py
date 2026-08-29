@@ -97,6 +97,44 @@ def _backend_from_flag(retflag: int) -> str:
     return f"unknown (retflag={retflag})"
 
 
+class EphemerisBackendViolation(RuntimeError):
+    """A calculation was served by a backend other than the expected one.
+
+    D10-002-CORR-02. Raised, never returned, and never downgraded to a warning:
+    a chart computed from an unexpected backend must not exist, because the
+    published calculation_meta would certify a provenance the numbers do not
+    have.
+    """
+
+
+def calc_ut_checked(jd: float, body: int, flags: int):
+    """THE ONE PER-CALCULATION BACKEND GATE.
+
+    `swe.calc_ut` falls back silently: asked for the Swiss files and unable to
+    serve them, it returns a perfectly usable number computed analytically and
+    signals that only in the return flag, which callers routinely discard as
+    `_`. The startup J2000 probe cannot catch this, because a fallback can
+    depend on the date being computed and the probe uses one fixed date.
+
+    This wrapper inspects the retflag the call ACTUALLY returned, at the
+    requested JD, and refuses anything that is not EXPECTED_EPHEMERIS_BACKEND.
+
+    FAIL CLOSED. On a mismatch it raises before the caller can read `values`,
+    so no result from an unexpected backend can enter a chart.
+    """
+    values, retflag = swe.calc_ut(jd, body, flags)
+    actual = _backend_from_flag(retflag)
+    if actual != EXPECTED_EPHEMERIS_BACKEND:
+        raise EphemerisBackendViolation(
+            f"ephemeris backend mismatch at jd={jd!r} body={body}: the "
+            f"calculation was served by {actual!r}, not the expected "
+            f"{EXPECTED_EPHEMERIS_BACKEND!r}. Refusing rather than publishing "
+            f"a chart whose calculation_meta would claim "
+            f"{EXPECTED_EPHEMERIS_BACKEND!r}."
+        )
+    return values, retflag
+
+
 def probe_backend(body: int = swe.SUN) -> str:
     """Which backend Swiss Ephemeris actually used, not which was requested."""
     try:

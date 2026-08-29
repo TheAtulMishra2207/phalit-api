@@ -25,6 +25,9 @@ from d7_predicates import D7PredicateDoctrine
 # tables it reads, exactly as D4, D5 and D7 are.
 from d9_engine import D9Doctrine
 from d9_routes import configure_d9_doctrine, router as d9_router
+from d10_routes import configure_d10_doctrine, router as d10_router
+from d10_report_routes import router as d10_report_router
+from d10_engine import D10Doctrine
 from d7_routes import (
     configure_d7_doctrine,
     prepare_or_raise as d7_prepare_or_raise,
@@ -66,12 +69,22 @@ logger = logging.getLogger("phalit")
 # ─────────────────────────────────────────────────────────────────────────────
 
 import ephemeris
+from ephemeris import EphemerisBackendViolation, calc_ut_checked
+# D10-002 · the ONE arcsecond conversion in the process. Imported here
+# rather than reimplemented so /chart and /d10/prepare cannot disagree.
+from d10_engine import (to_karaka_arcsecond as d10_to_karaka_arcsecond,
+                        d10_sign_index as d10_map_sign_index)
 EPHEMERIS_BACKEND = ephemeris.EPHEMERIS_BACKEND
 
 # Calculation provenance. Every stored brief and every parity fixture must
 # record what actually produced it, so that a fixture generated under one
 # ephemeris backend or ayanamsha model is not silently compared against another.
-CHART_ENGINE_VERSION = "1.1.0"
+# D10-002 §35 · BUMPED 1.1.0 -> 1.2.0. The /chart graha contract gained the
+# additive `karaka_arcsecond` field required by the locked Chara Karaka basis.
+# No existing field changed value. The bump is NOT cosmetic: d1_chart_adapter's
+# REQUIRED_CALCULATION_META pins this string, so the two move together in one
+# commit or every /d1, /d5 and /d10 prepare call fails provenance.
+CHART_ENGINE_VERSION = "1.2.0"
 AYANAMSHA_MODEL = "lahiri-linear-fit-2026-07"
 HOUSE_SYSTEM = "whole-sign"
 
@@ -357,6 +370,10 @@ def calc_lagna(jd: float, lat: float, lon: float) -> dict:
     asc_sidereal = (asc_tropical - ayanamsha) % 360.0
     sign_index = int(asc_sidereal / 30)
     degree_in_sign = asc_sidereal % 30
+    # D10-002 PRE-FREEZE CORRECTION · the D10 Lagna, at the full-precision
+    # seam. Same rounding hazard as the graha path; same single mapping
+    # function. This is its only call site for the lagna.
+    d10_sign_index = d10_map_sign_index(degree_in_sign, sign_index, "lagna")
     d9 = calc_d9_sign(asc_sidereal)
     return {
         "sign": SIGNS[sign_index],
@@ -369,7 +386,9 @@ def calc_lagna(jd: float, lat: float, lon: float) -> dict:
         "d9_sign": d9["d9_sign"],
         "d9_sign_abbr": d9["d9_sign_abbr"],
         "d9_sign_index": d9["d9_sign_index"],
-        "d9_lord": d9["d9_lord"]
+        "d9_lord": d9["d9_lord"],
+        # D10-002 PRE-FREEZE CORRECTION · additive certified D10 Lagna.
+        "d10_sign_index": d10_sign_index
     }
 
 
@@ -554,13 +573,57 @@ configure_d9_doctrine(
 app.include_router(d9_router)
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# D10-002 · POST /d10/prepare
+#
+# Registered WITHOUT a prefix and WITHOUT a second resolver binding, for the
+# same two reasons recorded above the Pratiphala, Nakshatra, D4 and D5
+# includes: the path is declared in full on the router, and d10_routes depends
+# on the SAME d1_routes.get_chart_resolver function object that install_d1
+# already overrode. Binding it again here would be a second door onto one
+# snapshot store.
+#
+# The doctrine is INJECTED here rather than imported by d10_routes, so
+# d10_engine and d10_routes each stay free of any doctrine table of their own
+# and there is exactly one copy of these tables in the process. The node
+# dignity signs are passed EXPLICITLY rather than derived, because BPHS Ch.47
+# node exaltation is a Founder-locked value and a derivation would put a second
+# opinion about it in the process.
+#
+# PLACEMENT IS LOAD-BEARING: this block must sit below the dignity tables. The
+# tables are module-level and defined far above, so this is satisfied here.
+# ─────────────────────────────────────────────────────────────────────────────
+configure_d10_doctrine(
+    D10Doctrine(
+        signs=SIGNS,
+        sign_abbr=SIGN_ABBR,
+        sign_lords=SIGN_LORDS,
+        exaltation_sign=EXALTATION_SIGN,
+        debilitation_sign=DEBILITATION_SIGN,
+        own_signs=OWN_SIGNS,
+        natural_friends=NATURAL_FRIENDS,
+        natural_enemies=NATURAL_ENEMIES,
+        # BPHS Ch.47, matching get_dignity's node branch exactly.
+        node_exaltation_sign={"Rahu": 1, "Ketu": 7},
+        node_debilitation_sign={"Rahu": 7, "Ketu": 1},
+    )
+)
+app.include_router(d10_router)
+# D10-008 · the live report. Registered after the D10 router so the doctrine
+# injected above is already configured when a request arrives.
+app.include_router(d10_report_router)
+
+
 def calc_planet_data(jd: float, planet: str, lagna_sign_index: int) -> dict:
     """Calculate full data for one planet using manual ayanamsha."""
     flags = swe.FLG_SWIEPH | swe.FLG_SPEED
     ayanamsha = get_lahiri_ayanamsha(jd)
 
     if planet == 'Ketu':
-        rahu_result, _ = swe.calc_ut(jd, swe.MEAN_NODE, flags)
+        # D10-002-CORR-02 · per-calculation backend enforcement. Ketu is
+        # derived ENTIRELY from this validated Rahu call and makes no
+        # ephemeris call of its own, so it cannot bypass the gate.
+        rahu_result, _ = calc_ut_checked(jd, swe.MEAN_NODE, flags)
         lon_tropical = (rahu_result[0] + 180.0) % 360.0
         lon = (lon_tropical - ayanamsha) % 360.0
         # Ketu's longitude is Rahu plus 180 degrees, so its derivative keeps
@@ -570,7 +633,8 @@ def calc_planet_data(jd: float, planet: str, lagna_sign_index: int) -> dict:
         speed = rahu_result[3]
         retrograde = True
     else:
-        result, _ = swe.calc_ut(jd, SWE_ID[planet], flags)
+        # D10-002-CORR-02 · per-calculation backend enforcement.
+        result, _ = calc_ut_checked(jd, SWE_ID[planet], flags)
         lon_tropical = result[0]
         lon = (lon_tropical - ayanamsha) % 360.0
         speed = result[3]
@@ -579,6 +643,28 @@ def calc_planet_data(jd: float, planet: str, lagna_sign_index: int) -> dict:
     sign_index = int(lon / 30)
     degree_in_sign = lon % 30
     house = ((sign_index - lagna_sign_index) % 12) + 1
+    # D10-002 §10 · SHARED SUBJECT TOUCHED FOR A D10-REQUIRED ADDITIVE CHANGE.
+    # The Chara Karaka comparison basis, computed HERE because this is the only
+    # place the unrounded degree-within-sign exists: `degree` and `longitude`
+    # below are both round(..., 4) and neither can reproduce this integer.
+    # The published degree is FINER than one arcsecond (0.0001 deg = 0.36 arcsec),
+    # so this is not a resolution shortfall. The defect is DOUBLE ROUNDING:
+    # rounding to four decimals and then to an integer arcsecond disagrees with
+    # rounding once from the true value, because the first rounding can move a
+    # value across a half-arcsecond boundary by up to 0.18 arcsec. Measured in
+    # test_d10_engine, that disagreement is not rare.
+    # Additive only: no existing value is read, changed or reordered by this
+    # line, and rollback is deleting it and its D10 consumer.
+    karaka_arcsecond = d10_to_karaka_arcsecond(degree_in_sign)
+    # D10-002 PRE-FREEZE CORRECTION · the CANONICAL D10 placement, computed at
+    # the same full-precision seam and for the same reason. `degree` below is
+    # round(..., 4), and that rounding can move a position across a 3-degree
+    # Dasamsa boundary, or publish a true 29.99995+ as 30.0000, which is
+    # outside the mapping's domain and would refuse the whole chart.
+    # The consumer reads THIS field. It never re-derives the placement from the
+    # published degree. There is one mapping function in the process and this
+    # is its only call site for grahas.
+    d10_sign_index = d10_map_sign_index(degree_in_sign, sign_index, planet)
     nakshatra = get_nakshatra_info(lon)
     dignity = get_dignity(planet, sign_index, degree_in_sign)
     d9 = calc_d9_sign(lon)
@@ -607,7 +693,16 @@ def calc_planet_data(jd: float, planet: str, lagna_sign_index: int) -> dict:
         "vargottama": vargottama,
         "d20_sign_index": d20["d20_sign_index"],
         "d20_sign": d20["d20_sign"],
-        "d20_lord": d20["d20_lord"]
+        "d20_lord": d20["d20_lord"],
+        # D10-002 §10 · additive. Appended after every pre-existing key so no
+        # existing entry moves. D1 and D9 do not read it; the browser must not
+        # recompute it. The server integer is the authority.
+        "karaka_arcsecond": karaka_arcsecond,
+        # D10-002 PRE-FREEZE CORRECTION · additive certified D10 mechanical
+        # fact. Only the SIGN INDEX is published: houses, sign names, lordship
+        # and D10 dignity are all deterministically derivable from it, and no
+        # new full-precision natal degree is exposed to obtain it.
+        "d10_sign_index": d10_sign_index
     }
 
 
@@ -954,6 +1049,29 @@ def _calculate_chart_body(req: ChartRequest):
             "dasha": dasha
         }
 
+    except EphemerisBackendViolation as exc:
+        # D10-002-CORR-02 · FAIL CLOSED. A planetary calculation was served by
+        # a backend other than the expected one, so no chart is published: the
+        # calculation_meta would certify a provenance the numbers do not have.
+        #
+        # Placed ABOVE the broad handlers deliberately. The generic
+        # `except Exception` below would otherwise absorb this into a 500 and
+        # lose the distinction between "the server broke" and "the server
+        # refused to certify these numbers".
+        #
+        # 503, not 4xx. The caller's request was fine; the server's ephemeris
+        # source was not. Misclassifying it as a client error would tell the
+        # customer their birth data was wrong when it was not.
+        #
+        # The exception names the backends, the body and the JD, so it is
+        # logged in full and NEVER published.
+        correlation_id = uuid.uuid4().hex[:12]
+        logger.error("chart refused, ephemeris backend violation [%s]: %s",
+                     correlation_id, exc)
+        raise HTTPException(
+            status_code=503,
+            detail=f"Chart calculation is temporarily unavailable. "
+                   f"Reference: {correlation_id}")
     except ValueError as e:
         # Malformed date, time or offset is a client error, not a server fault.
         raise HTTPException(status_code=400, detail=f"Invalid birth input: {e}")
@@ -977,6 +1095,8 @@ async def calculate_chart(req: ChartRequest,
     under the same owner. Authenticated callers own by user_id and get no
     session token. The response is otherwise unchanged.
     """
+    # The ephemeris backend gate lives inside _calculate_chart_body, above its
+    # broad handlers. One refusal path, not two.
     body = await run_in_threadpool(_calculate_chart_body, req)
     return await issue_chart_response(body, snapshot_store, cc.caller,
                                       echo_session=cc.echo_session)
@@ -1527,94 +1647,17 @@ async def generate_d7_report(req: D7ReportRequest,
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# D10 DASHAMSHA CAREER REPORT ENDPOINT
+# D10 DASHAMSHA CAREER REPORT
 # ─────────────────────────────────────────────────────────────────────────────
-
-class D10ReportRequest(BaseModel):
-    name: str
-    chart_brief: Dict[str, Any]
-
-@app.post("/d10report")
-def generate_d10_report(req: D10ReportRequest):
-    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
-    if not api_key:
-        raise HTTPException(status_code=500, detail="ANTHROPIC_API_KEY not configured on server.")
-
-    brief = req.chart_brief
-    name  = req.name or "the native"
-
-    system_prompt = """You are writing a focused career and professional destiny report for a Vedic astrology platform.
-Cover only: career identity, professional path, work environment, financial earning, and timing.
-
-Absolute rules:
-1. Use ONLY the corpus provided. No external knowledge.
-2. ZERO technical terminology — no planet names, house numbers, sign names, Sanskrit terms, deity names.
-3. Second person throughout. "You are...", "Your career..."
-4. Each section 5-7 sentences. No bullet points. Flowing, specific prose.
-5. NO personality analysis. NO relationship commentary. NO spiritual meandering.
-6. Write exactly 4 sections with these headings (use ### before each):
-   ### Your Professional Identity and Status
-   ### Your Career Path and Working Style
-   ### Financial Earning and Professional Environment
-   ### Career Timing and Key Pivots
-7. Complete all 4 sections. Be specific about professional tendencies, strengths, and challenges."""
-
-    user_prompt = f"""Write a focused career report for {name}.
-
-PROFESSIONAL IDENTITY:
-- D10 Lagna: {brief.get('d10_lagna', '—')} — {brief.get('lagna_title', '')}
-- Lagna description: {brief.get('lagna_desc', '')}
-- Lagna deity quality: {brief.get('lagna_deity', {}).get('quality', '')}
-- Lagna lord placement: House {brief.get('lagna_lord', {}).get('house', '?')} — Self-employed path: {brief.get('lagna_lord', {}).get('self_employed', False)}
-- Sun (status): House {brief.get('sun', {}).get('house', '?')} — {brief.get('sun', {}).get('dignity', '')} — Ketu conflict: {brief.get('sun', {}).get('ketu_conflict', False)}
-
-SOUL'S CAREER DESTINATION (AK):
-{brief.get('ak', {})}
-
-CAREER VEHICLE (AmK):
-{brief.get('amk', {})}
-
-AK/AmK INTERACTION: {brief.get('ak_amk_interaction', '')}
-
-DEITY PROFILES (professional flavour per planetary force):
-{brief.get('deity_profiles', [])}
-
-HOUSE BREAKDOWN:
-{brief.get('house_breakdown', [])}
-
-MOOLTRIKONA (peak-drive planets): {brief.get('mooltrikona_planets', [])}
-SUN/KETU CONFLICT: {brief.get('ketu_sun_conflict', False)}
-10TH LORD PLACEMENT: House {brief.get('d1_10th_lord_d10_house', '?')} — Travel career: {brief.get('travel_career', False)}
-
-FINANCIALS:
-2nd house: {brief.get('h2', {})}
-11th house: {brief.get('h11', {})}
-
-Write 4 focused sections on career identity, path, financials, and timing. No fluff. Be specific."""
-
-    try:
-        response = requests.post(
-            "https://api.anthropic.com/v1/messages",
-            headers={"x-api-key": api_key, "anthropic-version": "2023-06-01", "content-type": "application/json"},
-            json={"model": "claude-sonnet-4-6", "max_tokens": 2500, "system": system_prompt,
-                  "messages": [{"role": "user", "content": user_prompt}]},
-            timeout=60
-        )
-        if response.status_code != 200:
-            raise HTTPException(status_code=500, detail=f"Anthropic API error {response.status_code}: {response.text[:600]}")
-        data = response.json()
-        text = "".join(b["text"] for b in data.get("content", []) if b.get("type") == "text")
-        return {"report": text}
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"D10 report error: {str(e)}")
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# MEDICAL ASTROLOGY VAIDYA REPORT ENDPOINT
-# ─────────────────────────────────────────────────────────────────────────────
-
+# D10-008 · THE LEGACY ENDPOINT IS DELETED, NOT FLAGGED.
+#
+# It accepted `name` and a nineteen-key `chart_brief` of browser-asserted
+# astrology, and sent that straight to a provider with a prompt that invented
+# profession, timing and earnings. There is no feature flag and no fallback:
+# the replacement is `d10_report_routes`, which accepts a chart token and
+# assembles the certified D10-002..D10-007 authorities in process.
+#
+# The route is registered with the other D10 routers below.
 @app.post("/medreport")
 def generate_med_report(req: dict):
     api_key = os.environ.get("ANTHROPIC_API_KEY", "")
