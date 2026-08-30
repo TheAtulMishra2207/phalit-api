@@ -124,6 +124,13 @@ GLOSSARY: Tuple[Dict[str, str], ...] = (
     # Sva — so glossing a state the report can never show would teach the
     # reader a word they will not meet. Sva is what they will meet.
     {"term": "Uchcha / Sva / Sama", "meaning": "See chart-card dignity key"},
+    # §16 · added by D10-009-CORR-03. Every one of these is a word the report
+    # now shows a customer, and a term shown is a term that must be glossed.
+    {"term": "Rāśi dṛṣṭi", "meaning": "Jaimini sign-to-sign aspect"},
+    {"term": "Shatru", "meaning": "Enemy sign"},
+    {"term": "Neecha", "meaning": "Weakest sign for that planet"},
+    {"term": "Ungraded",
+     "meaning": "Node outside its exaltation/debilitation states"},
 )
 
 
@@ -202,6 +209,34 @@ STANCE_CORPUS: Dict[str, Dict[str, str]] = {
 }
 
 
+#: §6 · D10 H1 OCCUPANTS MODIFY THE STANCE. They are modifiers, not alternative
+#: rulers and not a second personality engine: the Lagnesh remains the primary
+#: stance carrier and each occupant contributes at most one clause.
+#:
+#: `inflation` exists so a modifier can be stated coherently without becoming a
+#: destiny claim. These are professional behaviours, never events.
+H1_STANCE_MODIFIER: Dict[str, Dict[str, str]] = {
+    "Sun": {"modifier": "an accountable presence that authors what it enters",
+            "inflation": "presence standing in for the work itself"},
+    "Moon": {"modifier": "responsiveness to changing demand and public mood",
+             "inflation": "shape that shifts with whoever asked last"},
+    "Mars": {"modifier": "direct initiative that acts before consensus",
+             "inflation": "action ahead of the brief"},
+    "Mercury": {"modifier": "analysis and adaptive framing of what is asked",
+                "inflation": "framing offered where a decision was wanted"},
+    "Jupiter": {"modifier": "breadth and principled counsel at the entrance",
+                "inflation": "principle argued while the task waits"},
+    "Venus": {"modifier": "negotiation and relational calibration",
+              "inflation": "agreement sought past the point of deciding"},
+    "Saturn": {"modifier": "restraint and procedural weight",
+               "inflation": "procedure heavier than what it carries"},
+    "Rahu": {"modifier": "an appetite for unconventional positioning and new ground",
+             "inflation": "novelty without direction"},
+    "Ketu": {"modifier": "selective focus and low attachment to recognition",
+             "inflation": "withdrawal from work that still needed carrying"},
+}
+
+
 # ═════════════════════════════════════════════════════════════════════════════
 # §9 · HOUSE DOMAINS · 12 entries
 # ═════════════════════════════════════════════════════════════════════════════
@@ -246,6 +281,36 @@ HOUSE_CORPUS: Dict[int, Dict[str, str]] = {
 }
 
 
+#: §14 · WORK-ACTION SCENES. A house's DOMAIN says what it governs; a scene says
+#: what an ordinary week LOOKS like there. Function previously recycled the
+#: domain sentence, which told the reader what H10 means rather than what their
+#: week is. This corpus exists solely to prevent that.
+#:
+#: Not a second astrology selector: it is keyed by a house number the certified
+#: layer already decided, and it derives no profession.
+WORK_ACTION: Dict[int, str] = {
+    1: "work carried directly and in person",
+    2: "work that has to be delivered as something countable",
+    3: "drafting, writing and moving work between people",
+    4: "keeping steady the base the work is carried from",
+    5: "presenting, framing and demonstrating the work",
+    6: "servicing obligations and testing what others rely on",
+    7: "negotiating with clients and counterparties",
+    8: "repairing under disruption and carrying sensitive transitions",
+    9: "advising and framing the principles others work to",
+    10: "executing visible responsibility and owning deliverables",
+    11: "coordinating networks and compounding what already runs",
+    12: "finishing offstage, remote and on long lead times",
+}
+
+#: The approved action register, used by the definition-recycling test.
+WORK_ACTION_VERBS: Tuple[str, ...] = (
+    # Stems, not whole words: "writing" does not contain "write".
+    "writ", "fram", "start", "finish", "organis", "present", "negotiat",
+    "test", "coordinat", "carr", "review", "deliver",
+)
+
+
 # ═════════════════════════════════════════════════════════════════════════════
 # §12 · STRENGTH AND INFLATION · 9 grahas
 # ═════════════════════════════════════════════════════════════════════════════
@@ -259,16 +324,16 @@ HOUSE_CORPUS: Dict[int, Dict[str, str]] = {
 
 STRENGTH_CORPUS: Dict[str, Dict[str, str]] = {
     "Sun": {
-        "reliable_at_work": "Carries responsibility in the open, where it can be seen and answered for.",
-        "when_it_overreaches": "Needs to be seen carrying it, and holds work that others could carry.",
+        "reliable_at_work": "Makes professional value visible and accountable, where it can be answered for.",
+        "when_it_overreaches": "Spends the visible effort proving worth instead of doing the work.",
     },
     "Moon": {
         "reliable_at_work": "Reads the room and adjusts the work to the people doing it.",
         "when_it_overreaches": "Adjusts so readily that the work has no fixed shape left.",
     },
     "Mars": {
-        "reliable_at_work": "Starts things and pushes them through resistance.",
-        "when_it_overreaches": "Pushes through resistance that was information, and starts more than it finishes.",
+        "reliable_at_work": "Starts the work and creates forward motion others can join.",
+        "when_it_overreaches": "Starts a third front before the first two are complete.",
     },
     "Mercury": {
         "reliable_at_work": "Makes complicated work legible and moves it between the people who need it.",
@@ -319,9 +384,26 @@ DEVATA_PROVENANCE: Dict[str, Dict[str, str]] = {
 }
 
 DEVATA_ODD: Tuple[str, ...] = (
-    "Indra", "Agni", "Yama", "Nirṛti", "Varuna",
-    "Vayu", "Kubera", "Ishana", "Brahma", "Ananta",
+    "Indra", "Agni", "Yama", "Nirṛti", "Varuṇa",
+    "Vāyu", "Kubera", "Īśāna", "Padmaja", "Ananta",
 )
+
+#: §9 · WHO THIS IS. Identity, not work meaning — the flavour table below still
+#: carries the professional weather, and the two are never merged. A reader who
+#: has never met Nirṛti needs to know who is being named before being told what
+#: it colours.
+DEVATA_IDENTITY: Dict[str, str] = {
+    "Indra": "sovereign of the gods",
+    "Agni": "sacred fire",
+    "Yama": "lord of restraint",
+    "Nirṛti": "force of dissolution",
+    "Varuṇa": "keeper of cosmic order",
+    "Vāyu": "lord of wind",
+    "Kubera": "guardian of resources",
+    "Īśāna": "a form of Shiva",
+    "Padmaja": "lotus-born Brahmā",
+    "Ananta": "the endless serpent",
+}
 #: The even-sign sequence is the exact reversal, as ruled. Derived rather than
 #: written out, so the two cannot drift apart.
 DEVATA_EVEN: Tuple[str, ...] = tuple(reversed(DEVATA_ODD))
@@ -334,15 +416,28 @@ DEVATA_FLAVOUR: Dict[str, str] = {
     "Agni": "disciplined ignition, quickly spent",
     "Yama": "accountability under pressure",
     "Nirṛti": "unpolished force, honestly applied",
-    "Varuna": "patient scope, held steady",
-    "Vayu": "restless movement between tasks",
+    "Varuṇa": "patient scope, held steady",
+    "Vāyu": "restless movement between tasks",
     "Kubera": "careful stewardship of resources",
-    "Ishana": "clean conduct, quietly kept",
-    "Brahma": "originating from first principles",
+    "Īśāna": "clean conduct, quietly kept",
+    "Padmaja": "originating from first principles",
     "Ananta": "sustained work, largely unseen",
 }
 
-#: §8 · when the same Devatā falls on three or more grahas, publication emits
+#: §8 · LOCKED compact dignity glosses. Customer-facing dignity may not rely on
+#: Sanskrit alone. Teaching metadata, never interpretation — the gloss says what
+#: the word means, not what it implies about the person.
+DIGNITY_GLOSS: Dict[str, str] = {
+    "Uchcha": "strongest sign",
+    "Sva": "own sign",
+    "Mitra": "friend's sign",
+    "Sama": "neutral sign",
+    "Shatru": "enemy sign",
+    "Neecha": "weakest sign",
+    "Ungraded": "node outside extremes",
+}
+
+#: §9 · when the same Devatā falls on three or more grahas, publication emits
 #: ONE climate disclosure instead of three separate destiny claims.
 DEVATA_REPEAT_THRESHOLD = 3
 
@@ -475,6 +570,12 @@ H11_EMPTY_NOTE = "Compounding does not arrive uninvited."
 # HUMANISED PUBLICATION STATES · §10 of the ticket
 # ═════════════════════════════════════════════════════════════════════════════
 # Four states, matching D10-003 exactly. There is no fifth.
+
+#: §17 · the unnumbered closing section. NOT §17 of the contract: the numbered
+#: D10 contract remains §0-§16 for Release 1.
+PATTERN_TITLE = "The Pattern in Plain English"
+PATTERN_MIN_WORDS = 150
+PATTERN_MAX_WORDS = 220
 
 PUBLICATION_STATE_LABEL: Dict[str, str] = {
     "OCCUPIED": "Occupied",

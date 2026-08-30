@@ -34,7 +34,8 @@ from d10_publication_contract import (
     ChartMeta, Chip, CrossChartFacts, DevataRow, DevataSection,
     FunctionPublication, GlossaryEntry, Header, HouseLine,
     InstructionsPublication, MoneyCard, MoneyPublication,
-    OperationalGroupPublication, PermittedQuestion, PullVehiclePublication,
+    OperationalGroupPublication, PatternInPlainEnglish, PermittedQuestion,
+    PullVehiclePublication,
     ReadingStep, Section1, Section2, StancePublication, StandingPublication,
     StrengthPair, StrengthPublication, TensionPublication, D10Publication,
 )
@@ -82,6 +83,24 @@ class D10PublicationError(ValueError):
     reading of a chart it never had."""
 
 
+def _gloss(dignity: str) -> str:
+    """§8 · the plain-English gloss. A dignity with no gloss is a Sanskrit word
+    shown to a customer with no way to read it, so this raises rather than
+    silently printing the bare term."""
+    return _corpus(CORPUS.DIGNITY_GLOSS, dignity, "dignity gloss")
+
+
+def _join(items) -> str:
+    """Grammatical English list. `met at Ketu, Moon` was a comma-join standing
+    in for a sentence; this is why that is now impossible."""
+    items = list(items)
+    if not items:
+        return ""
+    if len(items) == 1:
+        return items[0]
+    return ", ".join(items[:-1]) + " and " + items[-1]
+
+
 def _corpus(table: Mapping, key, what: str):
     if key not in table:
         raise D10PublicationError(f"no ratified {what} for {key!r}")
@@ -102,9 +121,12 @@ def _header(f) -> Header:
                     value=f"{h.stance.d10_lagna_sign} · {stance['gloss']}"),
         work_ruler=Chip(label="WORK-RULER",
                         value=f"{lagnesh.planet} · H{lagnesh.house} {lagnesh.sign}"),
+        # The dignity moves to its own glossed line rather than being a third
+        # bare Sanskrit token in the value.
         standing=Chip(label="STANDING",
                       value=f"{h.standing.planet} · H{h.standing.house} "
-                            f"{h.standing.sign} · {h.standing.dignity}"),
+                            f"{h.standing.sign}",
+                      note=f"{h.standing.dignity} · {_gloss(h.standing.dignity)}"),
         # Absent, not blank, when the karakas are unresolved.
         pull=(Chip(label="PULL", value=f"AK {h.pull.planet} · H{h.pull.house}")
               if h.pull else None),
@@ -136,10 +158,27 @@ def _stance(f) -> StancePublication:
     sign = f.stance.d10_lagna_sign
     c = _corpus(CORPUS.STANCE_CORPUS, sign, "stance")
     lg = f.stance.lagnesh
+    # §6 · H1 OCCUPANTS MODIFY THE STANCE. Deterministic order (the certified
+    # occupant order), one clause each, and nothing when H1 is vacant.
+    modifiers = []
+    for planet in _h1_occupants(f):
+        m = _corpus(CORPUS.H1_STANCE_MODIFIER, planet, "H1 stance modifier")
+        modifiers.append(f"{planet} on the D10 lagna adds {m['modifier']}; "
+                         f"overdone, that becomes {m['inflation']}.")
     return StancePublication(
         lagna_sign=sign, gloss=c["gloss"],
-        lagnesh_line=f"{lg.planet} in H{lg.house} {lg.sign} · {lg.dignity}",
-        work_behaviour=c["work_behaviour"], overreach=c["overreach"])
+        lagnesh_line=f"{lg.planet} in H{lg.house} {lg.sign} · {lg.dignity} "
+                     f"({_gloss(lg.dignity)})",
+        work_behaviour=c["work_behaviour"], overreach=c["overreach"],
+        h1_modifiers=modifiers)
+
+
+def _h1_occupants(f) -> List[str]:
+    for group in f.operational_map:
+        for house in group.houses:
+            if house.house == 1:
+                return list(house.occupants)
+    raise D10PublicationError("D10 findings publish no house 1")
 
 
 def _house_domain(n: int) -> Dict[str, str]:
@@ -156,55 +195,119 @@ def _occupancy_line(house_no: int, occupants: List[str], lord, mode: str) -> str
 
 
 def _function(f) -> FunctionPublication:
-    h10, h6 = f.function.h10, f.function.h6
-    d10, d6 = _house_domain(10), _house_domain(6)
-    h10_line = _occupancy_line(10, list(h10.occupants), h10.lord, h10.mode)
-    h6_line = _occupancy_line(6, list(h6.occupants), h6.lord, h6.mode)
+    """H10 + H10 lord + H6. Never H3.
 
-    # "The days look like ___", derived only from the H10/H6 domains and the
-    # certified placements. No job title enters: neither corpus sentence names
-    # an occupation, and nothing else is consulted.
-    # D10-006-CORR-01 · H6 IS CONTEXT, NOT AN ADVERSARY. The earlier wording
-    # said "against {H6 domain}", which asserted a relation between H10 and H6
-    # that no selector had found. H6 is the service contract the vocation runs
-    # under; naming it as an opponent invented a conflict.
+    §3 · THE WEEK, NOT THE DEFINITION. The old line recycled the H10 and H6
+    domain sentences, which told the reader what the tenth house means rather
+    than what their week is. The scene is now keyed by WHERE the work actually
+    happens — the lord's destination house when a house is vacant, the house
+    itself when it is occupied — and every scene carries a concrete action.
+    """
+    h10, h6 = f.function.h10, f.function.h6
+
+    def scene(house) -> int:
+        return house.house if house.mode == "OCCUPIED" else house.lord.house
+
+    h10_scene = _corpus(CORPUS.WORK_ACTION, scene(h10), "work action")
+    h6_scene = _corpus(CORPUS.WORK_ACTION, scene(h6), "work action")
+
+    def label(house, n) -> str:
+        if house.mode == "OCCUPIED":
+            return f"H{n} occupied: " + ", ".join(house.occupants)
+        return (f"H{n} through lord: {house.lord.planet} in "
+                f"H{house.lord.house} {house.lord.sign}")
+
     if h10.mode == "THROUGH_LORD":
-        days = (f"The days look like {d10['domain_sentence'][0].lower()}"
-                f"{d10['domain_sentence'][1:].rstrip('.')}, reached through "
-                f"{h10.lord.planet} in H{h10.lord.house} {h10.lord.sign}, "
-                f"with {d6['domain_label'].lower()} setting the working "
-                f"conditions.")
+        office = (f"the office of the work sits with {h10.lord.planet} in "
+                  f"H{h10.lord.house} {h10.lord.sign}")
     else:
-        days = (f"The days look like {d10['domain_sentence'][0].lower()}"
-                f"{d10['domain_sentence'][1:].rstrip('.')}, carried by "
-                f"{', '.join(h10.occupants)}, with "
-                f"{d6['domain_label'].lower()} setting the working "
-                f"conditions.")
-    return FunctionPublication(h10_mode=h10.mode, h10_line=h10_line,
-                               h6_line=h6_line, days_look_like=days)
+        office = (f"the office of the work is held directly by "
+                  f"{_join(h10.occupants)} in the tenth")
+    days = (f"The days look like {h10_scene}, under a service contract of "
+            f"{h6_scene}, while {office}.")
+    return FunctionPublication(
+        h10_mode=h10.mode,
+        h10_label=label(h10, 10), h6_label=label(h6, 6),
+        h10_line=_occupancy_line(10, list(h10.occupants), h10.lord, h10.mode),
+        h6_line=_occupancy_line(6, list(h6.occupants), h6.lord, h6.mode),
+        days_look_like=days)
 
 
 def _standing(f) -> StandingPublication:
+    """Sun · H2 · H10 lord · dignity.
+
+    §4 · WHAT MAKES PROFESSIONAL VALUE LEGIBLE, and what is not automatically
+    granted. The old line restated H2's own definition. Each axis below is
+    selected only when the certified facts support it; none forecasts money,
+    rank, fame or an event.
+    """
     sun = f.standing.sun
     h2_lord = f.standing.h2_lord
     tenth = f.standing.h10_lord
-    d2 = _house_domain(2)
-    rewarded = (f"What becomes legible is {d2['domain_sentence'][0].lower()}"
-                f"{d2['domain_sentence'][1:].rstrip('.')}, with "
-                f"{h2_lord.planet} in H{h2_lord.house} {h2_lord.sign} setting "
-                f"the terms.")
-    not_automatic = (f"Standing is not granted by the Sun's presence alone: "
-                     f"{sun.dignity} in {sun.sign} describes the climate, and "
-                     f"the office of the career runs through {tenth.planet} in "
-                     f"H{tenth.house}.")
+
+    earned = sun.dignity in ("Shatru", "Neecha")
+    countable = sun.house in (2, 11)
+    offstage = tenth.house in (8, 12)
+
+    axes = []
+    if countable:
+        axes.append("professional value has to become concrete and countable "
+                    "before it reads as standing")
+    else:
+        axes.append(f"professional value becomes legible where the Sun works, "
+                    f"in H{sun.house} {sun.sign}")
+    if earned:
+        axes.append("visibility is earned rather than granted")
+    else:
+        axes.append("visibility comes more readily than it does for most")
+    rewarded = (axes[0][0].upper() + axes[0][1:] + ", and "
+                f"{h2_lord.planet} in H{h2_lord.house} {h2_lord.sign} sets the "
+                f"terms on which it is counted.")
+
+    not_auto = (f"Sun in H{sun.house} {sun.sign} is {sun.dignity} "
+                f"({_gloss(sun.dignity)}), so {axes[1]}")
+    if offstage:
+        not_auto += (f"; with the office of the career held by {tenth.planet} "
+                     f"in H{tenth.house}, much of the actual work happens out "
+                     f"of public view")
+    not_auto += "."
     return StandingPublication(
-        sun_line=f"Sun in H{sun.house} {sun.sign} · {sun.dignity}",
-        what_is_rewarded=rewarded, what_is_not_automatic=not_automatic)
+        sun_line=f"Sun in H{sun.house} {sun.sign} · {sun.dignity} "
+                 f"({_gloss(sun.dignity)})",
+        what_is_rewarded=rewarded, what_is_not_automatic=not_auto)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
 # §6 · cross-chart FACTS
 # ─────────────────────────────────────────────────────────────────────────────
+
+def _redirected(x):
+    """§5 · THE ONE NARROWLY RATIFIED CROSS-CHART FINDING.
+
+    Publish REDIRECTED iff ALL THREE hold:
+
+        1. D1 H10 has at least one occupant
+        2. D10 H10 mode is THROUGH_LORD
+        3. the D10 H10 lord sits outside H10
+
+    Structural only. No dignity score, no benefic/malefic judgment, no
+    sign-comparison matrix, no aspect requirement — and no second grade:
+    ALIGNED and STRAINED do not exist in Release 1, so a predicate that does
+    not fire yields None rather than another word.
+    """
+    a, b = x.d1_d10.d1_h10, x.d1_d10.d10_h10
+    if not a.occupants:
+        return None, None
+    if b.mode != "THROUGH_LORD":
+        return None, None
+    if b.lord_placement.house == 10:
+        return None, None
+    finding = (f"The natal tenth is directly occupied — {a.sign} with "
+               f"{_join(a.occupants)} in it — while the lived D10 office is "
+               f"empty and redirected through {b.lord} into "
+               f"H{b.lord_placement.house} {b.lord_placement.sign}.")
+    return "REDIRECTED", finding
+
 
 def _crosschart(x) -> CrossChartFacts:
     """Packaged, not interpreted. No agreement word is computed and no
@@ -221,13 +324,17 @@ def _crosschart(x) -> CrossChartFacts:
                 f"{d.stance.lagnesh} in H{d.stance.lagnesh_house}; "
                 f"counterparties H7 {', '.join(d.counterparty_field.occupants) or 'empty'}; "
                 f"vocation H10 {CORPUS.PUBLICATION_STATE_LABEL[d.work_delivery.mode]}")
+    relationship_class, relationship_finding = _redirected(x)
     return CrossChartFacts(
+        relationship_class=relationship_class,
+        relationship_finding=relationship_finding,
         d1_h10_line=d1_line, d10_h10_line=d10_line,
         d9_contribution_available=d.available,
         d9_contribution_mode=(d.contribution.mode if d.contribution else None),
         d10_delivery_line=delivery,
         # None when D9 published nothing. Section 6 then stays silent.
-        d9_handshake_sentence=compose_d9_handshake(x))
+        d9_handshake_sentence=compose_d9_handshake(x),
+        d9_handshake_compressed=compress_d9_handshake(x))
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -244,6 +351,16 @@ _ROLE_GRAMMAR = {
     "functional_vector": "reaches the world through",
     "ethical_functional_vector": "is carried with",
     "aptitude_modifier": "is supported by an aptitude for",
+}
+
+#: The COMPACT form of the same three roles. Keyed by the identical
+#: `role_key`, so the short clause cannot say something the long clause does
+#: not. The primary contribution is ALWAYS the subject and the contextual
+#: vector is ALWAYS what carries it — reversing that reverses the D9 finding.
+_ROLE_GRAMMAR_COMPACT = {
+    "functional_vector": "{primary} carried into the world through {vector}",
+    "ethical_functional_vector": "{primary} carried with {vector}",
+    "aptitude_modifier": "{primary}, supported by an aptitude for {vector}",
 }
 
 
@@ -272,13 +389,13 @@ def _contribution_phrase(c) -> str:
         return phrase
 
     if c.mode == "UNIFIED_PURPOSE":
-        phrase = f"one settled contribution — {_propositions(c.primary)}"
+        phrase = f"{_propositions(c.primary)}, one settled purpose"
         if c.conviction:
             phrase += f" — held as {c.conviction}"
         return phrase
 
     if c.mode == "PAIRWISE":
-        phrase = f"a contribution of {_propositions(c.primary)}"
+        phrase = _propositions(c.primary)
         cv = c.contextual_vector
         if cv is not None:
             grammar = _ROLE_GRAMMAR.get(cv.role_key)
@@ -327,17 +444,69 @@ def compose_d9_handshake(crosschart) -> Optional[str]:
     phrase = _contribution_phrase(d.contribution)
     stance = d.stance
     work = d.work_delivery
-    counterparties = (", ".join(d.counterparty_field.occupants)
-                      if d.counterparty_field.occupants
-                      else f"the seventh through {d.counterparty_field.lord}")
-    carrier = (f"{work.lord} in H{work.lord_placement.house}"
+    # §12 · GRAMMATICAL ENGLISH. "met at Ketu, Moon" was a comma-join standing
+    # in for a clause. The counterparty field is now a sentence about who
+    # carries the week, and no role key reaches customer prose.
+    if d.counterparty_field.occupants:
+        carried = (f"the week is carried through H7 by "
+                   f"{_join(d.counterparty_field.occupants)}")
+    else:
+        carried = (f"the week is carried through H7 by its lord "
+                   f"{d.counterparty_field.lord}")
+    if work.mode == "THROUGH_LORD":
+        delivery = (f"delivery runs through {work.lord} in "
+                    f"H{work.lord_placement.house} {work.lord_placement.sign}")
+    else:
+        delivery = f"delivery runs directly through {_join(work.occupants)}"
+    return (f"D9 frames contribution as {phrase}; in D10 that is taken up as "
+            f"{_article(stance.d10_lagna_sign)} {stance.d10_lagna_sign} stance "
+            f"through {stance.lagnesh} in H{stance.lagnesh_house}, "
+            f"{carried}, and {delivery}.")
+
+
+def compress_d9_handshake(crosschart) -> Optional[str]:
+    """§13 · the SHORT form for the §14 beat.
+
+    One contribution idea plus one D10 delivery idea. The full Section 6
+    sentence preserves every retained D9 field; serialising that structure into
+    a six-beat reading buried it. Both derive from the same certified
+    contribution, so they cannot disagree.
+    """
+    d = crosschart.d9_d10
+    if not d.available or d.contribution is None:
+        return None
+    c = d.contribution
+    if c.mode == "MATURITY_FALLBACK":
+        want = f"a contribution maturing as {c.mature_quality}"
+    elif c.mode == "UNIFIED_PURPOSE":
+        want = _join([p.title.lower() for p in (c.primary or [])])
+        want = f"{want} held as one settled purpose"
+    elif c.mode == "PAIRWISE":
+        primary = _join([p.title.lower() for p in (c.primary or [])])
+        cv = c.contextual_vector
+        if cv is None:
+            want = primary
+        else:
+            # Same role_key, same direction as the full handshake. FAIL CLOSED
+            # on an unrecognised role rather than flatten it into a known one.
+            template = _ROLE_GRAMMAR_COMPACT.get(cv.role_key)
+            if template is None:
+                raise D10PublicationError(
+                    f"unrecognised D9 contextual role_key {cv.role_key!r} in "
+                    f"the compressed handshake; refusing rather than "
+                    f"flattening it into another role")
+            vector = _join([p.title.lower() for p in cv.propositions])
+            want = template.format(primary=primary, vector=vector)
+    else:
+        want = _join([p.title.lower() for p in (c.primary_impact or [])])
+        want = f"{want}, on several poles"
+    work = d.work_delivery
+    carrier = (f"{work.lord}-in-H{work.lord_placement.house} delivery"
                if work.mode == "THROUGH_LORD"
-               else ", ".join(work.occupants))
-    return (f"D9 certifies {phrase}; in D10 that is taken up as "
-            f"{_article(stance.d10_lagna_sign)} "
-            f"{stance.d10_lagna_sign} stance through {stance.lagnesh} in "
-            f"H{stance.lagnesh_house}, met at {counterparties}, and delivered "
-            f"as work through {carrier}.")
+               else f"delivery through {_join(work.occupants)}")
+    return (f"D9 wants {want}; D10 runs that through "
+            f"{_article(d.stance.d10_lagna_sign)} "
+            f"{d.stance.d10_lagna_sign} start and {carrier}.")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -457,6 +626,8 @@ def _devata(f, certified: Mapping[str, Mapping[str, Any]]) -> DevataSection:
             raise D10PublicationError(f"{planet} occupies no D10 house")
         rows.append(DevataRow(planet=planet, house=placement.house,
                               sign=placement.sign, devata=name,
+                              identity=_corpus(CORPUS.DEVATA_IDENTITY, name,
+                                               "devatā identity"),
                               flavour=_corpus(CORPUS.DEVATA_FLAVOUR, name,
                                               "devatā flavour")))
         counts.setdefault(name, []).append(planet)
@@ -483,11 +654,29 @@ def _devata(f, certified: Mapping[str, Mapping[str, Any]]) -> DevataSection:
 # §9 · operational map
 # ─────────────────────────────────────────────────────────────────────────────
 
-def _house_reading(house, domain: Dict[str, str]) -> str:
+def _house_reading(house, domain: Dict[str, str], capable=None) -> str:
     """One deterministic sentence from the house corpus, the occupancy and the
     publication state. H8 and H12 stay proportionate: pressure, never curse or
     purification."""
     base = domain["domain_sentence"].rstrip(".")
+    # §11 · SUPPORT AND PRESSURE COEXIST. Dignity describes CAPABILITY;
+    # pressure describes OPERATING CONDITIONS. Never "good despite bad".
+    #
+    # The capability may come from an OCCUPANT rather than the lord: Founder
+    # H12 holds Jupiter in its own sign inside a pressure house, and the
+    # lord-support flag is False there because the lord itself sits in H12.
+    # Reading only that flag lost the strength the reader can plainly see.
+    capable = capable or {}
+    strong_here = [(p, capable[p]) for p in house.occupants if p in capable]
+    if strong_here and house.pressured:
+        who = _join([f"{p} in {d} ({_gloss(d)})" for p, d in strong_here])
+        return (f"{base}. {who} works here, and this is a pressure house: the "
+                f"capability is real and the audience is not in the room.")
+    if house.supported and house.pressured:
+        return (f"{base}. {house.lord} carries it from H{house.lord_house} in "
+                f"{house.lord_dignity} ({_gloss(house.lord_dignity)}), and it "
+                f"runs in a pressure house: the capability is real and the "
+                f"audience is not in the room.")
     if house.publication_state == "PRESSURED":
         # D10-006-CORR-01 · NAME THE ACTUAL CAUSE. Pressure has two sources and
         # the earlier sentence blamed the lord in every case, including when the
@@ -509,7 +698,8 @@ def _house_reading(house, domain: Dict[str, str]) -> str:
                 f"pressure house.")
     if house.publication_state == "SUPPORTED":
         return (f"{base}. Well held: {house.lord} carries it from "
-                f"H{house.lord_house} in {house.lord_dignity}.")
+                f"H{house.lord_house} in {house.lord_dignity} "
+                f"({_gloss(house.lord_dignity)}).")
     if house.publication_state == "OCCUPIED":
         return f"{base}. Worked directly by {', '.join(house.occupants)}."
     return (f"{base}. Vacant, so the results run through {house.lord} in "
@@ -517,6 +707,9 @@ def _house_reading(house, domain: Dict[str, str]) -> str:
 
 
 def _operational_map(f) -> List[OperationalGroupPublication]:
+    # Certified capability by planet, from the D10-003 selector. Read only;
+    # nothing is recomputed.
+    capable = {s.planet: s.dignity for s in f.strength.strong_planets}
     out = []
     for group in f.operational_map:
         lines = []
@@ -526,11 +719,22 @@ def _operational_map(f) -> List[OperationalGroupPublication]:
                    if house.occupants
                    else f"{CORPUS.THROUGH_LORD_OPENING}: {house.lord} in "
                         f"H{house.lord_house} {house.lord_sign}")
+            # §10 · MODE AND MODIFIERS, NOT ONE LOSSY STATUS. `supported` and
+            # `pressured` are independent facts and MAY BOTH APPLY; collapsing
+            # them lost the one that lost the precedence.
+            base = CORPUS.PUBLICATION_STATE_LABEL[house.base_mode]
+            mods = []
+            if house.supported:
+                mods.append("Supported")
+            if house.pressured:
+                mods.append("Pressured")
             lines.append(HouseLine(
                 house=house.house, domain_label=domain["domain_label"],
                 occupancy_line=occ, status=house.publication_state,
                 status_label=CORPUS.PUBLICATION_STATE_LABEL[house.publication_state],
-                reading=_house_reading(house, domain)))
+                base_mode_label=base, modifiers=mods,
+                status_display=" · ".join([base] + mods),
+                reading=_house_reading(house, domain, capable)))
         out.append(OperationalGroupPublication(
             group=group.group, title=GROUP_TITLES[group.group], houses=lines))
     return out
@@ -606,17 +810,58 @@ def _money(f) -> MoneyPublication:
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _strength(f) -> StrengthPublication:
-    """This corpus does not decide who prints. D10-003's selector already did,
-    and this function publishes exactly the grahas it named."""
-    pairs = []
-    for s in f.strength.strong_planets:
-        c = _corpus(CORPUS.STRENGTH_CORPUS, s.planet, "strength pair")
-        pairs.append(StrengthPair(planet=s.planet, dignity=s.dignity,
-                                  house=s.house, sign=s.sign,
+    """§7 · PUBLICATION PRIORITY, revised.
+
+        P1  the D10 Lagnesh, if Shatru or Neecha
+        P2  the Sun,          if Shatru or Neecha
+        P3  the certified D10-003 strong_planets, in their certified order
+
+    Deduplicated by planet, capped at three pairs. The D10-003 selector is
+    untouched and remains the evidence — this changes only WHO IS PUBLISHED.
+
+    A challenged core planet is published because its inflation is
+    operationally relevant, never to teach that Shatru is bad. Dignity
+    describes capability; the pair describes what that capability does and
+    what it does when overdone.
+    """
+    CHALLENGED = ("Shatru", "Neecha")
+    by_planet = {}
+    for group in f.operational_map:
+        for house in group.houses:
+            for occupant in house.occupants:
+                by_planet.setdefault(occupant, house)
+
+    def placement(name):
+        p = by_planet.get(name)
+        if p is None:
+            raise D10PublicationError(f"{name} occupies no D10 house")
+        return p
+
+    order = []
+    lagnesh = f.stance.lagnesh
+    if lagnesh.dignity in CHALLENGED:
+        order.append((lagnesh.planet, lagnesh.dignity, lagnesh.house, lagnesh.sign))
+    sun = f.standing.sun
+    if sun.dignity in CHALLENGED:
+        order.append((sun.planet, sun.dignity, sun.house, sun.sign))
+    for s_ in f.strength.strong_planets:
+        order.append((s_.planet, s_.dignity, s_.house, s_.sign))
+
+    pairs, seen = [], set()
+    for planet, dignity, house, sign in order:
+        if planet in seen:
+            continue
+        seen.add(planet)
+        c = _corpus(CORPUS.STRENGTH_CORPUS, planet, "strength pair")
+        pairs.append(StrengthPair(planet=planet, dignity=dignity,
+                                  dignity_gloss=_gloss(dignity),
+                                  house=house, sign=sign,
                                   reliable_at_work=c["reliable_at_work"],
                                   when_it_overreaches=c["when_it_overreaches"]))
+        if len(pairs) == 3:
+            break
     note = (None if pairs else
-            "No graha reaches the strength threshold in this D10. That is a "
+            "No graha reaches the publication threshold in this D10. That is a "
             "neutral reading, not a weakness.")
     return StrengthPublication(pairs=pairs, none_note=note)
 
@@ -635,6 +880,122 @@ def _instructions(f) -> InstructionsPublication:
     return InstructionsPublication(available=True, keyed_to=winner,
                                    cultivate=c["cultivate"], watch=c["watch"],
                                    practise=c["practise"])
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# §17-unnumbered · THE PATTERN IN PLAIN ENGLISH
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _pattern(f, stance, function, standing, crosschart_facts,
+             instructions, d9_compressed) -> PatternInPlainEnglish:
+    """Three paragraphs, each from a FIXED AND DISJOINT set of findings.
+
+        1 · how you enter      Stance · Lagnesh · H1 modifiers
+        2 · what it feels like Function · Standing · REDIRECTED if present
+        3 · what joins it      D9 handshake · tension · Practise
+
+    No provider, no new astrology, no new selector: every sentence is composed
+    from findings already certified upstream. This is not §14 and does not
+    count toward its 220-word budget.
+    """
+    # ── 1 · how you enter ──
+    lg = f.stance.lagnesh
+    # The corpus stores VERB PHRASES ("Opens the work by moving first"), which
+    # are correct on the concise §5 card where the heading supplies the
+    # subject. Dropped into flowing prose they become fragments, so the subject
+    # is supplied here, at the composition seam — the corpus is not rewritten.
+    p1 = (f"You enter work through {stance.lagna_sign} — {stance.gloss} — and "
+          f"the first move belongs to {lg.planet}, working from H{lg.house} "
+          f"{lg.sign}. That stance {_lower_first(stance.work_behaviour)}")
+
+    p1_head = p1
+    p1_tail = (f" Its inflation is the same move overdone: it "
+               f"{_lower_first(stance.overreach)}")
+    if stance.h1_modifiers:
+        p1 += " " + " ".join(stance.h1_modifiers)
+    p1 += p1_tail
+
+    # ── 2 · what the work feels like ──
+    # Compact: the labels give the routing, days_look_like gives the week, and
+    # standing gives legibility. Long-form versions of all three already appear
+    # in §5; this is the plain-English restatement, not a second copy.
+    p2 = (f"The office of the career is quieter than the entrance. "
+          f"{function.h10_label}; {function.h6_label}. "
+          f"{function.days_look_like} Standing is not automatic — "
+          # NOT _lower_first: the line opens with the graha name, and
+          # lowercasing a proper noun to fit a sentence is a defect.
+          f"{standing.sun_line}, so "
+          f"professional value has to become demonstrable.")
+    if crosschart_facts.relationship_class == "REDIRECTED":
+        p2 += (" The natal tenth is directly occupied, while D10 redirects the "
+               "lived office through its lord.")
+
+    # ── 3 · what joins the pattern ──
+    bits = []
+    if d9_compressed:
+        # The COMPRESSED clause, not the full Section 6 sentence. Same
+        # certified contribution, one idea plus one delivery — which is exactly
+        # what this paragraph needs, and it keeps the closing prose inside its
+        # budget on real charts rather than on the fixture alone.
+        bits.append(d9_compressed)
+    t = f.tension
+    if t.winner != "UNKNOWN":
+        entry = _corpus(CORPUS.TENSION_COPY, t.winner, "tension copy")
+        bits.append(f"The recurring structural problem is that "
+                    f"{_lower_first(entry['heading'])}")
+    if instructions.available:
+        bits.append(f"The one behaviour that joins the system: "
+                    f"{_lower_first(instructions.practise)}")
+    p3 = " ".join(b if b.endswith(".") else b + "." for b in bits)
+    if not p3:
+        p3 = ("What joins the pattern is not yet determinate on this chart: "
+              "neither a contribution nor a single tension was certified, so "
+              "none is asserted here.")
+
+    # A DETERMINISTIC REDUCTION LADDER, not a truncation. Charts differ in how
+    # much certified material they carry, and a chart that legitimately has
+    # more of it must not lose its closing section. Each rung sheds EDITORIAL
+    # FRAMING or SECONDARY DETAIL — never a finding, and never half a sentence.
+    #
+    #   rung 0  everything
+    #   rung 1  drop the p2 scene-setting opener
+    #   rung 2  also drop the modifier inflation clauses, keeping the modifiers
+    #
+    # The rung actually used is whichever first fits, so the same chart always
+    # produces the same prose.
+    OPENER = "The office of the career is quieter than the entrance. "
+
+    def assemble(rung):
+        a = p1
+        b = p2
+        if rung >= 1:
+            b = b.replace(OPENER, "")
+        if rung >= 2 and stance.h1_modifiers:
+            trimmed = [m.split("; overdone,")[0] + "." for m in stance.h1_modifiers]
+            a = p1_head + " " + " ".join(trimmed) + p1_tail
+        return [a.strip(), b.strip(), p3.strip()]
+
+    for rung in (0, 1, 2):
+        paragraphs = assemble(rung)
+        words = sum(len(x.split()) for x in paragraphs)
+        if words <= CORPUS.PATTERN_MAX_WORDS:
+            break
+    if not (CORPUS.PATTERN_MIN_WORDS <= words <= CORPUS.PATTERN_MAX_WORDS):
+        raise D10PublicationError(
+            f"the closing prose is {words} words, outside "
+            f"{CORPUS.PATTERN_MIN_WORDS}-{CORPUS.PATTERN_MAX_WORDS} after "
+            f"reduction; no sentence may be truncated to fit")
+    return PatternInPlainEnglish(paragraphs=paragraphs, word_count=words)
+
+
+def _lower_first(text: str) -> str:
+    return text[0].lower() + text[1:] if text else text
+
+
+def _first_clause(sentence: str) -> str:
+    """The contribution half of the Section 6 handshake, without re-deriving
+    it: everything up to the first semicolon."""
+    return sentence.split(";")[0].strip()
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -683,6 +1044,12 @@ def build_publication(findings, crosschart,
                 f"{a_name} and {b_name} chart tokens differ ({a!r} vs {b!r}); "
                 f"refusing to publish a report assembled from two charts")
 
+    stance = _stance(findings)
+    function = _function(findings)
+    standing = _standing(findings)
+    crosschart_facts = _crosschart(crosschart)
+    instructions = _instructions(findings)
+
     return D10Publication(
         chart_token=chart_token,
         header=_header(findings),
@@ -692,17 +1059,20 @@ def build_publication(findings, crosschart,
         chart_meta=_chart_meta(findings),
         permitted_questions=[PermittedQuestion(**q)
                              for q in CORPUS.PERMITTED_QUESTIONS],
-        stance=_stance(findings),
-        function=_function(findings),
-        standing=_standing(findings),
-        crosschart_facts=_crosschart(crosschart),
+        stance=stance,
+        function=function,
+        standing=standing,
+        crosschart_facts=crosschart_facts,
         pull_vehicle=_pull_vehicle(findings),
         devata=_devata(findings, planets),
         operational_map=_operational_map(findings),
         tension=_tension(findings),
         money=_money(findings),
         strength=_strength(findings),
-        instructions=_instructions(findings),
+        instructions=instructions,
         how_to_use=list(CORPUS.HOW_TO_USE),
         glossary=[GlossaryEntry(**g) for g in CORPUS.GLOSSARY],
+        pattern_in_plain_english=_pattern(
+            findings, stance, function, standing, crosschart_facts,
+            instructions, compress_d9_handshake(crosschart)),
     )

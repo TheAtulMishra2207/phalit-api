@@ -52,6 +52,9 @@ HouseMode = Literal["OCCUPIED", "THROUGH_LORD"]
 class Chip(Strict):
     label: str
     value: str
+    #: §8 · the dignity gloss, on its own line. Teaching metadata, so it is a
+    #: separate field rather than more text crammed into `value`.
+    note: Optional[str] = None
 
 
 class Header(Strict):
@@ -120,16 +123,26 @@ class StancePublication(Strict):
     lagnesh_line: str
     work_behaviour: str
     overreach: str
+    #: §6 · one clause per D10 H1 occupant. Modifiers, never alternative
+    #: rulers: the Lagnesh above remains the primary stance carrier. Empty when
+    #: H1 is vacant — no placeholder.
+    h1_modifiers: List[str] = []
 
 
 class FunctionPublication(Strict):
     """H10 + 10th lord + H6. There is no h3 field."""
     speaker: Literal["PARĀŚARA"] = "PARĀŚARA"
     h10_mode: HouseMode
+    #: §3 · the labels. Two unlabelled "Through lord" lines left the reader
+    #: unable to tell which house each belonged to.
+    h10_label: str
+    h6_label: str
     #: When `h10_mode` is THROUGH_LORD this MUST begin "Through lord", which
     #: the builder enforces and a test verifies.
     h10_line: str
     h6_line: str
+    #: §3 · a concrete week-picture, not the H10 and H6 domain sentences
+    #: concatenated. Must contain at least one approved work-action verb.
     days_look_like: str
 
 
@@ -166,6 +179,16 @@ class CrossChartFacts(Strict):
     provenance_d9_d10: Literal["D9_D10"] = "D9_D10"
     d9_contribution_available: bool
     d9_contribution_mode: Optional[str] = None
+    #: §5 · the ONE narrowly ratified cross-chart finding. `Literal` over a
+    #: single value with None for absent, so no second grade can be added:
+    #: ALIGNED and STRAINED have no representation in Release 1.
+    relationship_class: Optional[Literal["REDIRECTED"]] = None
+    #: The chart-specific sentence for that finding. None when it does not fire.
+    relationship_finding: Optional[str] = None
+    #: §13 · the SHORT form of the handshake, for the §14 beat. Derived from
+    #: the same certified contribution as `d9_handshake_sentence`, so the two
+    #: cannot disagree; the long form remains the Section 6 evidence.
+    d9_handshake_compressed: Optional[str] = None
     d10_delivery_line: str
     #: D10-007-CORR-01 · the ONE handshake sentence, composed by
     #: `d10_publication.compose_d9_handshake` and reused unchanged as the §14
@@ -202,6 +225,9 @@ class DevataRow(Strict):
     house: int = Field(ge=1, le=12)
     sign: str
     devata: str
+    #: §9 · WHO THIS IS. Identity, kept separate from the work flavour so the
+    #: two are never read as one claim.
+    identity: str
     flavour: str
 
 
@@ -225,6 +251,13 @@ class HouseLine(Strict):
     occupancy_line: str
     status: PublicationState
     status_label: Literal["Occupied", "Through lord", "Supported", "Pressured"]
+    #: §10 · mode and modifiers, no longer collapsed into one lossy status.
+    #: `base_mode` is always present; `modifiers` holds zero or more of
+    #: Supported / Pressured, which MAY BOTH APPLY.
+    base_mode_label: Literal["Occupied", "Through lord"]
+    modifiers: List[Literal["Supported", "Pressured"]] = []
+    #: The composed display, e.g. "Occupied · Supported".
+    status_display: str
     reading: str
 
 
@@ -277,6 +310,8 @@ class MoneyPublication(Strict):
 class StrengthPair(Strict):
     planet: str
     dignity: str
+    #: §8 · immediate plain-English gloss beside the Sanskrit.
+    dignity_gloss: str
     house: int = Field(ge=1, le=12)
     sign: str
     reliable_at_work: str
@@ -312,6 +347,18 @@ class GlossaryEntry(Strict):
     meaning: str
 
 
+class PatternInPlainEnglish(Strict):
+    """§17-unnumbered · the closing prose.
+
+    NOT §17 of the contract — the numbered D10 contract remains §0-§16 for
+    Release 1. Exactly three paragraphs, each consuming a fixed and disjoint
+    set of already-certified findings, so no new astrology enters here.
+    """
+    title: Literal["The Pattern in Plain English"] = "The Pattern in Plain English"
+    paragraphs: List[str] = Field(min_items=3, max_items=3)
+    word_count: int = Field(ge=150, le=220)
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # the whole publication
 # ─────────────────────────────────────────────────────────────────────────────
@@ -338,3 +385,4 @@ class D10Publication(Strict):
     instructions: InstructionsPublication
     how_to_use: List[str]
     glossary: List[GlossaryEntry]
+    pattern_in_plain_english: PatternInPlainEnglish

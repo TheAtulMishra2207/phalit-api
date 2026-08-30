@@ -182,7 +182,13 @@ def _d9_handshake_atoms(publication) -> List[Atom]:
     contribution the value is None, this beat is omitted, and Section 6 is
     silent — both from the same source.
     """
-    sentence = publication.crosschart_facts.d9_handshake_sentence
+    # §13 · THE COMPRESSED CLAUSE, not the full Section 6 sentence.
+    # Serialising the whole normalized contribution into a six-beat reading
+    # buried the beat and pushed §14 toward its ceiling. Both forms derive from
+    # the same certified contribution in d10_publication, so they cannot
+    # disagree, and the full evidence still stands in Section 6.
+    sentence = (publication.crosschart_facts.d9_handshake_compressed
+                or publication.crosschart_facts.d9_handshake_sentence)
     if not sentence:
         return []
     return [Atom(atom_id="d9.handshake", beat=BEAT_D9_HANDSHAKE, kind="fact",
