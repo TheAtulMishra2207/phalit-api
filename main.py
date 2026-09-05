@@ -74,6 +74,13 @@ from ephemeris import EphemerisBackendViolation, calc_ut_checked
 # rather than reimplemented so /chart and /d10/prepare cannot disagree.
 from d10_engine import (to_karaka_arcsecond as d10_to_karaka_arcsecond,
                         d10_sign_index as d10_map_sign_index)
+# D12-003 · the ONE Dvādaśāṁśa mapping in the process, same discipline: imported
+# here rather than reimplemented so /chart and the future /d12/prepare cannot
+# disagree. D12 uses forward-from-own-sign, NOT the D10 odd/even rule — see the
+# d12_engine module docstring before "fixing" either to match the other.
+from d12_engine import (d12_sign_index as d12_map_sign_index,
+                        d12_degree_in_sign as d12_map_degree,
+                        D12Doctrine)
 EPHEMERIS_BACKEND = ephemeris.EPHEMERIS_BACKEND
 
 # Calculation provenance. Every stored brief and every parity fixture must
@@ -84,7 +91,18 @@ EPHEMERIS_BACKEND = ephemeris.EPHEMERIS_BACKEND
 # No existing field changed value. The bump is NOT cosmetic: d1_chart_adapter's
 # REQUIRED_CALCULATION_META pins this string, so the two move together in one
 # commit or every /d1, /d5 and /d10 prepare call fails provenance.
-CHART_ENGINE_VERSION = "1.2.0"
+# D12-003 · BUMPED 1.2.0 -> 1.3.0. The /chart lagna and graha contracts gained
+# the additive `d12_sign_index` field (certified Dvādaśāṁśa placement, computed
+# at the full-precision seam). No existing field changed value. Same pairing
+# rule as above: d1_chart_adapter.REQUIRED_CALCULATION_META moves in this same
+# change, and — per the PM ruling recorded in D12-002-CORR-03 — so do the
+# test_d1_routes version expectations and the regenerated chart of record.
+# D12-005-CORR-01 · BUMPED 1.3.0 -> 1.4.0. The same contracts gained the
+# additive `d12_degree_in_sign` field, which FR-004's 5° D12-Lagna proximity
+# needs and which cannot be reconstructed from the rounded transport. Identical
+# discipline: adapter, route-test literals and the chart of record all move in
+# this one change.
+CHART_ENGINE_VERSION = "1.4.0"
 AYANAMSHA_MODEL = "lahiri-linear-fit-2026-07"
 HOUSE_SYSTEM = "whole-sign"
 
@@ -374,6 +392,15 @@ def calc_lagna(jd: float, lat: float, lon: float) -> dict:
     # seam. Same rounding hazard as the graha path; same single mapping
     # function. This is its only call site for the lagna.
     d10_sign_index = d10_map_sign_index(degree_in_sign, sign_index, "lagna")
+    # D12-003 · the D12 Lagna, at the same full-precision seam and for the same
+    # reason: `degree` below is round(…, 4), and that rounding can move the
+    # Ascendant across a 2°30′ Dvādaśāṁśa boundary. One mapping function in the
+    # process; this is its only call site for the lagna.
+    d12_sign_index = d12_map_sign_index(degree_in_sign, sign_index, "lagna")
+    # D12-005-CORR-01 · the exact D12 degree, same seam, same reason. FR-004
+    # compares it against a 5° orb, and the 4-decimal transport would carry a
+    # twelvefold-amplified error into that comparison.
+    d12_degree_in_sign = d12_map_degree(degree_in_sign, "lagna")
     d9 = calc_d9_sign(asc_sidereal)
     return {
         "sign": SIGNS[sign_index],
@@ -388,7 +415,12 @@ def calc_lagna(jd: float, lat: float, lon: float) -> dict:
         "d9_sign_index": d9["d9_sign_index"],
         "d9_lord": d9["d9_lord"],
         # D10-002 PRE-FREEZE CORRECTION · additive certified D10 Lagna.
-        "d10_sign_index": d10_sign_index
+        "d10_sign_index": d10_sign_index,
+        # D12-003 · additive certified D12 Lagna. Appended after every
+        # pre-existing key so no existing entry moves; D1/D9/D10 do not read it.
+        "d12_sign_index": d12_sign_index,
+        # D12-005-CORR-01 · additive certified exact D12 Lagna degree.
+        "d12_degree_in_sign": round(d12_degree_in_sign, 10)
     }
 
 
@@ -613,6 +645,51 @@ app.include_router(d10_router)
 # injected above is already configured when a request arrives.
 app.include_router(d10_report_router)
 
+# ─────────────────────────────────────────────────────────────────────────────
+# D12-003 · D12 DOCTRINE INJECTION
+#
+# No router is registered: D12-003 builds the mechanical authority only, and
+# /d12/prepare is a later bounded flight. The doctrine is wired HERE, beside
+# the D10 injection and for the same reason — d12_engine stays free of any
+# doctrine table of its own, so there is exactly one copy of these tables in
+# the process.
+#
+# PLACEMENT IS LOAD-BEARING: this block must sit below the dignity tables,
+# which are module-level and defined far above. Satisfied here.
+#
+# NOTE WHAT IS NOT PASSED. No MOOLATRIKONA table: there is no Mūlatrikoṇa state
+# in the frozen D12 vocabulary. No node exaltation/debilitation table: FR-004
+# makes Rahu and Ketu Ungraded in every sign, so a graded node is not merely
+# rejected downstream, it is unexpressible here.
+# ─────────────────────────────────────────────────────────────────────────────
+D12_DOCTRINE = D12Doctrine(
+    signs=SIGNS,
+    sign_lords=SIGN_LORDS,
+    exaltation_sign=EXALTATION_SIGN,
+    debilitation_sign=DEBILITATION_SIGN,
+    own_signs=OWN_SIGNS,
+    natural_friends=NATURAL_FRIENDS,
+    natural_enemies=NATURAL_ENEMIES,
+).validate()
+
+# ─────────────────────────────────────────────────────────────────────────────
+# D12-006A · D12 ROUTER REGISTRATION
+#
+# Registered WITHOUT a prefix and WITHOUT a second resolver binding, for the
+# same reason the D10 routers are: binding again would be a second door onto one
+# snapshot store. Both D12 routers reuse d1_routes.get_chart_resolver, which
+# install_d1 already overrode. Placement is load-bearing: this must sit BELOW
+# D12_DOCTRINE, which it injects.
+# ─────────────────────────────────────────────────────────────────────────────
+from d12_routes import router as d12_router, configure_d12_routes
+from d12_report_routes import (router as d12_report_router,
+                               configure_d12_report, anthropic_prose_provider)
+
+configure_d12_routes(D12_DOCTRINE)
+configure_d12_report(anthropic_prose_provider)
+app.include_router(d12_router)
+app.include_router(d12_report_router)
+
 
 def calc_planet_data(jd: float, planet: str, lagna_sign_index: int) -> dict:
     """Calculate full data for one planet using manual ayanamsha."""
@@ -665,6 +742,15 @@ def calc_planet_data(jd: float, planet: str, lagna_sign_index: int) -> dict:
     # published degree. There is one mapping function in the process and this
     # is its only call site for grahas.
     d10_sign_index = d10_map_sign_index(degree_in_sign, sign_index, planet)
+    # D12-003 · the CANONICAL D12 placement, same full-precision seam, same
+    # rationale as the D10 line above: `degree` below is round(…, 4), and that
+    # rounding can move a position across a 2°30′ Dvādaśāṁśa boundary or flip
+    # the 2°30′ first-slice edge. The consumer reads THIS field and never
+    # re-derives the placement from the published degree. One mapping function
+    # in the process; this is its only call site for grahas.
+    d12_sign_index = d12_map_sign_index(degree_in_sign, sign_index, planet)
+    # D12-005-CORR-01 · the exact D12 degree, at the same full-precision seam.
+    d12_degree_in_sign = d12_map_degree(degree_in_sign, planet)
     nakshatra = get_nakshatra_info(lon)
     dignity = get_dignity(planet, sign_index, degree_in_sign)
     d9 = calc_d9_sign(lon)
@@ -702,7 +788,16 @@ def calc_planet_data(jd: float, planet: str, lagna_sign_index: int) -> dict:
         # fact. Only the SIGN INDEX is published: houses, sign names, lordship
         # and D10 dignity are all deterministically derivable from it, and no
         # new full-precision natal degree is exposed to obtain it.
-        "d10_sign_index": d10_sign_index
+        "d10_sign_index": d10_sign_index,
+        # D12-003 · additive certified D12 mechanical fact. Only the SIGN INDEX
+        # is published: D12 houses and first-slice vargottama are
+        # deterministically derivable from it plus the published D12 Lagna, and
+        # no new full-precision natal degree is exposed to obtain it.
+        "d12_sign_index": d12_sign_index,
+        # D12-005-CORR-01 · additive certified exact D12 degree. This is a D12
+        # coordinate, not the natal degree: it exposes no new precision about
+        # the D1 position beyond what `degree` already publishes.
+        "d12_degree_in_sign": round(d12_degree_in_sign, 10)
     }
 
 
@@ -1729,85 +1824,22 @@ Write as a Vaidya. Warm, clinical, specific. No fatalism. No technical astrology
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# D12 DWADASHAMSHA REPORT ENDPOINT
+# D12 DWADASHAMSHA REPORT ENDPOINT · REMOVED (D12-006A)
+#
+# The legacy inline POST /d12report handler and its D12ReportRequest model are
+# DELETED, not shadowed. That handler sent the two parental Maraka arrays and
+# browser-generated astrology to an unconstrained provider, and asked it for a
+# past-life-and-liberation section — precisely the architecture the frozen page
+# contract condemns. Shadowing it behind a new route would have left the payload
+# reachable, so the registration is gone.
+#
+# The condemned field and heading names are deliberately NOT written out here:
+# the source scan in test_d12_report_routes.py is a strict literal scan over the
+# active server path, and a comment quoting them would defeat it.
+#
+# The replacement is d12_report_routes.router, registered above: request is
+# {chart_token} with extras forbidden, and every sentence is server-owned.
 # ─────────────────────────────────────────────────────────────────────────────
-
-class D12ReportRequest(BaseModel):
-    name: str
-    chart_brief: Dict[str, Any]
-
-@app.post("/d12report")
-def generate_d12_report(req: D12ReportRequest):
-    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
-    if not api_key:
-        raise HTTPException(status_code=500, detail="ANTHROPIC_API_KEY not configured on server.")
-
-    brief = req.chart_brief
-    name  = req.name or "the native"
-
-    system_prompt = """You are writing a focused D12 Dwadashamsha report covering parents, ancestral karma, past-life imprints, and Moksha trajectory.
-
-Absolute rules:
-1. Use ONLY the corpus provided.
-2. ZERO technical terminology — no planet names, house numbers, sign names, Sanskrit terms.
-3. Second person. "Your relationship with your father...", "Your soul carries..."
-4. Each section 5-7 sentences. No bullet points. Flowing, specific prose.
-5. Write exactly 3 sections with these headings (use ### before each):
-   ### Your Parental Legacy and Ancestral Bonds
-   ### Your Past-Life Inheritance and Karmic Blueprint
-   ### Your Path Toward Liberation and Release
-6. Complete all 3 sections."""
-
-    user_prompt = f"""Write a D12 Dwadashamsha essay report for {name}.
-
-LAGNA DEITY: {brief.get('lagna_deity','')} (Hidden Name: {brief.get('lagna_hidden','')}) — {brief.get('lagna_meaning','')}
-KARAKA LOGIC: {brief.get('karaka_logic','')}
-
-FATHER (Sun & 9th House):
-Sun: H{brief.get('sun',{}).get('house','?')} — {brief.get('sun',{}).get('dignity','')}
-9th House lord: {brief.get('h9_lord','')} | Occupants: {brief.get('h9_occupants',[])}
-Father Maraka indicators: {brief.get('father_maraka',[])}
-
-MOTHER (Moon & 4th House):
-Moon: H{brief.get('moon',{}).get('house','?')} — {brief.get('moon',{}).get('dignity','')}
-4th House lord: {brief.get('h4_lord','')} | Occupants: {brief.get('h4_occupants',[])}
-Mother Maraka indicators: {brief.get('mother_maraka',[])}
-
-6TH HOUSE (Karmic Debt): Occupants: {brief.get('h6_occupants',[])} | Lord: {brief.get('h6_lord','')}
-
-PAST-LIFE & MOKSHA INSIGHTS:
-{brief.get('moksha_insights',[])}
-
-VASANA IMPRINTS (Deity per planet):
-{brief.get('vasanas',[])}
-
-KARYA RASHI QUALITY:
-{brief.get('karya_karakas',[])}
-
-ACTIVE DASHA THEMES:
-Parental: {brief.get('parental_theme','')}
-Moksha: {brief.get('moksha_theme','')}
-
-Write 3 focused essay sections. No astrology jargon. Specific, warm, insightful."""
-
-    try:
-        response = requests.post(
-            "https://api.anthropic.com/v1/messages",
-            headers={"x-api-key": api_key, "anthropic-version": "2023-06-01", "content-type": "application/json"},
-            json={"model": "claude-sonnet-4-6", "max_tokens": 2000, "system": system_prompt,
-                  "messages": [{"role": "user", "content": user_prompt}]},
-            timeout=60
-        )
-        if response.status_code != 200:
-            raise HTTPException(status_code=500, detail=f"Anthropic API error {response.status_code}: {response.text[:600]}")
-        data = response.json()
-        text = "".join(b["text"] for b in data.get("content", []) if b.get("type") == "text")
-        return {"report": text}
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"D12 report error: {str(e)}")
-
 
 # ─────────────────────────────────────────────────────────────────────────────
 # D16 SHODASHAMSHA REPORT ENDPOINT

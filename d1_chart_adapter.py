@@ -49,7 +49,7 @@ class ChartAdapterError(ValueError):
 # would make every certified chart fail provenance the moment the engine ships.
 # The two are one change and must land in one commit.
 REQUIRED_CALCULATION_META: Dict[str, str] = {
-    "chart_engine_version": "1.2.0",
+    "chart_engine_version": "1.4.0",
     "ayanamsha_model": "lahiri-linear-fit-2026-07",
     "house_system": "whole-sign",
     "node_type": "mean",

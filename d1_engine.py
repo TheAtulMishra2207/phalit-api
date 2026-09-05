@@ -203,6 +203,9 @@ class D1Doctrine(BaseModel):
     natures: List[GrahaNature]
     functional_roles_orthogonal: List[OrthogonalRole]   # the versioned extension, exposed
     house_influences: List[HouseInfluence]
+    # D12-005 · the relation evidence FR-001A requires. Optional so every
+    # existing consumer and fixture is unaffected; populated by compute_d1.
+    relation_evidence: Optional["RelationEvidence"] = None
     dignity_labels: Dict[Dignity, str] = Field(default_factory=lambda: dict(DIGNITY_LABELS))
     # KAR-090: chart-level synthesis lives HERE, once. Per-graha payloads must
     # never contain it. Step 5 ports the actual corpus into this block.
@@ -308,6 +311,215 @@ def build_aspect_manifest(house_of: Dict[Graha, int],
                                     target_grahas=sorted(occupants.get(th, []),
                                                          key=lambda g: g.value)))
     return edges
+
+# ─────────────────────────────────────────────────────────────────────────────
+# D12-005 · RELATION EVIDENCE (upstream authority, published once)
+#
+# FR-001A forbids D12 from inventing functional-malefic status, Mercury's
+# natural nature, Moon pakṣa, Parāśari aspect authority, or benefic mitigation.
+# The first four already live here. Only benefic mitigation was absent, and the
+# ruling is explicit that D12 must NOT grow a private formula for it — so the
+# relation evidence is published HERE, once, from the authorities that already
+# exist, and D12 classifies from it.
+#
+# TWO DISTINCT RELATIONS, never conflated:
+#   * CONJUNCTION is measured directly as longitudinal separation. It is not
+#     graha-dṛṣṭi and is never labelled as such.
+#   * ASPECT orb is LAYERED ON the canonical manifest. This code does not decide
+#     which aspects exist — build_aspect_manifest already did, and it remains the
+#     only place that answers that question. Here we only measure how exact an
+#     aspect the manifest already asserts happens to be.
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Degrees of separation each Parāśarī dṛṣṭi is exact at, keyed by house offset.
+_ASPECT_EXACT_DEG = {7: 180.0, 4: 90.0, 8: 210.0, 5: 120.0, 9: 240.0,
+                     3: 60.0, 10: 270.0}
+
+TIGHT_CONJUNCTION_ORB = 3.0        # functional-malefic and benefic mitigation
+TIGHT_NODE_ORB = 2.0               # Rahu/Ketu, FR-001 heavy occupancy
+TIGHT_ASPECT_ORB = 3.0             # full Parāśari dṛṣṭi
+
+
+def _separation(a: float, b: float) -> float:
+    """Shortest angular separation in [0, 180]."""
+    d = abs(a - b) % 360.0
+    return d if d <= 180.0 else 360.0 - d
+
+
+def _directed_arc(frm: float, to: float) -> float:
+    """Zodiacal arc from `frm` to `to`, in [0, 360)."""
+    return (to - frm) % 360.0
+
+
+class RelationEdge(BaseModel):
+    """One measured relation between a source and a target graha."""
+    source: Graha
+    target: Graha
+    relation: Literal["conjunction", "drishti"]
+    aspect_kind: Optional[AspectKind] = None      # drishti only
+    orb_deg: float
+    within_orb: bool
+    basis: str
+
+
+class TargetRelationEvidence(BaseModel):
+    """Everything a D12 consumer needs about ONE target graha, so it can
+    classify without recreating any upstream doctrine."""
+    target: Graha
+    functional_malefic_conjunctions: List[RelationEdge] = Field(default_factory=list)
+    functional_malefic_drishti: List[RelationEdge] = Field(default_factory=list)
+    node_conjunctions: List[RelationEdge] = Field(default_factory=list)
+    benefic_mitigations: List[RelationEdge] = Field(default_factory=list)
+    tight_functional_malefic_affliction: bool = False
+    tight_node_conjunction: bool = False
+    approved_benefic_mitigation: bool = False
+    # Three-valued at the consumer: a target whose functional roles are under
+    # review yields UNKNOWN, never a fabricated FALSE.
+    functional_authority_resolved: bool = True
+
+
+class RelationEvidence(BaseModel):
+    """The published block. `mitigators` records WHICH grahas qualified and why,
+    so a consumer never has to re-derive Mercury's nature or the Moon's pakṣa."""
+    conjunction_orb_deg: float = TIGHT_CONJUNCTION_ORB
+    node_conjunction_orb_deg: float = TIGHT_NODE_ORB
+    aspect_orb_deg: float = TIGHT_ASPECT_ORB
+    approved_mitigators: List[Graha]
+    mitigator_basis: Dict[Graha, str]
+    functional_malefics: List[Graha]
+    functional_authority_resolved: bool
+    targets: Dict[Graha, TargetRelationEvidence]
+
+
+def approved_benefic_mitigators(natures: Dict[Graha, NaturalNature],
+                                paksha: MoonPaksha) -> tuple:
+    """Exactly Jupiter, Venus, Mercury-when-benefic, Moon-when-bright.
+
+    Mercury and the Moon are decided by the MASTER authorities above — the same
+    `resolve_natures` and `resolve_moon_paksha` every other consumer reads. There
+    is deliberately no local Mercury rule and no local pakṣa rule here.
+    """
+    approved: List[Graha] = [Graha.JUPITER, Graha.VENUS]
+    basis: Dict[Graha, str] = {
+        Graha.JUPITER: "fixed natural benefic (BPHS ch.3)",
+        Graha.VENUS: "fixed natural benefic (BPHS ch.3)",
+    }
+    if natures.get(Graha.MERCURY) == NaturalNature.BENEFIC:
+        approved.append(Graha.MERCURY)
+        basis[Graha.MERCURY] = ("master natural-nature authority reports Mercury "
+                                "benefic; no D12-local Mercury rule")
+    else:
+        basis[Graha.MERCURY] = ("master natural-nature authority reports Mercury "
+                                "malefic by association; not a mitigator")
+    if paksha.natural_nature == NaturalNature.BENEFIC:
+        approved.append(Graha.MOON)
+        basis[Graha.MOON] = (f"master pakṣa authority reports {paksha.status}; "
+                             f"bright Moon is a mitigator")
+    else:
+        basis[Graha.MOON] = (f"master pakṣa authority reports {paksha.status}; "
+                             f"dark Moon is not a mitigator")
+    return tuple(approved), basis
+
+
+def build_relation_evidence(chart: CertifiedChart,
+                            natures: Dict[Graha, NaturalNature],
+                            paksha: MoonPaksha,
+                            roles: Dict[Graha, object],
+                            aspect_edges: List[AspectEdge],
+                            house_of: Dict[Graha, int]) -> RelationEvidence:
+    """Measure, for every graha, the four relations FR-001A needs.
+
+    FUNCTIONAL malefic status is read from the birth-Lagna anchored orthogonal
+    classification and nothing else — not natural malefic, not dignity, not
+    māraka, and never re-decided from a varga Lagna.
+    """
+    lon = {g: cg.longitude for g, cg in chart.grahas.items()}
+
+    resolved = all(getattr(r, "nature_provenance", None) is not CellProvenance.REVIEW_REQUIRED
+                   for r in roles.values() if getattr(r, "lordships", None))
+
+    # CORR-01 · FUNCTIONAL malefic status comes ONLY from the genuine
+    # primary-Lagna BPHS-34 authority. compute_d1 additionally synthesises a
+    # house-polarity role for Rahu and Ketu so they can colour a house they
+    # occupy — that synthetic role carries no rāśi lordship and no Founder-
+    # ratified functional classification, and it must never be read as one here.
+    #
+    # The nodes remain natural malefics and remain fully available through
+    # node_conjunctions. What they are NOT is functional malefics, and a tight
+    # conjunction with a node must therefore not be reported as a
+    # functional-malefic affliction.
+    func_malefics = [g for g, r in roles.items()
+                     if g not in (Graha.RAHU, Graha.KETU)
+                     and getattr(r, "lordships", None)
+                     and getattr(r, "functional_nature", None) == FunctionalNature.MALEFIC]
+    mitigators, mit_basis = approved_benefic_mitigators(natures, paksha)
+
+    # The manifest is the ONLY authority on which aspects exist. Index it by
+    # (source, target graha) so orb measurement can never invent an edge.
+    offset_of = {AspectKind.SEVENTH: 7, AspectKind.FOURTH: 4, AspectKind.EIGHTH: 8,
+                 AspectKind.FIFTH: 5, AspectKind.NINTH: 9, AspectKind.THIRD: 3,
+                 AspectKind.TENTH: 10}
+    asserted: List[tuple] = []
+    for e in aspect_edges:
+        for tgt in e.target_grahas:
+            asserted.append((e.source, tgt, e.kind))
+
+    targets: Dict[Graha, TargetRelationEvidence] = {}
+    for target in Graha:
+        ev = TargetRelationEvidence(target=target,
+                                    functional_authority_resolved=resolved)
+        for source in Graha:
+            if source == target:
+                continue
+            sep = _separation(lon[source], lon[target])
+            if source in func_malefics:
+                if sep <= TIGHT_CONJUNCTION_ORB:
+                    ev.functional_malefic_conjunctions.append(RelationEdge(
+                        source=source, target=target, relation="conjunction",
+                        orb_deg=round(sep, 4), within_orb=True,
+                        basis=f"functional malefic within {TIGHT_CONJUNCTION_ORB}° "
+                              f"longitudinal separation"))
+            if source in (Graha.RAHU, Graha.KETU) and sep <= TIGHT_NODE_ORB:
+                ev.node_conjunctions.append(RelationEdge(
+                    source=source, target=target, relation="conjunction",
+                    orb_deg=round(sep, 4), within_orb=True,
+                    basis=f"node within {TIGHT_NODE_ORB}° longitudinal separation"))
+            if source in mitigators and sep <= TIGHT_CONJUNCTION_ORB:
+                ev.benefic_mitigations.append(RelationEdge(
+                    source=source, target=target, relation="conjunction",
+                    orb_deg=round(sep, 4), within_orb=True,
+                    basis=f"approved mitigator: {mit_basis[source]}"))
+
+        # Aspect orbs, measured only where the canonical manifest already
+        # asserts the aspect. No new aspect can be born here.
+        for source, tgt, kind in asserted:
+            if tgt != target or source == target:
+                continue
+            exact = _ASPECT_EXACT_DEG[offset_of[kind]]
+            orb = abs(_directed_arc(lon[source], lon[target]) - exact)
+            orb = min(orb, 360.0 - orb)
+            edge = RelationEdge(source=source, target=target, relation="drishti",
+                                aspect_kind=kind, orb_deg=round(orb, 4),
+                                within_orb=orb <= TIGHT_ASPECT_ORB,
+                                basis=f"orb on the canonical {kind.value} dṛṣṭi "
+                                      f"asserted by build_aspect_manifest")
+            if source in func_malefics and edge.within_orb:
+                ev.functional_malefic_drishti.append(edge)
+            if source in mitigators and edge.within_orb:
+                ev.benefic_mitigations.append(edge)
+
+        ev.tight_functional_malefic_affliction = bool(
+            ev.functional_malefic_conjunctions or ev.functional_malefic_drishti)
+        ev.tight_node_conjunction = bool(ev.node_conjunctions)
+        ev.approved_benefic_mitigation = bool(ev.benefic_mitigations)
+        targets[target] = ev
+
+    return RelationEvidence(approved_mitigators=list(mitigators),
+                            mitigator_basis=mit_basis,
+                            functional_malefics=sorted(func_malefics, key=lambda g: g.value),
+                            functional_authority_resolved=resolved,
+                            targets=targets)
+
 
 def _polarity_of(source: Graha, natures: Dict[Graha, NaturalNature],
                  func: Dict[Graha, object]) -> tuple:
@@ -530,6 +742,16 @@ def compute_d1(chart: CertifiedChart, varga: Varga = Varga.D1) -> tuple:
         functional_roles_orthogonal=orthogonal,
         house_influences=build_house_influences(occupants, edges, natures, func,
                                                 drishti_applicable=drishti_applicable),
+        # D12-005 · published once, here, from the authorities already resolved
+        # above. Nothing downstream recreates natural nature, functional nature,
+        # Moon pakṣa or the aspect graph.
+        relation_evidence=build_relation_evidence(
+            chart=chart, natures=natures, paksha=paksha, roles=func,
+            aspect_edges=edges, house_of=house_of),
         chart_level={},   # step 5: stature/complexion synthesis ports here, ONCE (KAR-090)
     )
     return response, doctrine
+
+
+# D12-005 · D1Doctrine forward-references RelationEvidence, defined below it.
+D1Doctrine.update_forward_refs()
