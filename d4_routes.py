@@ -42,6 +42,7 @@ import requests
 from typing import Any, Dict, Tuple
 
 from fastapi import APIRouter, Depends, HTTPException
+from starlette.concurrency import run_in_threadpool
 
 # REUSED, NOT REDEFINED. One resolver abstraction and one dependency provider
 # serve every prepare route.
@@ -345,8 +346,23 @@ async def d4_report(req: D4ReportRequest,
 
     prepared = await _resolve_and_prepare(req.chart_token, chart_payload, doctrine)
 
-    regeneration_attempted = False
-    try:
+    # D12-007-LIVE-CORR-02-CORR-01 · THE WHOLE NARRATIVE SEQUENCE LEAVES THE
+    # EVENT LOOP AS ONE UNIT.
+    #
+    # _provider_narrative ends in a blocking requests.post. Reached from this
+    # async route it ran on the event-loop thread, and with WEB_CONCURRENCY=1 it
+    # froze the only loop — /health and /d9/prepare measured ~9.0s behind a 5s
+    # provider sleep, across BOTH attempts.
+    #
+    # Encapsulating the sequence rather than each attempt keeps the doctrine
+    # exactly as written: the brief and prompt are still built once, the guard
+    # still fails closed, and regeneration still fires ONLY after a response was
+    # obtained and rejected by validation. _provider_narrative remains outside
+    # the inner try, so a missing key, a transport failure or a non-success
+    # status still fails closed on the first attempt with no second call.
+    _regen = {"attempted": False}
+
+    def _compose_narrative():
         brief = build_narrative_brief(prepared.property_state.dict(),
                                       prepared.vahana_evidence.dict(),
                                       prepared.dasha_context.dict(),
@@ -376,18 +392,21 @@ async def d4_report(req: D4ReportRequest,
         # missing key, a non-success status or a transport failure still fails
         # closed on the first attempt with no second call.
         try:
-            sections = validate_provider_output(text, brief)
+            return validate_provider_output(text, brief)
         except D4NarrativeError:
-            regeneration_attempted = True
+            _regen["attempted"] = True
             text = _provider_narrative(SYSTEM_PROMPT,
                                        user_prompt + "\n\n" + REGENERATION_INSTRUCTION)
-            sections = validate_provider_output(text, brief)
+            return validate_provider_output(text, brief)
+
+    try:
+        sections = await run_in_threadpool(_compose_narrative)
     except HTTPException:
         raise
     except Exception:
         correlation_id = uuid.uuid4().hex[:12]
         logger.exception("d4 narrative generation failed [%s] (regeneration_attempted=%s)",
-                         correlation_id, regeneration_attempted)
+                         correlation_id, _regen["attempted"])
         raise HTTPException(
             status_code=502,
             detail=f"Interpretive explanation unavailable. Reference: {correlation_id}")

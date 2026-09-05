@@ -53,6 +53,7 @@ import requests
 import os
 import json
 import logging
+import functools
 import uuid
 from typing import Any, Dict
 
@@ -1677,14 +1678,29 @@ async def generate_d7_report(req: D7ReportRequest,
     user_prompt = d7_build_provider_user_prompt(payload["client_reading"])
 
     try:
-        response = requests.post(
-            "https://api.anthropic.com/v1/messages",
-            headers={"x-api-key": api_key, "anthropic-version": "2023-06-01",
-                     "content-type": "application/json"},
-            json={"model": "claude-sonnet-4-6", "max_tokens": 3000,
-                  "system": system_prompt,
-                  "messages": [{"role": "user", "content": user_prompt}]},
-            timeout=60
+        # D12-007-LIVE-CORR-02 · THE PROVIDER CALL MUST LEAVE THE EVENT LOOP.
+        #
+        # This is an `async def` route, so this blocking requests.post with a
+        # 60s timeout ran ON the event-loop thread. With WEB_CONCURRENCY=1 one
+        # slow provider call froze the only loop, and unrelated deterministic
+        # routes — /health, /d9/prepare — could not be served. Render's edge
+        # then answered for the stalled origin, which is where the 520 with no
+        # CORS header came from: an edge response never passes through
+        # CORSMiddleware.
+        #
+        # Only the transport moves. Status mapping, prompts, payload, model and
+        # the surrounding error contract are untouched.
+        response = await run_in_threadpool(
+            functools.partial(
+                requests.post,
+                "https://api.anthropic.com/v1/messages",
+                headers={"x-api-key": api_key, "anthropic-version": "2023-06-01",
+                         "content-type": "application/json"},
+                json={"model": "claude-sonnet-4-6", "max_tokens": 3000,
+                      "system": system_prompt,
+                      "messages": [{"role": "user", "content": user_prompt}]},
+                timeout=60,
+            )
         )
         if response.status_code != 200:
             cid = uuid.uuid4().hex[:12]

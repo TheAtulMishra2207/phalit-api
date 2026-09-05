@@ -22,6 +22,7 @@ import uuid
 from typing import Any, Callable, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
+from starlette.concurrency import run_in_threadpool
 
 from d1_routes import ChartResolver, get_chart_resolver
 
@@ -102,7 +103,16 @@ async def d12_report(req: D12ReportRequest,
     provider = _require_provider()
     payload = await resolve_snapshot(resolver, req.chart_token)
     try:
-        report = build_report(req.chart_token, payload, doctrine, provider)
+        # D12-007-LIVE-CORR-02 · THE PROVIDER CALL MUST LEAVE THE EVENT LOOP.
+        #
+        # build_report() ends in a blocking requests.post to the provider with a
+        # 60s timeout. Awaited directly here it ran ON the event-loop thread, so
+        # with WEB_CONCURRENCY=1 a single slow provider call froze the only loop
+        # and every unrelated route with it — /health measured 9,052 ms behind a
+        # 5s provider sleep. Token resolution above stays async, because it is
+        # genuinely async I/O; only the blocking composition moves.
+        report = await run_in_threadpool(
+            build_report, req.chart_token, payload, doctrine, provider)
     except HTTPException:
         raise
     except SynthesisUnavailable:

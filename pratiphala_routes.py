@@ -18,6 +18,7 @@ import uuid
 from typing import Callable, Dict, List, Optional, Tuple
 
 from fastapi import APIRouter, Depends, HTTPException
+from starlette.concurrency import run_in_threadpool
 
 from d1_contract import Dignity, Graha, Varga
 from d1_chart_adapter import ChartAdapterError, to_certified_chart
@@ -266,7 +267,12 @@ async def pratiphala_report(req: PratiphalaReportRequest,
     # PF-013. The TYPED RESULT is handed to the generator, not a brief. The
     # report is assembled from it server-side; the provider supplies framing
     # only, so its text can never become a verdict.
-    report = generate_report(result, req.name)
+    # D12-007-LIVE-CORR-02-CORR-01 · THE NARRATIVE FETCH LEAVES THE LOOP.
+    #
+    # generate_report -> fetch_framing -> requests.post is blocking network I/O
+    # reached from this async route. Only the transport placement changes; the
+    # released fallback and status semantics are untouched.
+    report = await run_in_threadpool(generate_report, result, req.name)
     # The RESOLVED token, which _prepare_pratiphala already bound to the request.
     return PratiphalaReportResponse(chart_token=result.chart_token, report=report)
 

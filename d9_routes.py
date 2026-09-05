@@ -36,6 +36,7 @@ from typing import Any, Callable, Dict, List, Optional
 
 import requests
 from fastapi import APIRouter, Depends, HTTPException
+from starlette.concurrency import run_in_threadpool
 
 from d1_routes import ChartNotFound, ChartResolver, get_chart_resolver
 from d1_chart_adapter import ChartAdapterError, to_certified_chart
@@ -412,7 +413,15 @@ async def d9_report(
     # never narrative authority.
     report = prepared["report"]
 
-    synthesis = build_final_synthesis(report, _call_provider)
+    # D12-007-LIVE-CORR-02-CORR-01 · THE PROVIDER CALLBACK LEAVES THE LOOP.
+    #
+    # _call_provider is passed as a CALLBACK here, which is why a name-based
+    # audit of build_final_synthesis reported this route safe. It is not: the
+    # callback ends in a blocking requests.post with a 60s timeout, executed on
+    # the event-loop thread. Token resolution above stays async; only the
+    # synchronous synthesis moves. Fallback and status semantics are unchanged —
+    # build_final_synthesis still owns them.
+    synthesis = await run_in_threadpool(build_final_synthesis, report, _call_provider)
 
     return {
         "chart_token": req.chart_token,
